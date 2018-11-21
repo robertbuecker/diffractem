@@ -3,11 +3,179 @@
 import dask.array as da
 import h5py
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import pandas as pd
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from astropy.convolution import Gaussian2DKernel, convolve
 
 from . import gap_pixels
-from .io import save_lambda_img
+from .io import save_lambda_img, get_meta_lists, get_data_stacks, get_meta_array
 from .proc2d import correct_dead_pixels
+
+
+def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
+              rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, figsize=(15, 10), **kwargs):
+    """
+    Makes a single or multiple nice plots of a diffraction pattern and associated STEM image.
+    :param file_name:
+    :param idcs: can be a single index, or a range (or anything compatible with a DataFrame .loc)
+    :param setname: name of the image set
+    :param ovname: name of the overview set
+    :param radii: radii of points at the found diffraction peaks
+    :param beamdiam: beam diameter (in m) shown in zoomed crystal image
+    :param rings: radii of shown reference diffraction rings
+    :param clen: camera length the data has been taken with
+    :param scanpx: pixel size of overview image. Only used if no acquisition data is stored inside the file.
+    :param figsize: figure size
+    :param kwargs: other keyword arguments passed to figure command
+    :return: list of figure handles
+    """
+
+    meta = get_meta_lists(file_name, flat=True)
+    imgset = get_data_stacks(file_name, flat=True)[setname]
+    shots = meta['shots'].loc[idcs, :]
+    recpx = 0.025 / (55e-6 / clen)
+
+    if isinstance(shots, pd.Series):
+        shots = pd.DataFrame(shots).T
+
+    fh = []
+
+    for idx, shot in shots.iterrows():
+
+        fhs = plt.figure(figsize=figsize, **kwargs)
+        fh.append(fhs)
+        ax = plt.axes([0, 0, 0.66, 0.95])
+        ax2 = plt.axes([0.6, 0.5, 0.45, 0.45])
+        ax3 = plt.axes((0.6, 0, 0.45, 0.45))
+
+        dat = imgset[idx, ...].compute()
+        ax.imshow(dat, vmin=0, vmax=np.quantile(dat, 0.995), cmap='gray', label='diff')
+
+        if 'peaks' in meta.keys():
+            coords = meta['peaks'].loc[meta['peaks']['Event'] == idx, :]
+        else:
+            coords = pd.DataFrame()
+
+        ax.set_xlim((778 - 306, 778 + 306))
+        ax.set_title(
+            'Set: {}, Shot: {}, Region: {}, Run: {}, Frame: {} \n (#{} in file: {}) PEAKS: {}'.format(shot['subset'],
+                                                                                                      idx,
+                                                                                                      shot['region'],
+                                                                                                      shot['run'],
+                                                                                                      shot['frame'],
+                                                                                                      shot['shot'],
+                                                                                                      shot['file'],
+                                                                                                      len(coords), 3))
+
+        for res, col in zip(rings, 'yyy'):
+            ax.add_artist(mpl.patches.Circle((dat.shape[1] / 2, dat.shape[0] / 2),
+                                             radius=recpx / res, edgecolor=col, fill=False))
+            ax.text(dat.shape[1] / 2 + recpx / res / 1.4, dat.shape[0] / 2 - recpx / res / 1.4, '{} A'.format(res),
+                    color=col)
+
+        for _, c in coords.iterrows():
+            ax.add_artist(mpl.patches.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
+                                             radius=radii[0], fill=True, color='r', alpha=0.15))
+            ax.add_artist(mpl.patches.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
+                                             radius=radii[1], fill=False, color='y', alpha=0.2))
+            ax.add_artist(mpl.patches.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
+                                             radius=radii[2], fill=False, color='y', alpha=0.3))
+
+        ax.axis('off')
+
+        stem = get_meta_array(file_name, ovname, shot)
+
+        if 'acqdata' in meta.keys():
+            pxs = float(meta['acqdata']['Scanning_Pixel_size_x'])
+        else:
+            pxs = scanpx * 1e9
+
+        ax2.imshow(stem, cmap='gray')
+        ax2.add_artist(plt.Circle((shot['crystal_x'], shot['crystal_y']), facecolor='r'))
+        ax2.add_artist(AnchoredSizeBar(ax2.transData, 5000 / pxs, '5 um', 'lower right'))
+        ax2.axis('off')
+
+        ax3.imshow(stem, cmap='gray')
+        if not np.isnan(shot['crystal_x']):
+            ax3.set_xlim(shot['crystal_x'] + np.array([-20, 20]))
+            ax3.set_ylim(shot['crystal_y'] + np.array([-20, 20]))
+        else:
+            ax3.set_xlim(shot['pos_x'] + np.array([-20, 20]))
+            ax3.set_ylim(shot['pos_y'] + np.array([-20, 20]))
+        ax3.add_artist(AnchoredSizeBar(ax3.transData, 100 / pxs, '100 nm', 'lower right'))
+        ax3.add_artist(plt.Circle((shot['crystal_x'], shot['crystal_y']), radius=beamdiam*1e9/2/pxs, facecolor='r', alpha=0.2))
+        ax3.axis('off')
+
+    return fh
+
+
+def region_plot(file_name, regions=None, crystal_pos=True, peak_ct=True, beamdiam=100e-9, scanpx=2e-8, figsize=(10, 10),
+                **kwargs):
+    meta = get_meta_lists(file_name)
+
+    cmap = plt.cm.jet
+    fhs = []
+
+    if regions is None:
+        regions = meta['shots']['region'].drop_duplicates().values
+
+    if not hasattr(regions, '__iter__'):
+        regions = (regions,)
+
+    for reg in regions:
+
+        shots = meta['shots'].loc[meta['shots']['region'] == reg, :]
+
+        if not len(shots):
+            print('Region {} does not exist. Skipping.'.format(reg))
+            continue
+
+        shot = shots.iloc[0, :]
+
+        fh = plt.figure(figsize=figsize, **kwargs)
+        fhs.append(fh)
+
+        ax = plt.axes()
+        ax.set_title('Set: {}, Region: {}, Run: {}, # Crystals: {}'.format(shot['subset'], shot['region'], shot['run'],
+                                                                           shots['crystal_id'].max()))
+        ax.axis('off')
+
+        stem = get_meta_array(file_name, 'stem', shot)
+        ax.imshow(stem, cmap='gray')
+
+        if 'acqdata' in meta.keys():
+            acqdata = meta['acquisition_data'].loc[shot['file']]
+            pxs = float(acqdata['Scanning_Pixel_size_x'])
+        else:
+            pxs = scanpx * 1e9
+
+        if crystal_pos and peak_ct:
+            norm = int(shots['peak_count'].quantile(0.99))
+
+            def ncmap(x):
+                return cmap(x / norm)
+
+            for idx, cr in shots.loc[:, ['crystal_x', 'crystal_y', 'peak_count']].drop_duplicates().iterrows():
+                ax.add_artist(plt.Circle((cr['crystal_x'], cr['crystal_y']), radius=beamdiam * 1e9 / 2 / pxs,
+                                         facecolor=ncmap(cr['peak_count']), alpha=1))
+            # some gymnastics to get a colorbar
+            Z = [[0, 0], [0, 0]]
+            levels = range(0, norm, 1)
+            CS3 = plt.contourf(Z, levels, cmap=plt.cm.jet)
+            plt.colorbar(CS3, fraction=0.046, pad=0.04)
+            del (CS3)
+
+        elif crystal_pos:
+            for idx, cr in shots.loc[:, ['crystal_x', 'crystal_y']].drop_duplicates().iterrows():
+                ax.add_artist(
+                    plt.Circle((cr['crystal_x'], cr['crystal_y']), radius=beamdiam * 1e9 / 2 / pxs, facecolor='r',
+                               alpha=1))
+
+        ax.add_artist(AnchoredSizeBar(ax.transData, 5000 / pxs, '5 um', 'lower right', pad=0.3, size_vertical=1))
+        ax.axis('off')
+
 
 
 def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=None,
