@@ -113,7 +113,7 @@ class OverviewImg:
         self.transform_matrix = []
         self.mask = np.ndarray((0,0))
         self.crystals = pd.DataFrame()
-        self.shots = pd.DataFrame()
+        self._shots = pd.DataFrame()
         self.reference = None
         self.coordinate_source = 'none'
 
@@ -132,7 +132,7 @@ class OverviewImg:
         self.transform_matrix = []
         self.mask = np.ndarray((0,0))
         self.crystals = pd.DataFrame()
-        self.shots = pd.DataFrame()
+        self._shots = pd.DataFrame()
         self.coordinate_source = 'none'
 
     @property
@@ -149,6 +149,27 @@ class OverviewImg:
         cryst = pd.DataFrame(value[:,:2], columns=['crystal_y', 'crystal_x'], index=idx)
         cryst['crystal_id'] = idx
         self.crystals = cryst
+
+    @property
+    def shots(self):
+        return self._shots.merge(self.crystals.loc[:,['crystal_id', 'crystal_x', 'crystal_y']],
+                                 on='crystal_id', how='left')
+
+    @shots.setter
+    def shots(self, value):
+        coords_in_shots = ('crystal_x' in value.columns) and ('crystal_y' in value.columns)
+        if len(self.crystals) > 0:
+            if not value['crystal_id'].isin(self.crystals['crystal_id'].append(pd.Series(-1))).all():
+                raise ValueError('All crystal_id values in the shot list must be in the overview crystal list.')
+            if coords_in_shots:
+                print('Crystal coordinates stored in the shot list will be ignored!')
+
+        elif coords_in_shots:
+            print('Setting crystal coordinates from shot list!')
+            self.crystals = value.query('crystal_id >= 0').drop_duplicates(subset='crystal_id').\
+                                loc[:,['crystal_id', 'crystal_x', 'crystal_y']].reset_index(drop=True)
+
+        self._shots = value.loc[:,['crystal_id', 'pos_x', 'pos_y', 'frame']]
 
     def get_regionprops(self):
         return regionprops(self.labels, self.img, cache=True, coordinates='rc')

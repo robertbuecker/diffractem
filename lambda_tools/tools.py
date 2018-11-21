@@ -140,7 +140,6 @@ def region_plot(file_name, regions=None, crystal_pos=True, peak_ct=True, beamdia
         ax = plt.axes()
         ax.set_title('Set: {}, Region: {}, Run: {}, # Crystals: {}'.format(shot['subset'], shot['region'], shot['run'],
                                                                            shots['crystal_id'].max()))
-        ax.axis('off')
 
         stem = get_meta_array(file_name, 'stem', shot)
         ax.imshow(stem, cmap='gray')
@@ -175,6 +174,8 @@ def region_plot(file_name, regions=None, crystal_pos=True, peak_ct=True, beamdia
 
         ax.add_artist(AnchoredSizeBar(ax.transData, 5000 / pxs, '5 um', 'lower right', pad=0.3, size_vertical=1))
         ax.axis('off')
+
+        return fhs
 
 
 

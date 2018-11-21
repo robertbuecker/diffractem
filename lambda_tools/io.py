@@ -234,14 +234,15 @@ def save_lambda_img(img, base_fname='lambda_image', formats=('nxs',),
                 #print('Wrote MRC file: ' + fn_out)
 
             elif f.lower() == 'cbf':
-                d = img.squeeze()
-                if d.ndim > 2:
-                    raise ValueError('CBF cannot store stacks!')
-                with fabio.cbfimage.CbfImage(data=d) as fh:
-                    if meta is not None:
-                        fh.header['_array_data.header_contents'] = make_header_string(meta, **kwargs)
-                    fh.write(fn_out)
-                print('Wrote CBF file: ' + fn_out)
+                raise NotImplementedError('CBF does not work at the moment. Sorry.')
+                #d = img.squeeze()
+                #if d.ndim > 2:
+                #    raise ValueError('CBF cannot store stacks!')
+                #with fabio.cbfimage.CbfImage(data=d) as fh:
+                #    if meta is not None:
+                #        fh.header['_array_data.header_contents'] = make_header_string(meta, **kwargs)
+                #    fh.write(fn_out)
+                #print('Wrote CBF file: ' + fn_out)
 
             else:
                 raise ValueError('Formats can be h5, nxs, tif, or mrc(s)! Use eiger2cbf to make CBF files from nxs.')
