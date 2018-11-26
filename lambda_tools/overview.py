@@ -285,17 +285,19 @@ class OverviewImg:
         inrange = (0 <= sh['pos_x']) & (sh['pos_x'] < self.img.shape[1]) & (0 <= sh['pos_y']) & (sh['pos_y'] < self.img.shape[0])
         sh = sh.loc[inrange,:]
         if y_pos_tol is not None:
-            sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(self.img.shape[0]/20), max_rows=self.img.shape[0])
+            sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(self.img.shape[0]/50),
+                                       max_rows=self.img.shape[0], inc=50)
         sh = tools.set_frames(sh, frames)
         sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
         self.shots = sh
 
-    def export_scan_list(self, filename, delim=','):
+    def export_scan_list(self, filename, delim=' '):
         scanpos = self.shots.loc[:,['pos_x', 'pos_y']] / self.img.shape[::-1]
-        scanpos.to_csv(filename, sep=delim, header=False, index=False)
+        scanpos.to_csv(filename, sep=delim, header=False, index=False, line_terminator='\r\n')
 
-    def make_mask(self, offset=[0,0], spotsize=0, pattern=None, init_cols=1, binary_fn=None):
+    def make_mask(self, offset_x=0, offset_y=0, spotsize=0, pattern=None, init_cols=1, binary_fn=None):
 
+        offset = np.array([offset_y, offset_x])
         mask = np.zeros(self.img.shape).astype(np.int16)
         idcs = (self.coordinates[:,:2] + offset).round().astype(int)
         valid = (idcs[:, 0] >= 0) & (idcs[:, 1] >= 0) & (idcs[:, 0] < mask.shape[0]) & (idcs[:, 1] < mask.shape[1])
