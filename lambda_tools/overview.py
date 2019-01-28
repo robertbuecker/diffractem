@@ -13,6 +13,8 @@ from skimage.measure import label, regionprops
 from skimage.morphology import erosion, dilation, disk, watershed
 from skimage.transform import matrix_transform
 from tifffile import imread, imsave
+import os
+import h5py
 
 from lambda_tools import tools, io
 
@@ -104,11 +106,7 @@ class OverviewImg:
         self.tilt = 0
         self.region_id = region_id
         self.run_id = run_id
-        if subset is None:
-            self.subset = self.build_subset_name()
-        else:
-            self.subset = subset
-        self.meta = {}
+        self._subset = None
         self.labels = np.ndarray((0,0))
         self.transform_matrix = []
         self.mask = np.ndarray((0,0))
@@ -116,9 +114,22 @@ class OverviewImg:
         self._shots = pd.DataFrame()
         self.reference = None
         self.coordinate_source = 'none'
+        self._detector_file = None
+        self._img_label = None
 
         if basename is not None:
             self.read(basename)
+
+    @property
+    def subset(self):
+        if self._subset is not None:
+            return self._subset
+        else:
+            return 'overview_{}_{}'.format(self.region_id, self.run_id)
+
+    @subset.setter
+    def subset(self, value):
+        self._subset = value
 
     @property
     def img(self):
@@ -152,8 +163,21 @@ class OverviewImg:
 
     @property
     def shots(self):
-        return self._shots.merge(self.crystals.loc[:,['crystal_id', 'crystal_x', 'crystal_y']],
+        cols = [c for c in ['crystal_id', 'crystal_x', 'crystal_y']
+                if c in self.crystals.columns]
+
+        retsh = self._shots.merge(self.crystals.loc[:,cols],
                                  on='crystal_id', how='left')
+        retsh['run'] = self.run_id
+        retsh['region'] = self.region_id
+        retsh['shot'] = range(len(retsh))
+        retsh['subset'] = self.subset
+        retsh['stem'] = self._img_label
+        if self.mask.size:
+            retsh['mask'] = self._img_label
+        if self.detector_file is not None:
+            retsh['file'] = self.detector_file
+        return retsh
 
     @shots.setter
     def shots(self, value):
@@ -170,6 +194,19 @@ class OverviewImg:
                                 loc[:,['crystal_id', 'crystal_x', 'crystal_y']].reset_index(drop=True)
 
         self._shots = value.loc[:,['crystal_id', 'pos_x', 'pos_y', 'frame']]
+
+    @property
+    def detector_file(self):
+        # this may be a place to mangle with directories
+        return self._detector_file
+
+    @detector_file.setter
+    def detector_file(self, value):
+        # this may be a place to mangle with directories...
+        # strip extension
+        if '.nxs' in value:
+            value = value.rsplit('.',1)[0]
+        self._detector_file = value
 
     def get_regionprops(self):
         return regionprops(self.labels, self.img, cache=True, coordinates='rc')
@@ -392,9 +429,6 @@ class OverviewImg:
 
         return colors, imgh, scath
 
-    def build_subset_name(self):
-        return 'overview_{}_{}'.format(self.region_id, self.run_id)
-
     @classmethod
     def from_h5(cls, filename, region_id=0, run_id=0, subset=None):
         """
@@ -413,13 +447,12 @@ class OverviewImg:
             cryst = meta['crystals']
             self.crystals = cryst.loc[(cryst['region']==self.region_id) & (cryst['run']==self.run_id),:]
 
-        elif 'shots' in meta.keys():
-            self.shots = meta['shots'].loc[(meta['shots']['region'] == self.region_id) & (meta['shots']['run'] == self.run_id),:]
-            cryst = self.shots
-            self.crystals = cryst.loc[(cryst['region'] == self.region_id) & (cryst['run'] == self.run_id) & (cryst['crystal_id'] >= 0),
-                              ['crystal_y', 'crystal_x', 'crystal_id', 'region', 'run']].drop_duplicates()
+        if 'shots' in meta.keys():
+            self.shots = meta['shots'].loc[
+                         (meta['shots']['region'] == self.region_id) & (meta['shots']['run'] == self.run_id), :]
+            cryst = meta['crystals']
 
-        else:
+        if len(self.crystals) == 0:
             raise ValueError('No crystals or shots list found in HDF5 file.')
 
         if 'stem_acqdata' in meta.keys():
@@ -427,7 +460,7 @@ class OverviewImg:
             self.tilt = np.round(self.meta['Stage_A'].values * 180 / np.pi)
 
         if 'stem' in cryst.columns:
-            self.img = io.get_meta_array(filename, 'stem', cryst.iloc[0, :], subset=self.subset)
+            self._img = io.get_meta_array(filename, 'stem', cryst.iloc[0, :], subset=self.subset)
 
         if 'mask' in cryst.columns:
             self.mask = io.get_meta_array(filename, 'mask', cryst.iloc[0, :], subset=self.subset)
@@ -438,18 +471,14 @@ class OverviewImg:
 
     def to_h5(self, filename):
         """
-        Write overview image data into a HDF5 file conforming to the downstream analysis codes
+        Write overview image data into a HDF5 file conforming to the downstream analysis codes.
+        Note that this is a total mess.
         :param filename: output filename
         :param region_id: region id to set in the shot data
         :param run_id: run id to set in the shot data
         :param subset: subset label to set in the shot data
         :return:
         """
-
-        if self.subset is None:
-            subset = self.build_subset_name()
-        else:
-            subset = self.subset
 
         cryst = self.crystals.copy()
         cryst['region'] = self.region_id
@@ -458,18 +487,18 @@ class OverviewImg:
         acqdata = json_normalize(self.meta, sep='_')
         acqdata.columns = [cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
                            for cn in acqdata.columns]
+
         lists = {'crystals': cryst, 'stem_acqdata': acqdata}
 
-        if self._shots.size:
-            sh = self.shots.copy()
-            sh['region'] = self.region_id
-            sh['run'] = self.run_id
-            lists.update({'shots': sh})
+        # note: this has side-effects!
+        self._img_label, _ = io.store_meta_array(filename, 'stem', {'region': self.region_id, 'run': self.run_id}, self.img, shots=cryst,
+                            listname='crystals', subset_label=self.subset)
 
-        io.store_meta_array(filename, 'stem', {'region': self.region_id, 'run': self.run_id}, self.img, shots=cryst,
-                            subset_label=subset)
+        if self.shots.size:
+            lists.update({'shots': self.shots})
+
         if self.mask.size:
             io.store_meta_array(filename, 'mask', {'region': self.region_id, 'run': self.run_id}, self.mask, shots=cryst,
-                                subset_label=subset)
+                                subset_label=self.subset)
 
-        io.store_meta_lists(filename, {subset: lists}, flat=False) # MUST go last, as store_meta_array has side-effects
+        io.store_meta_lists(filename, {self.subset: lists}, flat=False) # MUST go last, as store_meta_array has side-effects

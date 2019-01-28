@@ -470,6 +470,18 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
 
 def parse_acquisition_meta(shot_list, filename=None, include_meta=True, include_stem=True, include_mask=True,
                            subset_label=None, stem_postfix='_foc.tif', mask_postfix='_coll_mask.tif'):
+    """
+    Grabs the acquisition data from the JSON file, as well as optionally STEM and mask files.
+    :param shot_list:
+    :param filename:
+    :param include_meta:
+    :param include_stem:
+    :param include_mask:
+    :param subset_label:
+    :param stem_postfix:
+    :param mask_postfix:
+    :return:
+    """
 
 
     # iterate over file names, as they are unique, even between the subsets
@@ -628,11 +640,12 @@ def store_data_stacks(filename, stacks, flat=True, shots=None, **kwargs):
     print('Computing and storing the following stacks: ')
     for k, v in allstacks.items():
         print(k, '\t', v)
-        try:
-            assert v.shape[0] == allstacks[list(allstacks.keys())[0]].shape[0]
-            assert v.chunks[0] == allstacks[list(allstacks.keys())[0]].chunks[0]
-        except AssertionError as err:
-            raise ValueError('Height or chunk structure of stacks are not equal!')
+        #incompatible with multiple subsets
+        #try:
+        #    assert v.shape[0] == allstacks[list(allstacks.keys())[0]].shape[0]
+        #    assert v.chunks[0] == allstacks[list(allstacks.keys())[0]].chunks[0]
+        #except AssertionError as err:
+        #    raise ValueError('Height or chunk structure of stacks are not equal!')
 
     with dask.diagnostics.ProgressBar():
         #print(kwargs)
@@ -640,18 +653,21 @@ def store_data_stacks(filename, stacks, flat=True, shots=None, **kwargs):
         da.to_hdf5(filename, allstacks, **kwargs)
 
 
-def store_meta_array(filename, array_label, identifier, array, shots=None,
+def store_meta_array(filename, array_label, identifier, array, shots=None, listname=None,
                     subset_label=None, base_path='entry/meta', chunks=None, 
                     simulate=False, **kwargs):
 
+    if listname is None:
+        listname = 'shots'
+
     if shots is None:
-        shots = get_meta_lists(filename, flat=True)['shots']
+        shots = get_meta_lists(filename, flat=True)[listname]
 
     if not subset_label:
         if 'subset' in shots.columns:
             labels = shots['subset'].drop_duplicates()
             if len(labels) > 1:
-                raise ValueError('If shot list has more than one subset, a ' +
+                raise ValueError('If shot/crystal list has more than one subset, a ' +
                                  'subset label must be given to associate the meta array with.')
             subset_label = labels.iloc[0]
 
@@ -673,18 +689,20 @@ def store_meta_array(filename, array_label, identifier, array, shots=None,
 
     if simulate:
         print(meta_path)
-        return
+        return label_string, meta_path
 
     else:
         if chunks is None:
             chunks = array.shape
         darr = da.from_array(array, chunks)
-        print('Writing array to: ' + meta_path)
+        #print('Writing array to: ' + meta_path)
         da.to_hdf5(filename, {meta_path: darr}, **kwargs)
         if 'subset' in shots.columns:
-            store_meta_lists(filename, {'shots': shots}, flat=True)
+            store_meta_lists(filename, {listname: shots}, flat=True)
         else:
-            store_meta_lists(filename, {subset_label: {'shots': shots}}, flat=False)
+            store_meta_lists(filename, {subset_label: {listname: shots}}, flat=False)
+
+    return label_string, meta_path
 
 
 def get_meta_lists(filename, flat=True, base_path='/entry/meta'):
@@ -720,7 +738,7 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta'):
             for tn, td in sd.items():
                 td['subset'] = sn
                 tables[tn].append(td)
-        lists = {k: pd.concat(v, sort=False) for k, v in tables.items()}
+        lists = {k: pd.concat(v, sort=False).reset_index(drop=True) for k, v in tables.items()}
 
     return lists
 

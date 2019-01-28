@@ -15,7 +15,7 @@ from .proc2d import correct_dead_pixels
 
 
 def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
-              rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, figsize=(15, 10), **kwargs):
+              rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, figsize=(15, 10), **kwargs):
     """
     Makes a single or multiple nice plots of a diffraction pattern and associated STEM image.
     :param file_name:
@@ -47,8 +47,6 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
         fhs = plt.figure(figsize=figsize, **kwargs)
         fh.append(fhs)
         ax = plt.axes([0, 0, 0.66, 0.95])
-        ax2 = plt.axes([0.6, 0.5, 0.45, 0.45])
-        ax3 = plt.axes((0.6, 0, 0.45, 0.45))
 
         dat = imgset[idx, ...].compute()
         ax.imshow(dat, vmin=0, vmax=np.quantile(dat, 0.995), cmap='gray', label='diff')
@@ -85,6 +83,11 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
 
         ax.axis('off')
 
+        if not stem:
+            return
+
+        ax2 = plt.axes([0.6, 0.5, 0.45, 0.45])
+        ax3 = plt.axes((0.6, 0, 0.45, 0.45))
         stem = get_meta_array(file_name, ovname, shot)
 
         if 'acqdata' in meta.keys():
