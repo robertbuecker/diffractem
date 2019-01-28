@@ -227,7 +227,7 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
 
 # now some functions for mangling with scan lists...
 
-def quantize_y_scan(shots, maxdev=1, min_rows=100, max_rows=500, inc=10, ycol='pos_y', ycol_to=None, xcol='pos_x'):
+def quantize_y_scan(shots, maxdev=1, min_rows=30, max_rows=500, inc=10, ycol='pos_y', ycol_to=None, xcol='pos_x'):
     """
     Reads a DataFrame containing scan points (in columns xcol and ycol), and quantizes the y positions (scan rows) to
     a reduced number of discrete values, keeping the deviation of the quantized rows to the actual y positions

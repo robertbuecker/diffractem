@@ -6,8 +6,10 @@ setup(
     packages=['lambda_tools'],
     url='',
     license='',
+    scripts=['bin/nxs2tif.py'],
     author='Robert Buecker',
     author_email='robert.buecker@mpsd.mpg.de',
     description='Some tools for working with serial TEM data acquired with a Lambda Medipix-based detector.',
-    requires=['h5py','fabio','pytables','numpy','pandas','dask','tifffile','scipy','astropy']
+    install_requires=['h5py','fabio','numpy','pandas',
+              'dask','tifffile','scipy','astropy','matplotlib','scikit-learn','numba']
 )

@@ -1,8 +1,6 @@
-import json
 import re
 from glob import glob
 from warnings import warn
-import fabio.cbfimage
 import h5py
 import tables # this is required to register additional HDF filters in h5py. Black magic.
 import numpy as np

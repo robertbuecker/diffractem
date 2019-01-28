@@ -285,8 +285,8 @@ class OverviewImg:
         inrange = (0 <= sh['pos_x']) & (sh['pos_x'] < self.img.shape[1]) & (0 <= sh['pos_y']) & (sh['pos_y'] < self.img.shape[0])
         sh = sh.loc[inrange,:]
         if y_pos_tol is not None:
-            sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(self.img.shape[0]/50),
-                                       max_rows=self.img.shape[0], inc=50)
+            sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(min(self.img.shape[0]/100, len(sh)-10)),
+                                       max_rows=self.img.shape[0], inc=25)
         sh = tools.set_frames(sh, frames)
         sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
         self.shots = sh
@@ -460,7 +460,7 @@ class OverviewImg:
                            for cn in acqdata.columns]
         lists = {'crystals': cryst, 'stem_acqdata': acqdata}
 
-        if self.shots.size:
+        if self._shots.size:
             sh = self.shots.copy()
             sh['region'] = self.region_id
             sh['run'] = self.run_id
