@@ -15,7 +15,7 @@ from .proc2d import correct_dead_pixels
 
 
 def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
-              rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, figsize=(15, 10), **kwargs):
+              rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, peaks=True, figsize=(15, 10), **kwargs):
     """
     Makes a single or multiple nice plots of a diffraction pattern and associated STEM image.
     :param file_name:
@@ -51,7 +51,7 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
         dat = imgset[idx, ...].compute()
         ax.imshow(dat, vmin=0, vmax=np.quantile(dat, 0.995), cmap='gray', label='diff')
 
-        if 'peaks' in meta.keys():
+        if ('peaks' in meta.keys()) and peaks:
             coords = meta['peaks'].loc[meta['peaks']['Event'] == idx, :]
         else:
             coords = pd.DataFrame()
@@ -88,19 +88,19 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
 
         ax2 = plt.axes([0.6, 0.5, 0.45, 0.45])
         ax3 = plt.axes((0.6, 0, 0.45, 0.45))
-        stem = get_meta_array(file_name, ovname, shot)
+        stemimg = get_meta_array(file_name, ovname, shot)
 
         if 'acqdata' in meta.keys():
-            pxs = float(meta['acqdata']['Scanning_Pixel_size_x'])
+            pxs = float(meta['acqdata'].query('region=={} & run=={} & subset==\'{}\''.format(shot['region'], shot['run'], shot['subset']))['Scanning_Pixel_size_x'])
         else:
             pxs = scanpx * 1e9
 
-        ax2.imshow(stem, cmap='gray')
+        ax2.imshow(stemimg, cmap='gray')
         ax2.add_artist(plt.Circle((shot['crystal_x'], shot['crystal_y']), facecolor='r'))
         ax2.add_artist(AnchoredSizeBar(ax2.transData, 5000 / pxs, '5 um', 'lower right'))
         ax2.axis('off')
 
-        ax3.imshow(stem, cmap='gray')
+        ax3.imshow(stemimg, cmap='gray')
         if not np.isnan(shot['crystal_x']):
             ax3.set_xlim(shot['crystal_x'] + np.array([-20, 20]))
             ax3.set_ylim(shot['crystal_y'] + np.array([-20, 20]))
@@ -280,7 +280,7 @@ def set_frames(shots, frames=1):
     return shl_rep
 
 
-def insert_init(shots, predist=100, dxmax=200, xcol='pos_x'):
+def insert_init(shots, predist=100, dxmax=200, xcol='pos_x', initpoints=1):
     """
     Insert initialization frames into scan list, to mitigate hysteresis and beam tilt streaking when scanning along x.
     Works by inserting a single frame each time the x coordinate decreases (beam moves left) or increases by more
@@ -290,11 +290,12 @@ def insert_init(shots, predist=100, dxmax=200, xcol='pos_x'):
     :param predist: distance of the initialization shot from the actual image along x
     :param dxmax: maximum allowed jump size (in pixels) to the right.
     :param xcol: name of x position column
+    :param initpoints: number of initialization points added
     :return: scan list with inserted additional points
     """
 
     def add_init(sh1):
-        initline = sh1.iloc[:1, :].copy()
+        initline = sh1.iloc[:initpoints, :].copy()
         initline['crystal_id'] = -1
         initline['frame'] = -1
         if predist is not None:

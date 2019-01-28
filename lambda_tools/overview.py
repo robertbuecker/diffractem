@@ -106,7 +106,7 @@ class OverviewImg:
         self.tilt = 0
         self.region_id = region_id
         self.run_id = run_id
-        self._subset = None
+        self._subset = subset
         self.labels = np.ndarray((0,0))
         self.transform_matrix = []
         self.mask = np.ndarray((0,0))
@@ -115,6 +115,8 @@ class OverviewImg:
         self.reference = None
         self.coordinate_source = 'none'
         self._detector_file = None
+        self.meta = None
+        self.meta_diff = None
         self._img_label = None
 
         if basename is not None:
@@ -125,7 +127,7 @@ class OverviewImg:
         if self._subset is not None:
             return self._subset
         else:
-            return 'overview_{}_{}'.format(self.region_id, self.run_id)
+            return 'overview_{:03d}_{:03d}'.format(self.region_id, self.run_id)
 
     @subset.setter
     def subset(self, value):
@@ -207,6 +209,17 @@ class OverviewImg:
         if '.nxs' in value:
             value = value.rsplit('.',1)[0]
         self._detector_file = value
+        #try:
+        fn = value + '.json'
+        if os.path.isfile(fn):
+            print('Reading file {}'.format(fn))
+            m = json.load(open(fn))
+            self.meta_diff = json_normalize(m, sep='_')
+            self.meta_diff.columns = [
+                cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
+                for cn in self.meta_diff.columns]
+            #except:
+        #    print('Could not read detector meta file.')
 
     def get_regionprops(self):
         return regionprops(self.labels, self.img, cache=True, coordinates='rc')
@@ -392,7 +405,11 @@ class OverviewImg:
         try:
             fn = basename + '.json'
             print('Reading file {}'.format(fn))
-            self.meta = json.load(open(fn))
+            m = json.load(open(fn))
+            self.meta = json_normalize(m, sep='_')
+            self.meta.columns = [
+                cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
+                for cn in self.meta.columns]
         except:
             print('Could not read meta file')
 
@@ -430,27 +447,51 @@ class OverviewImg:
         return colors, imgh, scath
 
     @classmethod
-    def from_h5(cls, filename, region_id=0, run_id=0, subset=None):
+    def from_h5(cls, filename, region_id=None, run_id=None, subset=None):
         """
         Load overview image data from HDF5 file. Caveat: acquisition metadata will be flattened!
-        :param filename:
-        :param region_id:
-        :param run_id:
-        :param subset:
-        :return:
+        :param filename: obvious, right?
+        :param region_id: if None (by default), assumes that the selected subset contains only one region/run
+        :param run_id: if None (by default), assumes that the selected subset contains only one region/run
+        :param subset: if None (by default), assumes that the file contains only a single subset
+        :return: an OverviewImg object
         """
-        self = cls(region_id=region_id, run_id=run_id, subset=subset)
 
-        meta = io.get_meta_lists(filename, flat=False)[self.subset]
+        meta = io.get_meta_lists(filename, flat=False)
+
+        if subset is None:
+            if len(meta) > 1:
+                raise ValueError('File contains more than one subset. You have to specify which one to read.')
+            else:
+                subset = list(meta.keys())[0]
+
+        meta = meta[subset]
+
+        if (region_id is None) or (run_id is None):
+            regrun = []
+            for k, v in meta.items():
+                if ('run' in v.columns) and ('region' in v.columns):
+                    regrun.append(v[['region','run']])
+
+            if not regrun:
+                raise ValueError('Meta lists do not seem to contain region/run information. You have to give them explicitly!')
+
+            regrun = pd.concat(regrun).drop_duplicates()
+            if len(regrun) > 1:
+                raise ValueError('Subset contains more than one region/run. You have to give it explicitly!')
+
+            region_id = regrun.iloc[0, :]['region']
+            run_id = regrun.iloc[0, :]['run']
+
+        self = cls(region_id=region_id, run_id=run_id, subset=subset)
 
         if 'crystals' in meta.keys():
             cryst = meta['crystals']
-            self.crystals = cryst.loc[(cryst['region']==self.region_id) & (cryst['run']==self.run_id),:]
+            self.crystals = cryst.loc[(cryst['region']==self.region_id) & (cryst['run']==self.run_id), :]
 
         if 'shots' in meta.keys():
             self.shots = meta['shots'].loc[
                          (meta['shots']['region'] == self.region_id) & (meta['shots']['run'] == self.run_id), :]
-            cryst = meta['crystals']
 
         if len(self.crystals) == 0:
             raise ValueError('No crystals or shots list found in HDF5 file.')
@@ -459,11 +500,11 @@ class OverviewImg:
             self.meta = meta['stem_acqdata'].loc[(meta['stem_acqdata']['region']==self.region_id) & (meta['stem_acqdata']['run']==self.run_id)]
             self.tilt = np.round(self.meta['Stage_A'].values * 180 / np.pi)
 
-        if 'stem' in cryst.columns:
-            self._img = io.get_meta_array(filename, 'stem', cryst.iloc[0, :], subset=self.subset)
+        if 'stem' in self.crystals.columns:
+            self._img = io.get_meta_array(filename, 'stem', self.crystals.iloc[0, :], subset=self.subset)
 
-        if 'mask' in cryst.columns:
-            self.mask = io.get_meta_array(filename, 'mask', cryst.iloc[0, :], subset=self.subset)
+        if 'mask' in self.crystals.columns:
+            self.mask = io.get_meta_array(filename, 'mask', self.crystals.iloc[0, :], subset=self.subset)
 
         self.crystals.drop(['region', 'run'], axis=1, inplace=True)
 
@@ -472,33 +513,39 @@ class OverviewImg:
     def to_h5(self, filename):
         """
         Write overview image data into a HDF5 file conforming to the downstream analysis codes.
-        Note that this is a total mess.
+        Note that this is a total mess so far.
         :param filename: output filename
-        :param region_id: region id to set in the shot data
-        :param run_id: run id to set in the shot data
-        :param subset: subset label to set in the shot data
         :return:
         """
 
+        # all the implicit fields now have to be made explicit
         cryst = self.crystals.copy()
         cryst['region'] = self.region_id
         cryst['run'] = self.run_id
-        self.meta.update({'region': self.region_id, 'run': self.run_id})
-        acqdata = json_normalize(self.meta, sep='_')
-        acqdata.columns = [cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
-                           for cn in acqdata.columns]
+        lists = {'crystals': cryst}
 
-        lists = {'crystals': cryst, 'stem_acqdata': acqdata}
+        if self.meta is not None:
+            m = self.meta.copy()
+            m['region'] = self.region_id
+            m['run'] = self.run_id
+            lists.update({'stem_acqdata': m})
 
-        # note: this has side-effects!
+        if self.meta_diff is not None:
+            md = self.meta_diff.copy()
+            md['region'] = self.region_id
+            md['run'] = self.run_id
+            lists.update({'acqdata': md})
+
+        # note: this has side-effects (but that's ok -> adds the STEM data set name)!
         self._img_label, _ = io.store_meta_array(filename, 'stem', {'region': self.region_id, 'run': self.run_id}, self.img, shots=cryst,
                             listname='crystals', subset_label=self.subset)
-
-        if self.shots.size:
-            lists.update({'shots': self.shots})
 
         if self.mask.size:
             io.store_meta_array(filename, 'mask', {'region': self.region_id, 'run': self.run_id}, self.mask, shots=cryst,
                                 subset_label=self.subset)
+
+        # must come last, so that all other parameters are properly set (shots is auto-generated)
+        if self.shots.size:
+            lists.update({'shots': self.shots})
 
         io.store_meta_lists(filename, {self.subset: lists}, flat=False) # MUST go last, as store_meta_array has side-effects

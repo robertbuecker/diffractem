@@ -19,12 +19,20 @@ def read_crystfel_stream(filename):
 
     with open(filename,'r') as fh:
         fstr = StringIO(fh.read())
-    event = -1
+    event = ''
+    shotnr = -1
+    subset = ''
+    serial = -1
     init = False
     linedat = []
     for ln, l in enumerate(fstr):
         if 'Event:' in l:
-            event = int(l.split('//')[-1])
+            event = l.split(': ')[-1].strip()
+            shotnr = int(event.split('//')[1])
+            subset = event.split('//')[0].strip()
+            continue
+        if 'Image serial number:' in l:
+            serial = int(l.split(': ')[1])
             continue
         if 'fs/px' in l:
             init = True
@@ -33,11 +41,11 @@ def read_crystfel_stream(filename):
             init = False
             continue
         if init:
-            linedat.append('{} {}'.format(l.strip(), event))
+            linedat.append('{} {} {} {} {}'.format(l.strip(), event, serial, subset, shotnr))
     return pd.read_csv(StringIO('\n'.join(linedat)), delim_whitespace=True, header=None,
-                       names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'Event']
-                       ).sort_values('Event').\
-                        reset_index().sort_values(['Event','index']).reset_index(drop=True).drop('index', axis=1)
+                       names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'Event', 'serial', 'subset', 'shot_in_subset']
+                       ).sort_values('serial').\
+                        reset_index().sort_values(['serial','index']).reset_index(drop=True).drop('index', axis=1)
 
 
 def read_nxds_spots(filename='SPOT.nXDS', merge_into=None):
@@ -803,6 +811,14 @@ def get_meta_array(filename, array_label, shot, subset=None, base_path='/entry/m
         array = fh[pathname][:]
 
     return array
+
+
+def copy_meta_array(fn_from, fn_to, shots, array_name='stem', prefix='/entry/meta'):
+    with h5py.File(fn_from) as fh1, h5py.File(fn_to) as fh2:
+        for _, path in shots[['subset', array_name]].drop_duplicates().iterrows():
+            fullpath = '{}/{}/{}/{}'.format(prefix,path['subset'],array_name,path[array_name])
+            print('Copying ' + fullpath)
+            fh2[fullpath] = fh1[fullpath][:]
 
 
 def filter_shots(filename_in, filename_out, query, min_chunk=None, shots=None, list_args=None, stack_args=None):

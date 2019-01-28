@@ -328,13 +328,18 @@ def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limi
     param = np.array([amp, x_0, y_0, scale])
     # print(param)
 
-    if threads:
-        # new algorithm: uses multithreaded evaluation sometimes, which is not always desired!
-        out = optimize.least_squares(error, param, jac=jacobian, loss='linear',
-                                     max_nfev=1000, method='lm', verbose=0).x
-    else:
-        # old algorithm never uses multithreading. May be better.
-        out = optimize.leastsq(error, param, Dfun=jacobian)[0]
+    try:
+        if threads:
+            # new algorithm: uses multithreaded evaluation sometimes, which is not always desired!
+            out = optimize.least_squares(error, param, jac=jacobian, loss='linear',
+                                         max_nfev=1000, method='lm', verbose=0).x
+        else:
+            # old algorithm never uses multithreading. May be better.
+            out = optimize.leastsq(error, param, Dfun=jacobian)[0]
+
+    except Exception as err:
+        print('Fitting did not work: {}'.format(err))
+        return param
 
     change = out - param
     if limit and np.abs(change[1:3]).max() >= limit:

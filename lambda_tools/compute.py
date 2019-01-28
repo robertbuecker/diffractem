@@ -1,5 +1,7 @@
 import numpy as np
 from dask import array as da
+import pandas as pd
+import dask.array as da
 
 def map_reduction_func(darr, fun, *args, output_len=1, dtype=np.float, **kwargs):
     """
@@ -31,6 +33,16 @@ def map_reduction_func(darr, fun, *args, output_len=1, dtype=np.float, **kwargs)
     out = darr.map_blocks(fun, *args_new, chunks=(darr.chunks[0], output_len),
                           drop_axis=(1,2), new_axis=1, dtype=dtype, **kwargs)
     return out
+
+def aggregate_frames(imgs: da.Array, shots: pd.DataFrame, first=0, last=-1):
+
+    for sgrp in shots.groupby(['crystal_id', 'run', 'region', 'subset']):
+        if last == -1:
+            end = sgrp['shot'].max()
+        else:
+            end = last
+        shot_nr = sgrp.loc[(sgrp['shot'] >= first) & (sgrp['shot'] >= end), 'shot']
+
 
 
 def process_stack(imgs, ops, execution='threads', **kwargs):
