@@ -15,7 +15,7 @@ import dask.diagnostics
 from io import StringIO
 
 
-def read_crystfel_stream(filename):
+def read_crystfel_stream(filename, serial_zero_based=True):
 
     with open(filename,'r') as fh:
         fstr = StringIO(fh.read())
@@ -33,6 +33,8 @@ def read_crystfel_stream(filename):
             continue
         if 'Image serial number:' in l:
             serial = int(l.split(': ')[1])
+            if serial_zero_based:
+                serial -= 1
             continue
         if 'fs/px' in l:
             init = True
@@ -411,7 +413,7 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
         shot_list = shots_or_files
 
     if drop_invalid:
-        valid = (shot_list[['region', 'crystal_id', 'run', 'frame']] >= 0).all(axis=1)
+        valid = (shot_list[['region', 'crystal_id', 'run', 'frame', 'shot']] >= 0).all(axis=1)
         shot_list_final = shot_list.loc[valid,:].copy()
     else:
         shot_list_final = shot_list.copy()
@@ -713,7 +715,7 @@ def store_meta_array(filename, array_label, identifier, array, shots=None, listn
     return label_string, meta_path
 
 
-def get_meta_lists(filename, flat=True, base_path='/entry/meta'):
+def get_meta_lists(filename, flat=True, base_path='/entry/meta', labels=None):
     """
     Reads all pandas metadata lists from a (processed) HDF file and returns them as a nested dictionary of DataFrames.
     Typically the first function to call on a file, also useful to just get a quick idea what data is in it.
@@ -736,8 +738,7 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta'):
         lists.update({name: {}})
         #print(grp.name)
         for tname, tgrp in grp.items():
-            #print(tname)
-            if 'pandas_type' in tgrp.attrs:
+            if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
                 lists[name].update({tname: pd.read_hdf(filename, tgrp.name)})
 
     if flat:
@@ -751,7 +752,7 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta'):
     return lists
 
 
-def get_data_stacks(filename, flat=True, base_path='/entry/data'):
+def get_data_stacks(filename, flat=True, base_path='/entry/data', labels=None):
     """
     Reads all data arrays from a (processed) HDF file as dask dataframes and returns them as a nested dictionary.
     :param filename: Name of the HDF data file from serial acquisition.
@@ -771,7 +772,7 @@ def get_data_stacks(filename, flat=True, base_path='/entry/data'):
     for name, grp in subsets.items():
         stacks.update({name: {}})
         for tname, ds in grp.items():
-            if isinstance(ds, h5py.Dataset):
+            if ((labels is None) or (tname in labels)) and isinstance(ds, h5py.Dataset):
                 stacks[name].update({tname: da.from_array(ds, chunks=ds.chunks)})
 
     if flat:

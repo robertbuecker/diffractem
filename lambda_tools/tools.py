@@ -15,7 +15,8 @@ from .proc2d import correct_dead_pixels
 
 
 def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
-              rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, peaks=True, figsize=(15, 10), **kwargs):
+              rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, peaks=True, figsize=(15, 10),
+              meta = None, **kwargs):
     """
     Makes a single or multiple nice plots of a diffraction pattern and associated STEM image.
     :param file_name:
@@ -28,12 +29,14 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
     :param clen: camera length the data has been taken with
     :param scanpx: pixel size of overview image. Only used if no acquisition data is stored inside the file.
     :param figsize: figure size
+    :param meta: give meta lists explicitly, instead of loading them from the data file. Might be faster.
     :param kwargs: other keyword arguments passed to figure command
     :return: list of figure handles
     """
 
-    meta = get_meta_lists(file_name, flat=True)
-    imgset = get_data_stacks(file_name, flat=True)[setname]
+    if meta is None:
+        meta = get_meta_lists(file_name, flat=True)
+    imgset = get_data_stacks(file_name, flat=True, labels=[setname,])[setname]
     shots = meta['shots'].loc[idcs, :]
     recpx = 0.025 / (55e-6 / clen)
 
@@ -52,7 +55,7 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
         ax.imshow(dat, vmin=0, vmax=np.quantile(dat, 0.995), cmap='gray', label='diff')
 
         if ('peaks' in meta.keys()) and peaks:
-            coords = meta['peaks'].loc[meta['peaks']['Event'] == idx, :]
+            coords = meta['peaks'].loc[meta['peaks']['serial'] == idx, :]
         else:
             coords = pd.DataFrame()
 
