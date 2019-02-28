@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>cfelpyutils.geometry_utils module &#8212; cfelpyutils 0.5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">cfelpyutils 0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/cfelpyutils.geometry_utils.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-cfelpyutils.geometry_utils">
+<span id="cfelpyutils-geometry-utils-module"></span><h1>cfelpyutils.geometry_utils module<a class="headerlink" href="#module-cfelpyutils.geometry_utils" title="Permalink to this headline">¶</a></h1>
+<p>Geometry utilities.</p>
+<p>Functions that load, manipulate and apply geometry information to
+detector pixel data.</p>
+<dl class="function">
+<dt id="cfelpyutils.geometry_utils.adjust_pixel_maps_for_pyqtgraph">
+<code class="descclassname">cfelpyutils.geometry_utils.</code><code class="descname">adjust_pixel_maps_for_pyqtgraph</code><span class="sig-paren">(</span><em>pixel_maps</em><span class="sig-paren">)</span><a class="headerlink" href="#cfelpyutils.geometry_utils.adjust_pixel_maps_for_pyqtgraph" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adjust pixel maps for visualization of the data in a pyqtgraph
+widget.</p>
+<p>The adjusted maps can be used for a Pyqtgraph ImageView widget.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>ndarray</strong><strong>, </strong><strong>ndarray</strong><strong>]</strong> (<em>Tuple</em><em>[</em><em>ndarray</em><em>,</em>) &#8211; a named tuple containing the</li>
+<li><strong>maps. The first two fields</strong><strong>, </strong><strong>&quot;x&quot; and &quot;y&quot;</strong><strong>, </strong><strong>should store the</strong> (<em>pixel</em>) &#8211; </li>
+<li><strong>maps for the x coordinateand the y coordinate. The third</strong><strong>,</strong> (<em>pixel</em>) &#8211; </li>
+<li><strong>should instead store the distance of each pixel in the</strong> (<em>&quot;r&quot;</em><em>,</em>) &#8211; </li>
+<li><strong>array from the center of the reference system.</strong> (<em>data</em>) &#8211; </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><dl class="docutils">
+<dt>Tuple[ndarray, ndarray] A tuple containing the pixel</dt>
+<dd><p class="first last">maps. The first two fields, named &#8220;x&#8221; and &#8220;y&#8221; respectively,
+store the pixel maps for the x coordinate and the y
+coordinate. The third field, named &#8220;r&#8221;, is instead a pixel
+map storing the distance of each pixel in the data array
+from the center of the reference system.</p>
+</dd>
+</dl>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="cfelpyutils.geometry_utils.apply_pixel_maps">
+<code class="descclassname">cfelpyutils.geometry_utils.</code><code class="descname">apply_pixel_maps</code><span class="sig-paren">(</span><em>data</em>, <em>pixel_maps</em>, <em>output_array=None</em><span class="sig-paren">)</span><a class="headerlink" href="#cfelpyutils.geometry_utils.apply_pixel_maps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply geometry in pixel map format to the input data.</p>
+<p>Turn an array of detector pixel values into an array
+containing a representation of the physical layout of the detector.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>data</strong> (<em>ndarray</em>) &#8211; array containing the data on which the geometry
+will be applied.</li>
+<li><strong>pixel_maps</strong> (<em>PixelMaps</em>) &#8211; a pixelmap tuple, as returned by the
+<a class="reference internal" href="#cfelpyutils.geometry_utils.compute_pixel_maps" title="cfelpyutils.geometry_utils.compute_pixel_maps"><code class="xref py py-obj docutils literal"><span class="pre">compute_pixel_maps</span></code></a> function in this module.</li>
+<li><strong>output_array</strong> (<em>Optional</em><em>[</em><em>ndarray</em><em>]</em>) &#8211; a preallocated array (of
+dtype numpy.float32) to store the function output. If
+provided, this array will be filled by the function and
+and returned to the user. If not provided, the function
+will create a new array automatically and return it to the
+user. Defaults to None (No array provided).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a numpy.float32 array containing the geometry
+information applied to the input data (i.e.: a representation
+of the physical layout of the detector).</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">ndarray</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="cfelpyutils.geometry_utils.compute_minimum_array_size">
+<code class="descclassname">cfelpyutils.geometry_utils.</code><code class="descname">compute_minimum_array_size</code><span class="sig-paren">(</span><em>pixel_maps</em><span class="sig-paren">)</span><a class="headerlink" href="#cfelpyutils.geometry_utils.compute_minimum_array_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the minimum size of an array that can store the applied
+geometry.</p>
+<p>Return the minimum size of an array that can store data on which
+the geometry information described by the pixel maps has been
+applied.</p>
+<p>The returned array shape is big enough to display all the input
+pixel values in the reference system of the physical detector. The
+array is supposed to be centered at the center of the reference
+system of the detector (i.e: the beam interaction point).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ndarray</strong><strong>, </strong><strong>ndarray</strong><strong>]</strong> (<em>Tuple</em><em>[</em><em>ndarray</em><em>,</em>) &#8211; a named tuple containing the
+pixel maps. The first two fields, &#8220;x&#8221; and &#8220;y&#8221;, should store
+the pixel maps for the x coordinateand the y coordinate.
+The third, &#8220;r&#8221;, should instead store the distance of each
+pixel in the data array from the center of the reference
+system.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a numpy-style shape tuple storing the minimum
+array size.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">Tuple[int, int]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="cfelpyutils.geometry_utils.compute_pixel_maps">
+<code class="descclassname">cfelpyutils.geometry_utils.</code><code class="descname">compute_pixel_maps</code><span class="sig-paren">(</span><em>geometry</em><span class="sig-paren">)</span><a class="headerlink" href="#cfelpyutils.geometry_utils.compute_pixel_maps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute pixel maps from a CrystFEL geometry object.</p>
+<p>Take as input a CrystFEL-style geometry object (A dictionary
+returned by the function load_crystfel_geometry function in the
+crystfel_utils module) and return a PixelMap tuple . The origin the
+reference system used by the pixel maps is set at the beam
+interaction point.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>geometry</strong> (<em>dict</em>) &#8211; A CrystFEL geometry object (A dictionary
+returned by the
+<a class="reference internal" href="cfelpyutils.crystfel_utils.html#cfelpyutils.crystfel_utils.load_crystfel_geometry" title="cfelpyutils.crystfel_utils.load_crystfel_geometry"><code class="xref py py-obj docutils literal"><span class="pre">cfelpyutils.crystfel_utils.load_crystfel_geometry</span></code></a>
+function).</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Tuple[ndarray, ndarray, ndarray] A tuple containing the pixel
+maps. The first two fields, named &#8220;x&#8221; and &#8220;y&#8221; respectively,
+store the pixel maps for the x coordinate and the y coordinate.
+The third field, named &#8220;r&#8221;, is instead a pixel map storing the
+distance of each pixel in the data array from the center of the
+reference system.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">cfelpyutils 0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, CFEL Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.6.
+    </div>
+  </body>
+</html>
