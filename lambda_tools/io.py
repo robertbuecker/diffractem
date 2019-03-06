@@ -400,9 +400,13 @@ def make_master_h5_legacy(files, master_name='master.h5', pxmask=None,
     return nimg
 
 
-def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
-                   drop_invalid=True, max_chunk=16384, min_chunk=None,
+def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_id', 'frame'),
+                   drop_invalid=True, aggregate=None, agg_by=('subset', 'region', 'run', 'crystal_id'),
+                  max_chunk=16384, min_chunk=None,
                    data_path='/entry/instrument/detector/data',**kwargs):
+
+    sort_by = list(sort_by)
+    agg_by = list(agg_by)
 
     if isinstance(shots_or_files, str) \
             or isinstance(shots_or_files, list) \
@@ -418,12 +422,11 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
     else:
         shot_list_final = shot_list.copy()
 
-    # make selection
     if 'selected' in shot_list_final.columns:
         shot_list_final = shot_list_final.loc[shot_list_final['selected'],:]
 
     if sort_by is not None:
-        shot_list_final.sort_values(list(sort_by), inplace=True)
+        shot_list_final.sort_values(sort_by, inplace=True)
 
     # In the following, some magic is done to get the optimal chunking for all following operations.
     # file_block in each of the dataframes is an ID of continuous blocks that will remain together
@@ -436,6 +439,8 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
     shot_list = shot_list.merge(shot_list_final[['file_block', ]], left_index=True, right_index=True, how='outer').fillna(-1)
     block_change2 = shot_list['file_block'] != shot_list['file_block'].shift(1)
     shot_list['file_block'] = block_change2.astype(int).cumsum() - 1
+
+    shot_list_final.reset_index(drop=True, inplace=True)
 
     stacks = {}
 
@@ -452,13 +457,27 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
 
     imgs = []
 
-    # no go file_block-wise through the final shot list and append the corresponding ranges of images.
+    # now go file_block-wise through the final shot list and append the corresponding ranges of images.
     # as we have done the chunking according to the same file_block structure, this operation does not
     # change any chunks (which would be expensive)
     for _, shdat in shot_list_final.groupby('file_block'):
         img_block = stacks[shdat['file'].iloc[0]][shdat['shot'].values,...]
         imgs.append(img_block)
     stack = da.concatenate(imgs)
+
+    # now aggregate the shots if desired by summing or averaging
+    if aggregate is not None:
+        agg_stack = []
+        agg_shots = []
+        for nm, grp in shot_list_final.groupby(agg_by):
+            if aggregate in 'sum':
+                agg_stack.append(stack[grp.index.values, ...].sum(axis=0, keepdims=True))
+            if aggregate in ['mean', 'average', 'avg']:
+                agg_stack.append(stack[grp.index.values, ...].mean(axis=0, keepdims=True))
+            agg_shots.append(grp.iloc[0, :])  # at this point, they all should be the same
+
+        shot_list_final = pd.DataFrame(agg_shots).reset_index(drop=True)
+        stack = da.concatenate(agg_stack)
 
     # Finally, optionally re-chunk the stack such that all chunks are at least min_chunk large,
     # respecting the chunk boundaries as they are
@@ -475,7 +494,7 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
 
         stack = stack.rechunk({0: tuple(fchks)})
 
-    return stack, shot_list_final.reset_index(drop=True)
+    return stack, shot_list_final
 
 
 def parse_acquisition_meta(shot_list, filename=None, include_meta=True, include_stem=True, include_mask=True,
@@ -726,20 +745,51 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta', labels=None):
     'subset2_name": .....} etc. if flat=False.
     """
 
-    fh = h5py.File(filename, 'r')
     subsets = {}
-    for name, grp in fh[base_path].items():
-        #print(name)
-        if isinstance(grp, h5py.Group):
-            subsets.update({name: grp})
-
     lists = {}
-    for name, grp in subsets.items():
-        lists.update({name: {}})
-        #print(grp.name)
-        for tname, tgrp in grp.items():
-            if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
-                lists[name].update({tname: pd.read_hdf(filename, tgrp.name)})
+
+    if filename.rsplit('.',1)[1] == 'h5':
+        fh = h5py.File(filename, 'r')
+        for name, grp in fh[base_path].items():
+            if isinstance(grp, h5py.Group):
+                lists.update({name: {}})
+                for tname, tgrp in grp.items():
+                    if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
+                        lists[name].update({tname: pd.read_hdf(filename, tgrp.name)})
+
+        fh.close()
+
+    # TODO: parallelize this using e.g. joblib or concurrent.futures
+    if filename.rsplit('.',1)[1] == 'lst':
+        with open(filename) as fh:
+            fns = [fn.strip() for fn in fh.readlines()]
+
+        for fn in fns:
+            fh = h5py.File(fn.strip(), 'r')
+            name = fn.rsplit('.', 1)[0].rsplit('/',1)[-1]
+            if name in lists.keys():
+                raise ValueError('File names in list file must be unique (different directories do not suffice).')
+
+            if 'shots' in fh[base_path].keys():         # lists are directly stored in base path (new scheme)
+                grp = fh[base_path]
+
+            else:   # legacy file
+                found = False
+                for _, theGrp in fh[base_path].items():
+                    if found:
+                        raise ValueError('When operating with a list file, only single-subset h5 files are allowed.')
+                    if isinstance(theGrp, h5py.Group):
+                        grp = theGrp
+                        found = True
+                if not found:
+                    raise ValueError('No group found below path ' + base_path)
+
+            lists.update({name: {}})
+            for tname, tgrp in grp.items():
+                if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
+                    lists[name].update({tname: pd.read_hdf(fn, tgrp.name)})
+
+            fh.close()
 
     if flat:
         tables = defaultdict(list)
@@ -749,6 +799,7 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta', labels=None):
                 tables[tn].append(td)
         lists = {k: pd.concat(v, sort=False).reset_index(drop=True) for k, v in tables.items()}
 
+    del subsets
     return lists
 
 
