@@ -16,7 +16,7 @@ from .proc2d import correct_dead_pixels
 
 def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
               rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, peaks=True, figsize=(15, 10),
-              meta = None, **kwargs):
+              meta=None, stacks=None, **kwargs):
     """
     Makes a single or multiple nice plots of a diffraction pattern and associated STEM image.
     :param file_name:
@@ -36,7 +36,10 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
 
     if meta is None:
         meta = get_meta_lists(file_name, flat=True)
-    imgset = get_data_stacks(file_name, flat=True, labels=[setname,])[setname]
+    if stacks is None:
+        imgset = get_data_stacks(file_name, flat=True, labels=[setname,])[setname]
+    else:
+        imgset = stacks[setname]
     shots = meta['shots'].loc[idcs, :]
     recpx = 0.025 / (55e-6 / clen)
 
