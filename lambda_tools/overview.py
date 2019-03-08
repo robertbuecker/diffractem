@@ -242,7 +242,7 @@ class OverviewImg:
     def get_regionprops(self):
         return regionprops(self.labels, self.img, cache=True, coordinates='rc')
 
-    def find_particles(self, show_plot=True,
+    def find_particles(self, show_plot=True, show_segments=True,
                        thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49, two_pass=False,  # thresholding
                        morph_method='legacy', morph_disk=2, remove_carbon_lacing=False,  # morphology
                        segmentation_method='distance-watershed', min_dist=8,  # segmentation
@@ -438,11 +438,14 @@ class OverviewImg:
             #ax[0, 1].imshow(self.labels, cmap='flag_r')
             #ax[0, 1].set_title('Segments')
             ax[1].imshow(img, cmap='gray', vmin=np.percentile(img, 1))
-            ax[1].scatter(self.coordinates[:, 1], self.coordinates[:, 0], marker='o', facecolors='none', edgecolors='y', s=20)
-            #ax[1].contour(self.labels, np.arange(self.labels.max()) + 0.5, linewidths=0.5, cmap='flag_r')
+            if show_segments:
+                ax[1].contour(self.labels, np.arange(self.labels.max()) + 0.5, linewidths=0.5, cmap='flag_r')
+
+            ax[1].scatter(self.coordinates[:, 1], self.coordinates[:, 0], marker='o', facecolors='none', edgecolors='g',
+                          s=20)
             #ax[1].contour(self.labels, np.arange(self.labels.max())+0.5, linewidths=0.5, colors='green')
-            for ii in range(self.labels.max()):
-                ax[1].contour(self.labels == ii, [0.5], linewidths=0.5, colors='green')
+            #for ii in range(self.labels.max()):
+            #    ax[1].contour(self.labels == ii, [0.5], linewidths=0.5, colors='green')
             ax[1].set_title('{} coordinates, {} segments'.format(self.coordinates.shape[0], self.labels.max()))
             #plt.show()
 
@@ -676,11 +679,11 @@ class OverviewImg:
         cryst['run'] = self.run_id
         lists = {'crystals': cryst}
 
-        if self.meta is not None:
-            m = self.meta.copy()
-            m['region'] = self.region_id
-            m['run'] = self.run_id
-            lists.update({'stem_acqdata': m})
+        #if self.meta is not None:
+        #    m = self.meta.copy()
+        #    m['region'] = self.region_id
+        #    m['run'] = self.run_id
+        #    lists.update({'stem_acqdata': m})
 
         if self.meta_diff is not None:
             md = self.meta_diff.copy()

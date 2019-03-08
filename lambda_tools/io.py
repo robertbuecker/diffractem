@@ -608,6 +608,18 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     return new_lists, new_stacks
 
 
+def make_virtual_h5(list_name, h5_name):
+
+    with h5py.File(h5_name, 'w') as fh, open(list_name) as fh2:
+        for fn in fh2.readlines():
+            fn = fn.strip()
+            name = fn.rsplit('.', 1)[0].rsplit('/', 1)[-1]
+            fh['/entry/meta/' + name] = h5py.ExternalLink(fn, '/entry/meta')
+
+
+def require_h5_files(shots, listfile, path='.'):
+    raise NotImplementedError('Oh Oh!')
+
 def store_meta_lists(filename, lists, flat=True, **kwargs):
     """
     Store pandas DataFrames into HDF file, using the standard structure.
@@ -618,6 +630,12 @@ def store_meta_lists(filename, lists, flat=True, **kwargs):
     :param kwargs: forwarded to pandas.DataFrame.to_hdf
     :return: nothing
     """
+
+    #if filename.rsplit('.',1)[1] == 'lst':
+    #    make_virtual_h5(filename, 'temp.h5')
+    #    fn2 = 'temp.h5'
+    #else:
+    #    fn2 = filename
 
     with pd.HDFStore(filename) as store:
 
@@ -637,7 +655,7 @@ def store_meta_lists(filename, lists, flat=True, **kwargs):
                     #print(ssn, '/entry/meta/{}/{}'.format(ssn, ln))
                     try:
                         store.put('/entry/meta/{}/{}'.format(ssn, ln), ssl, format='table', data_columns=True, **kwargs)
-                    except ValueError as err:
+                    except Exception as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
                         store.put('/entry/meta/{}/{}'.format(ssn, ln), ssl, format='table', **kwargs)
 
