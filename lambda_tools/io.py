@@ -13,9 +13,10 @@ import json
 from collections import defaultdict
 import dask.diagnostics
 from io import StringIO
+import os.path
 
 
-def read_crystfel_stream(filename, serial_zero_based=True):
+def read_crystfel_stream_pkonly(filename, serial_zero_based=True):
 
     with open(filename,'r') as fh:
         fstr = StringIO(fh.read())
@@ -48,6 +49,96 @@ def read_crystfel_stream(filename, serial_zero_based=True):
                        names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'Event', 'serial', 'subset', 'shot_in_subset']
                        ).sort_values('serial').\
                         reset_index().sort_values(['serial','index']).reset_index(drop=True).drop('index', axis=1)
+
+
+def read_crystfel_stream(filename, serial_offset=-1):
+    import pandas as pd
+    from io import StringIO
+    with open(filename, 'r') as fh:
+        fstr = StringIO(fh.read())
+    event = -1
+    shotnr = -1
+    subset = ''
+    serial = -1
+    init_peak = False
+    init_index = False
+    linedat_peak = []
+    linedat_index = []
+    for ln, l in enumerate(fstr):
+
+        # Event id and indexing scheme
+        if 'Event:' in l:
+            event = l.split(': ')[-1].strip()
+            shotnr = int(event.split('//')[1])
+            subset = event.split('//')[0].strip()
+            continue
+        if 'Image serial number:' in l:
+            serial = int(l.split(': ')[1]) + serial_offset
+            continue
+        if 'indexed_by' in l:
+            indexer = l.split(' ')[2].replace("\n", "")
+            continue
+
+        # Information from the peak search
+        if 'End of peak list' in l:
+            init_peak = False
+            continue
+
+        if init_peak:
+            linedat_peak.append('{} {} {} {} {}'.format(l.strip(), event, serial, subset, shotnr))
+
+        if 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in l:  # 'Peaks from peak search' in l: #Placed after the writing, so that line are written from the next
+            init_peak = True
+            continue
+
+        # Information from the indexing
+        if 'Cell parameters' in l:
+            a, b, c, dummy, al, be, ga = l.split(' ')[2:9]
+            continue
+        if 'astar' in l:
+            astar_x, astar_y, astar_z = l.split(' ')[2:5]
+            continue
+        if 'bstar' in l:
+            bstar_x, bstar_y, bstar_z = l.split(' ')[2:5]
+            continue
+        if 'cstar' in l:
+            cstar_x, cstar_y, cstar_z = l.split(' ')[2:5]
+            continue
+        if 'predict_refine/det_shift' in l:
+            xshift = l.split(' ')[3]
+            yshift = l.split(' ')[6]
+            continue
+
+        if 'End of reflections' in l:
+            init_index = False
+            continue
+
+        if init_index:
+            recurrent_info = [event, serial, subset, shotnr, indexer, a, b, c, al, be, ga, astar_x, astar_y, astar_z, bstar_x, bstar_y,
+                              bstar_z, cstar_x, cstar_y, cstar_z]  # List with recurrent info
+            recurrent_info = ' '.join(
+                map(str, recurrent_info))  # Transform list of several element in a list of a single string
+            linedat_index.append('{} {}'.format(l.strip(), recurrent_info))
+
+        if 'h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in l:  # Placed after the writing, so that line are written from the next
+            init_index = True
+            continue
+
+    df_peak = pd.read_csv(StringIO('\n'.join(linedat_peak)), delim_whitespace=True, header=None,
+                          names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'Event', 'serial', 'subset', 'shot_in_subset']
+                          ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
+    df_index = pd.read_csv(StringIO('\n'.join(linedat_index)), delim_whitespace=True, header=None,
+                           names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel',
+                                  'Event', 'serial', 'subset', 'shot_in_subset', 'Indexer', 'a', 'b', 'c', 'Alpha', 'Beta', 'Gamma',
+                                  'astar_x', 'astar_y', 'astar_z', 'bstar_x', 'bstar_y', 'bstar_z', 'cstar_x',
+                                  'cstar_y', 'cstar_z']
+                           ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
+
+    # Added 'sort=False' as a suggestion from a warning message...not sure if appropriate
+    #df = df_peak.append(df_index, ignore_index=True,
+    #                    sort=False)  # , pd.concat([df_peak,df_index], keys=['peak', 'indexer']) to add hierarchical indexes, but here all the 'peak' have the Indexer column displaying NaN
+
+    return df_peak, df_index
 
 
 def read_nxds_spots(filename='SPOT.nXDS', merge_into=None):
@@ -405,6 +496,9 @@ def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_i
                   max_chunk=16384, min_chunk=None,
                    data_path='/entry/instrument/detector/data',**kwargs):
 
+    # TODO: documentation
+    # TODO: check nxs file for dropped frames and other anomalies
+
     sort_by = list(sort_by)
     agg_by = list(agg_by)
 
@@ -446,6 +540,7 @@ def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_i
 
     # read the image stacks from all nxs files as dask arrays, chunking them according to file_block
     for _, fn in shot_list_final['file'].drop_duplicates().items():
+        print(f'Reading raw file {fn}')
         fh = h5py.File(fn + '.nxs')
         ds = fh[data_path]
         cs0 = shot_list.groupby(['file','file_block']).size().loc[fn].values
@@ -558,25 +653,25 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     :param lists: flat dict of lists. Does not handle subsets, so use flat=True when reading from file
     :param stacks: dict of arrays. Again, not accounting for subsets. Use flat=True for reading
     :param min_chunk: minimum chunk size of the output arrays along the stacked dimension
-    :param reset_index: if True, the returned shot list has its index reset, with correspondingly updated Event numbers in peak list. Recommended.
+    :param reset_index: if True, the returned shot list has its index reset, with correspondingly updated serial numbers in peak list. Recommended.
     :return new_lists, new_stacks: subselected lists and stacks
     """
-
+#n
     shots = lists['shots']  # just a shortcut
     new_lists = lists.copy()
     new_lists['shots'] = lists['shots'].query('selected').copy()
-
+    print('Keeping {} shots out of {}'.format(len(new_lists['shots']),len(shots)))
     if 'peaks' in lists.keys():
         # remove rejected shots from the peak list
         # TODO: why is this not simply done with a right merge?
-        peaksel = lists['peaks'].merge(shots[['selected']], left_on='Event', right_index=True)['selected']
+        peaksel = lists['peaks'].merge(shots[['selected']], left_on='serial', right_index=True)['selected']
         new_lists['peaks'] = lists['peaks'].loc[peaksel, :]
 
         if reset_shot_index:
             new_lists['shots']['newEv'] = range(len(new_lists['shots']))
             new_lists['peaks'] = new_lists['peaks'].merge(new_lists['shots'].loc[:, ['newEv', ]],
-                                                          left_on='Event', right_index=True)
-            new_lists['peaks']['Event'] = new_lists['peaks']['newEv']
+                                                          left_on='serial', right_index=True)
+            new_lists['peaks']['serial'] = new_lists['peaks']['newEv']
             new_lists['peaks'].drop('newEv', axis=1, inplace=True)
             new_lists['shots'].drop('newEv', axis=1, inplace=True)
 
@@ -608,13 +703,15 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     return new_lists, new_stacks
 
 
-def make_virtual_h5(list_name, h5_name):
+def make_virtual_h5(listfile, h5_name, require_files=True):
 
-    with h5py.File(h5_name, 'w') as fh, open(list_name) as fh2:
-        for fn in fh2.readlines():
-            fn = fn.strip()
-            name = fn.rsplit('.', 1)[0].rsplit('/', 1)[-1]
-            fh['/entry/meta/' + name] = h5py.ExternalLink(fn, '/entry/meta')
+    with h5py.File(h5_name, 'w') as fh, open(listfile) as fh2:
+        for datafile in fh2.readlines():
+            datafile = datafile.strip()
+            if require_files and (not os.path.isfile(datafile)):
+                pass
+            name = datafile.rsplit('.', 1)[0].rsplit('/', 1)[-1]
+            fh['/entry/meta/' + name] = h5py.ExternalLink(datafile, '/entry/meta')
 
 
 def require_h5_files(shots, listfile, path='.'):

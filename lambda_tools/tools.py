@@ -16,7 +16,7 @@ from .proc2d import correct_dead_pixels
 
 def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
               rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, peaks=True, figsize=(15, 10),
-              meta=None, stacks=None, **kwargs):
+              meta=None, stacks=None, width=616, xoff=0, yoff=0, ellipticity = 0, **kwargs):
     """
     Makes a single or multiple nice plots of a diffraction pattern and associated STEM image.
     :param file_name:
@@ -62,7 +62,7 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
         else:
             coords = pd.DataFrame()
 
-        ax.set_xlim((778 - 306, 778 + 306))
+        ax.set_xlim((778 - width/2, 778 + width/2))
         ax.set_title(
             'Set: {}, Shot: {}, Region: {}, Run: {}, Frame: {} \n (#{} in file: {}) PEAKS: {}'.format(shot['subset'],
                                                                                                       idx,
@@ -73,11 +73,11 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
                                                                                                       shot['file'],
                                                                                                       len(coords), 3))
 
-        for res, col in zip(rings, 'yyy'):
-            ax.add_artist(mpl.patches.Circle((dat.shape[1] / 2, dat.shape[0] / 2),
-                                             radius=recpx / res, edgecolor=col, fill=False))
+        for res in rings:
+            ax.add_artist(mpl.patches.Ellipse((dat.shape[1] / 2 + xoff, dat.shape[0] / 2 + yoff),
+                                             width=2*(recpx / res), height=2*(recpx / res * (1+ellipticity)), edgecolor='y', fill=False))
             ax.text(dat.shape[1] / 2 + recpx / res / 1.4, dat.shape[0] / 2 - recpx / res / 1.4, '{} A'.format(res),
-                    color=col)
+                    color='y')
 
         for _, c in coords.iterrows():
             ax.add_artist(mpl.patches.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
@@ -90,7 +90,7 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
         ax.axis('off')
 
         if not stem:
-            return
+            continue
 
         ax2 = plt.axes([0.6, 0.5, 0.45, 0.45])
         ax3 = plt.axes((0.6, 0, 0.45, 0.45))
