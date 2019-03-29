@@ -315,26 +315,93 @@ def insert_init(shots, predist=100, dxmax=200, xcol='pos_x', initpoints=1):
     return grps.apply(add_init).reset_index(drop=True)
 
 
-# DOES NOT WORK YET
-def call_crystfel(filename, streamfile='cfout.stream', procs=40, exc='opts/crystfel/bin/indexamajig',
-                  geom='lambda_centered_h5.geom', **kwargs):
+def call_indexamajig(input, geometry, output='im_out.stream', cell=None, im_params=None, index_params=None,
+                     procs=40, exc='indexamajig', **kwargs):
 
-    raise NotImplementedError('This function does not work yet.')
+    '''Generates an indexamajig command from a dictionary of indexamajig parameters, a exc dictionary of files names and core number, and an indexer dictionary
 
-    with open('cfrun.lst', 'w') as fh:
-        fh.write(filename)
+    e.g.
 
-    call = [exc, '-g ' + geom, '-j {}'.format(procs), '-i cfrun.lst', '-o ' + streamfile]
+    im_params = {'min-res': 10, 'max-res': 300, 'min-peaks': 0,
+                      'int-radius': '3,4,6', 'min-snr': 4, 'threshold': 0,
+                      'min-pix-count': 2, 'max-pix-count':100,
+                      'peaks': 'peakfinder8', 'fix-profile-radius': 0.1e9,
+                      'indexing': 'none', 'push-res': 2, 'no-cell-combinations': None,
+                      'integration': 'rings-rescut','no-refine': None,
+                      'no-non-hits-in-stream': None, 'no-retry': None, 'no-check-peaks': None} #'local-bg-radius': False,
 
-    for k, v in kwargs:
-        call.append('--{}={}'.format(v))
+    index_params ={'pinkIndexer-considered-peaks-count': 4,
+             'pinkIndexer-angle-resolution': 4,
+             'pinkIndexer-refinement-type': 0,
+             'pinkIndexer-thread-count': 1,
+             'pinkIndexer-tolerance': 0.10}
+             '''
 
-    import subprocess
 
-    p = subprocess.Popen(call, stdout=subprocess.PIPE)
+    exc_dic = {'g': geometry, 'i': input, 'o': output, 'j': procs}
 
-    while p.poll() is None:
-        l = p.stdout.readline()  # This blocks until it receives a newline.
-        print(l)
+    for k, v in exc_dic.items():
+        exc += f' -{k} {v}'
 
-    print(p.stdout.read())
+    if cell is not None:
+        exc += f' -p {cell}'
+
+    for kk, vv in im_params.items():
+        if vv is not None:
+            exc += f' --{kk}={vv}'
+        else:
+            exc += f' --{kk}'
+
+    # If the indexer dictionary is not empty
+    if index_params:
+        for kkk, vvv in index_params.items():
+            if vvv is not None:
+                exc += f' --{kkk}={vvv}'
+            else:
+                exc += f' --{kkk}'
+
+    return exc
+
+
+def dict2file(file_name, file_dic, header=None):
+
+    fid = open(file_name, 'w')  # Open file
+
+    if header is not None:
+        fid.write(header)  # Header
+        fid.write("\n\n")
+
+    for k, v in file_dic.items():
+        fid.write("{} = {}".format(k, v))
+        fid.write("\n")
+
+    fid.close()  # Close file
+
+
+def make_geometry(parameters, file_name=None):
+    par = {'photon_energy': 495937,
+           'adu_per_photon': 2,
+           'clen': 1.587900,
+           'res': 18181.8181818181818181,
+           'mask': '/entry/data/%/pxmask_centered',
+           'mask_good': '0x01',
+           'mask_bad': '0x00',
+           'data': '/entry/data/%/centered',
+           'dim0': '%',
+           'dim1': 'ss',
+           'dim2': 'fs',
+           'p0/min_ss': 0,
+           'p0/max_ss': 615,
+           'p0/min_fs': 0,
+           'p0/max_fs': 1555,
+           'p0/corner_y': -308,
+           'p0/corner_x': -778,
+           'p0/fs': '+x',
+           'p0/ss': '+y'}
+
+    par.update(parameters)
+
+    if file_name is not None:
+        dict2file(file_name, par, header=';Auto-generated Lambda detector file')
+
+    return par
