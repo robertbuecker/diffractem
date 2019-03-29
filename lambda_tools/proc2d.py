@@ -751,6 +751,10 @@ def center_image(imgs, x0, y0, xsize, ysize, padval):
         # Preprocess arguments and call function again, using map_blocks along the stack direction
         x0 = x0.reshape(-1, 1, 1)
         y0 = y0.reshape(-1, 1, 1)
+        if not isinstance(x0, da.Array):
+            x0 = da.from_array(x0, (imgs.chunks[0], 1))
+        if not isinstance(y0, da.Array):
+            y0 = da.from_array(y0, (imgs.chunks[0], 1))
         return imgs.map_blocks(center_image, x0, y0, xsize, ysize, padval,
                                chunks=(imgs.chunks[0], ysize, xsize),
                                dtype=imgs.dtype)
