@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/lambda-tools.iml" filepath="$PROJECT_DIR$/.idea/lambda-tools.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../lambda_control/.idea/lambda_control.iml" filepath="$PROJECT_DIR$/../lambda_control/.idea/lambda_control.iml" />
     </modules>
   </component>
 </project>

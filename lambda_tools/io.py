@@ -13,9 +13,10 @@ import json
 from collections import defaultdict
 import dask.diagnostics
 from io import StringIO
+import os.path
 
 
-def read_crystfel_stream(filename, serial_zero_based=True):
+def read_crystfel_stream_pkonly(filename, serial_zero_based=True):
 
     with open(filename,'r') as fh:
         fstr = StringIO(fh.read())
@@ -48,6 +49,96 @@ def read_crystfel_stream(filename, serial_zero_based=True):
                        names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'Event', 'serial', 'subset', 'shot_in_subset']
                        ).sort_values('serial').\
                         reset_index().sort_values(['serial','index']).reset_index(drop=True).drop('index', axis=1)
+
+
+def read_crystfel_stream(filename, serial_offset=-1):
+    import pandas as pd
+    from io import StringIO
+    with open(filename, 'r') as fh:
+        fstr = StringIO(fh.read())
+    event = -1
+    shotnr = -1
+    subset = ''
+    serial = -1
+    init_peak = False
+    init_index = False
+    linedat_peak = []
+    linedat_index = []
+    for ln, l in enumerate(fstr):
+
+        # Event id and indexing scheme
+        if 'Event:' in l:
+            event = l.split(': ')[-1].strip()
+            shotnr = int(event.split('//')[1])
+            subset = event.split('//')[0].strip()
+            continue
+        if 'Image serial number:' in l:
+            serial = int(l.split(': ')[1]) + serial_offset
+            continue
+        if 'indexed_by' in l:
+            indexer = l.split(' ')[2].replace("\n", "")
+            continue
+
+        # Information from the peak search
+        if 'End of peak list' in l:
+            init_peak = False
+            continue
+
+        if init_peak:
+            linedat_peak.append('{} {} {} {} {}'.format(l.strip(), event, serial, subset, shotnr))
+
+        if 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in l:  # 'Peaks from peak search' in l: #Placed after the writing, so that line are written from the next
+            init_peak = True
+            continue
+
+        # Information from the indexing
+        if 'Cell parameters' in l:
+            a, b, c, dummy, al, be, ga = l.split(' ')[2:9]
+            continue
+        if 'astar' in l:
+            astar_x, astar_y, astar_z = l.split(' ')[2:5]
+            continue
+        if 'bstar' in l:
+            bstar_x, bstar_y, bstar_z = l.split(' ')[2:5]
+            continue
+        if 'cstar' in l:
+            cstar_x, cstar_y, cstar_z = l.split(' ')[2:5]
+            continue
+        if 'predict_refine/det_shift' in l:
+            xshift = l.split(' ')[3]
+            yshift = l.split(' ')[6]
+            continue
+
+        if 'End of reflections' in l:
+            init_index = False
+            continue
+
+        if init_index:
+            recurrent_info = [event, serial, subset, shotnr, indexer, a, b, c, al, be, ga, astar_x, astar_y, astar_z, bstar_x, bstar_y,
+                              bstar_z, cstar_x, cstar_y, cstar_z]  # List with recurrent info
+            recurrent_info = ' '.join(
+                map(str, recurrent_info))  # Transform list of several element in a list of a single string
+            linedat_index.append('{} {}'.format(l.strip(), recurrent_info))
+
+        if 'h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in l:  # Placed after the writing, so that line are written from the next
+            init_index = True
+            continue
+
+    df_peak = pd.read_csv(StringIO('\n'.join(linedat_peak)), delim_whitespace=True, header=None,
+                          names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'Event', 'serial', 'subset', 'shot_in_subset']
+                          ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
+    df_index = pd.read_csv(StringIO('\n'.join(linedat_index)), delim_whitespace=True, header=None,
+                           names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel',
+                                  'Event', 'serial', 'subset', 'shot_in_subset', 'Indexer', 'a', 'b', 'c', 'Alpha', 'Beta', 'Gamma',
+                                  'astar_x', 'astar_y', 'astar_z', 'bstar_x', 'bstar_y', 'bstar_z', 'cstar_x',
+                                  'cstar_y', 'cstar_z']
+                           ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
+
+    # Added 'sort=False' as a suggestion from a warning message...not sure if appropriate
+    #df = df_peak.append(df_index, ignore_index=True,
+    #                    sort=False)  # , pd.concat([df_peak,df_index], keys=['peak', 'indexer']) to add hierarchical indexes, but here all the 'peak' have the Indexer column displaying NaN
+
+    return df_peak, df_index
 
 
 def read_nxds_spots(filename='SPOT.nXDS', merge_into=None):
@@ -400,9 +491,16 @@ def make_master_h5_legacy(files, master_name='master.h5', pxmask=None,
     return nimg
 
 
-def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
-                   drop_invalid=True, max_chunk=16384, min_chunk=None,
+def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_id', 'frame'),
+                   drop_invalid=True, aggregate=None, agg_by=('subset', 'region', 'run', 'crystal_id'),
+                  max_chunk=16384, min_chunk=None,
                    data_path='/entry/instrument/detector/data',**kwargs):
+
+    # TODO: documentation
+    # TODO: check nxs file for dropped frames and other anomalies
+
+    sort_by = list(sort_by)
+    agg_by = list(agg_by)
 
     if isinstance(shots_or_files, str) \
             or isinstance(shots_or_files, list) \
@@ -418,12 +516,11 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
     else:
         shot_list_final = shot_list.copy()
 
-    # make selection
     if 'selected' in shot_list_final.columns:
         shot_list_final = shot_list_final.loc[shot_list_final['selected'],:]
 
     if sort_by is not None:
-        shot_list_final.sort_values(list(sort_by), inplace=True)
+        shot_list_final.sort_values(sort_by, inplace=True)
 
     # In the following, some magic is done to get the optimal chunking for all following operations.
     # file_block in each of the dataframes is an ID of continuous blocks that will remain together
@@ -437,10 +534,13 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
     block_change2 = shot_list['file_block'] != shot_list['file_block'].shift(1)
     shot_list['file_block'] = block_change2.astype(int).cumsum() - 1
 
+    shot_list_final.reset_index(drop=True, inplace=True)
+
     stacks = {}
 
     # read the image stacks from all nxs files as dask arrays, chunking them according to file_block
     for _, fn in shot_list_final['file'].drop_duplicates().items():
+        print(f'Reading raw file {fn}')
         fh = h5py.File(fn + '.nxs')
         ds = fh[data_path]
         cs0 = shot_list.groupby(['file','file_block']).size().loc[fn].values
@@ -452,13 +552,27 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
 
     imgs = []
 
-    # no go file_block-wise through the final shot list and append the corresponding ranges of images.
+    # now go file_block-wise through the final shot list and append the corresponding ranges of images.
     # as we have done the chunking according to the same file_block structure, this operation does not
     # change any chunks (which would be expensive)
     for _, shdat in shot_list_final.groupby('file_block'):
         img_block = stacks[shdat['file'].iloc[0]][shdat['shot'].values,...]
         imgs.append(img_block)
     stack = da.concatenate(imgs)
+
+    # now aggregate the shots if desired by summing or averaging
+    if aggregate is not None:
+        agg_stack = []
+        agg_shots = []
+        for nm, grp in shot_list_final.groupby(agg_by):
+            if aggregate in 'sum':
+                agg_stack.append(stack[grp.index.values, ...].sum(axis=0, keepdims=True))
+            if aggregate in ['mean', 'average', 'avg']:
+                agg_stack.append(stack[grp.index.values, ...].mean(axis=0, keepdims=True))
+            agg_shots.append(grp.iloc[0, :])  # at this point, they all should be the same
+
+        shot_list_final = pd.DataFrame(agg_shots).reset_index(drop=True)
+        stack = da.concatenate(agg_stack)
 
     # Finally, optionally re-chunk the stack such that all chunks are at least min_chunk large,
     # respecting the chunk boundaries as they are
@@ -475,7 +589,7 @@ def get_raw_stack(shots_or_files, sort_by=('region', 'crystal_id', 'run'),
 
         stack = stack.rechunk({0: tuple(fchks)})
 
-    return stack, shot_list_final.reset_index(drop=True)
+    return stack, shot_list_final
 
 
 def parse_acquisition_meta(shot_list, filename=None, include_meta=True, include_stem=True, include_mask=True,
@@ -539,25 +653,25 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     :param lists: flat dict of lists. Does not handle subsets, so use flat=True when reading from file
     :param stacks: dict of arrays. Again, not accounting for subsets. Use flat=True for reading
     :param min_chunk: minimum chunk size of the output arrays along the stacked dimension
-    :param reset_index: if True, the returned shot list has its index reset, with correspondingly updated Event numbers in peak list. Recommended.
+    :param reset_index: if True, the returned shot list has its index reset, with correspondingly updated serial numbers in peak list. Recommended.
     :return new_lists, new_stacks: subselected lists and stacks
     """
-
+#n
     shots = lists['shots']  # just a shortcut
     new_lists = lists.copy()
     new_lists['shots'] = lists['shots'].query('selected').copy()
-
+    print('Keeping {} shots out of {}'.format(len(new_lists['shots']),len(shots)))
     if 'peaks' in lists.keys():
         # remove rejected shots from the peak list
         # TODO: why is this not simply done with a right merge?
-        peaksel = lists['peaks'].merge(shots[['selected']], left_on='Event', right_index=True)['selected']
+        peaksel = lists['peaks'].merge(shots[['selected']], left_on='serial', right_index=True)['selected']
         new_lists['peaks'] = lists['peaks'].loc[peaksel, :]
 
         if reset_shot_index:
             new_lists['shots']['newEv'] = range(len(new_lists['shots']))
             new_lists['peaks'] = new_lists['peaks'].merge(new_lists['shots'].loc[:, ['newEv', ]],
-                                                          left_on='Event', right_index=True)
-            new_lists['peaks']['Event'] = new_lists['peaks']['newEv']
+                                                          left_on='serial', right_index=True)
+            new_lists['peaks']['serial'] = new_lists['peaks']['newEv']
             new_lists['peaks'].drop('newEv', axis=1, inplace=True)
             new_lists['shots'].drop('newEv', axis=1, inplace=True)
 
@@ -589,6 +703,20 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     return new_lists, new_stacks
 
 
+def make_virtual_h5(listfile, h5_name, require_files=True):
+
+    with h5py.File(h5_name, 'w') as fh, open(listfile) as fh2:
+        for datafile in fh2.readlines():
+            datafile = datafile.strip()
+            if require_files and (not os.path.isfile(datafile)):
+                pass
+            name = datafile.rsplit('.', 1)[0].rsplit('/', 1)[-1]
+            fh['/entry/meta/' + name] = h5py.ExternalLink(datafile, '/entry/meta')
+
+
+def require_h5_files(shots, listfile, path='.'):
+    raise NotImplementedError('Oh Oh!')
+
 def store_meta_lists(filename, lists, flat=True, **kwargs):
     """
     Store pandas DataFrames into HDF file, using the standard structure.
@@ -599,6 +727,12 @@ def store_meta_lists(filename, lists, flat=True, **kwargs):
     :param kwargs: forwarded to pandas.DataFrame.to_hdf
     :return: nothing
     """
+
+    #if filename.rsplit('.',1)[1] == 'lst':
+    #    make_virtual_h5(filename, 'temp.h5')
+    #    fn2 = 'temp.h5'
+    #else:
+    #    fn2 = filename
 
     with pd.HDFStore(filename) as store:
 
@@ -618,7 +752,7 @@ def store_meta_lists(filename, lists, flat=True, **kwargs):
                     #print(ssn, '/entry/meta/{}/{}'.format(ssn, ln))
                     try:
                         store.put('/entry/meta/{}/{}'.format(ssn, ln), ssl, format='table', data_columns=True, **kwargs)
-                    except ValueError as err:
+                    except Exception as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
                         store.put('/entry/meta/{}/{}'.format(ssn, ln), ssl, format='table', **kwargs)
 
@@ -726,20 +860,51 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta', labels=None):
     'subset2_name": .....} etc. if flat=False.
     """
 
-    fh = h5py.File(filename, 'r')
     subsets = {}
-    for name, grp in fh[base_path].items():
-        #print(name)
-        if isinstance(grp, h5py.Group):
-            subsets.update({name: grp})
-
     lists = {}
-    for name, grp in subsets.items():
-        lists.update({name: {}})
-        #print(grp.name)
-        for tname, tgrp in grp.items():
-            if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
-                lists[name].update({tname: pd.read_hdf(filename, tgrp.name)})
+
+    if filename.rsplit('.',1)[1] == 'h5':
+        fh = h5py.File(filename, 'r')
+        for name, grp in fh[base_path].items():
+            if isinstance(grp, h5py.Group):
+                lists.update({name: {}})
+                for tname, tgrp in grp.items():
+                    if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
+                        lists[name].update({tname: pd.read_hdf(filename, tgrp.name)})
+
+        fh.close()
+
+    # TODO: parallelize this using e.g. joblib or concurrent.futures
+    if filename.rsplit('.',1)[1] == 'lst':
+        with open(filename) as fh:
+            fns = [fn.strip() for fn in fh.readlines()]
+
+        for fn in fns:
+            fh = h5py.File(fn.strip(), 'r')
+            name = fn.rsplit('.', 1)[0].rsplit('/',1)[-1]
+            if name in lists.keys():
+                raise ValueError('File names in list file must be unique (different directories do not suffice).')
+
+            if 'shots' in fh[base_path].keys():         # lists are directly stored in base path (new scheme)
+                grp = fh[base_path]
+
+            else:   # legacy file
+                found = False
+                for _, theGrp in fh[base_path].items():
+                    if found:
+                        raise ValueError('When operating with a list file, only single-subset h5 files are allowed.')
+                    if isinstance(theGrp, h5py.Group):
+                        grp = theGrp
+                        found = True
+                if not found:
+                    raise ValueError('No group found below path ' + base_path)
+
+            lists.update({name: {}})
+            for tname, tgrp in grp.items():
+                if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
+                    lists[name].update({tname: pd.read_hdf(fn, tgrp.name)})
+
+            fh.close()
 
     if flat:
         tables = defaultdict(list)
@@ -749,6 +914,7 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta', labels=None):
                 tables[tn].append(td)
         lists = {k: pd.concat(v, sort=False).reset_index(drop=True) for k, v in tables.items()}
 
+    del subsets
     return lists
 
 

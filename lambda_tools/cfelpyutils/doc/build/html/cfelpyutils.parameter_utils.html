@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>cfelpyutils.parameter_utils module &#8212; cfelpyutils 0.5 documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">cfelpyutils 0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/cfelpyutils.parameter_utils.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-cfelpyutils.parameter_utils">
+<span id="cfelpyutils-parameter-utils-module"></span><h1>cfelpyutils.parameter_utils module<a class="headerlink" href="#module-cfelpyutils.parameter_utils" title="Permalink to this headline">¶</a></h1>
+<p>Utilities for parsing command line options and configuration files.</p>
+<dl class="function">
+<dt id="cfelpyutils.parameter_utils.convert_parameters">
+<code class="descclassname">cfelpyutils.parameter_utils.</code><code class="descname">convert_parameters</code><span class="sig-paren">(</span><em>config_dict</em><span class="sig-paren">)</span><a class="headerlink" href="#cfelpyutils.parameter_utils.convert_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert strings in parameter dictionaries to the corrent data type.</p>
+<p>Read a parameter dictionary returned by the ConfigParser python
+module, and convert each entry in an object of the corresponding
+type, without changing the structure of the dictionary.</p>
+<p>Try to convert each entry in the dictionary according to the
+following rules. The first rule that applies to the entry
+determines the type.</p>
+<ul>
+<li><p class="first">If the entry starts and ends with a single quote or double quote,
+leave it as a string.</p>
+</li>
+<li><p class="first">If the entry starts and ends with a square bracket, convert it to
+a list.</p>
+</li>
+<li><p class="first">If the entry starts and ends with a curly braces, convert it to a
+dictionary or a set.</p>
+</li>
+<li><p class="first">If the entry is the word None, without quotes, convert it to
+NoneType.</p>
+</li>
+<li><p class="first">If the entry is the word False, without quotes, convert it to a
+boolean False.</p>
+</li>
+<li><p class="first">If the entry is the word True, without quotes, convert it to a
+boolean True.</p>
+</li>
+<li><p class="first">If none of the previous options match the content of the entry,
+try to interpret the entry in order as:</p>
+<blockquote>
+<div><ul class="simple">
+<li>An integer number.</li>
+<li>A float number.</li>
+<li>A string.</li>
+</ul>
+</div></blockquote>
+</li>
+<li><p class="first">If all else fails, raise an exception.</p>
+</li>
+</ul>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>config</strong> (<em>dict</em>) &#8211; a dictionary containing strings (the dictionary
+returned by Config Parser).</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">dictionary with the same structure as the input
+dictionary, but with correct types assigned to each entry.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first">dict</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><code class="xref py py-exc docutils literal"><span class="pre">RuntimeError</span></code> &#8211; if an entry cannot be converted to any supported</li>
+<li><code class="xref py py-exc docutils literal"><span class="pre">type.</span></code></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">cfelpyutils 0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, CFEL Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.6.
+    </div>
+  </body>
+</html>

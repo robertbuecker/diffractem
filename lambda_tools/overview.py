@@ -1,5 +1,7 @@
 import json
-
+from scipy.cluster.vq import kmeans2
+from scipy._lib._util import _asarray_validated
+from sklearn.cluster import KMeans
 import cv2
 import numpy as np
 import pandas as pd
@@ -10,7 +12,9 @@ from skimage.exposure import rescale_intensity
 from skimage.feature import peak_local_max, register_translation
 from skimage.filters import *
 from skimage.measure import label, regionprops
-from skimage.morphology import erosion, dilation, disk, watershed
+from skimage.segmentation import random_walker
+from skimage.morphology import binary_erosion, binary_dilation, disk, watershed, \
+    remove_small_holes, remove_small_objects, binary_closing
 from skimage.transform import matrix_transform
 from tifffile import imread, imsave
 import os
@@ -69,6 +73,20 @@ def align_ecc(img, img_ref, method='ecc', mode='affine',
     return trans_matrix, coords_x, img_x, imgref_x
 
 
+def whiten(obs, check_finite=False):
+    """
+    Adapted from c:/python27/lib/site-packages/skimage/filters/thresholding.py
+        to return array and std_dev
+    """
+    obs = _asarray_validated(obs, check_finite=check_finite)
+    std_dev = np.std(obs, axis=0)
+    zero_std_mask = std_dev == 0
+    if zero_std_mask.any():
+        std_dev[zero_std_mask] = 1.0
+        raise RuntimeWarning("Some columns have standard deviation zero. The values of these columns will not change.")
+    return obs / std_dev, std_dev
+
+
 class OverviewImg:
 
     def __init__(self, img=None, coordinates=None, basename=None, region_id=0, run_id=0, subset=None):
@@ -115,8 +133,8 @@ class OverviewImg:
         self.reference = None
         self.coordinate_source = 'none'
         self._detector_file = None
-        self._meta = None
-        self._meta_diff = None
+        self.meta = None
+        self.meta_diff = None
         self._img_label = None
 
         if basename is not None:
@@ -242,75 +260,204 @@ class OverviewImg:
     def get_regionprops(self):
         return regionprops(self.labels, self.img, cache=True, coordinates='rc')
 
-    def find_particles(self, morph_disk=1, show_plot=True, min_dist=8,
-                       thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49,
-                       intensity_centroid=False):
+    def find_particles(self, show_plot=True, show_segments=True,
+                       thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49, two_pass=False,  # thresholding
+                       morph_method='legacy', morph_disk=2, remove_carbon_lacing=False,  # morphology
+                       segmentation_method='distance-watershed', min_dist=8,  # segmentation
+                       picking_method='region-centroid', beam_radius=5,  # picking
+                       **kwargs):
         """
+        Crystal finding algorithm. Attempts to find images in 4 steps:
+        (1) thresholding, yielding a binarized image. Can be done using a global or local (adaptive) threshold.
+            Usually, global works better for STEM images, unless the background is very inhomogeneous. If there are
+            bright-ish "blobs" containing the particles, two_pass should be used.
+        (2) morphological operations, eliminating small features, filling holes etc.. Different sequences of operations
+            are provided which are worth trying out
+        (3) segmentation of the bright regions found by the previous steps, using watershed or random walker schemes
+        (4) generation of crystal coordinates, either using segment centroids, or by filling up the segments with a
+            number of points derived from a typical spacing (beam radius)
 
-        :param morph_disk:
-        :param show_plot:
-        :param min_dist:
-        :param thr_fun:
-        :param local:
-        :param disk_size:
-        :param intensity_centroid:
+        :param show_plot: show a plot in the end to assess the result
+        :param thr_fun: function used for global thresholding. Anything that takes the image as only positional argument
+            can be inserted here (e.g. those from skimage.filters.thresholding). Defaults to threshold_li
+        :param thr_offset: additional offset for found global threshold. Note that the images are normalized to the
+            full 16bit range initially, so typically this value is in the range of 1000s
+        :param local: use local thresholding instead, using the threshold_local function in skimage.filters. Usually
+            a global threshold with two_pass=True works better.
+        :param disk_size: averaging disk range, when local=True
+        :param two_pass: use a two-pass thresholding scheme, where after thresholding and morphological filtering, a
+            separate local threshold is found for each bright region. Then the thresholding is repeated. Often this
+            is far superior to using a local threshold.
+        :param morph_method: selects a sequence of morphological operations. Current options are 'legacy' and
+            'instamatic', the latter derived from Stef Smeets' instamatic package. Just try what works best.
+        :param morph_disk: disk radius for morphological operations.
+        :param remove_carbon_lacing: attempts to remove lacey carbon artifacts. Only works if morph_method is set
+            to 'instamatic'
+        :param segmentation_method: method for segmentation. Options are 'distance-watershed', 'intensity-watershed',
+            and 'random-walker'. The latter is not well tested yet. Usually, 'distance-watershed' is better for clearly
+            visible particles that aggregate slightly, and 'intensity-watershed' for particles within larger blobs.
+        :param min_dist: minimum distance between initial points for segmentation. Ideally corresponds to minimum
+            distance between crystals. Not used for random walker segmentation.
+        :param picking_method: 'region-centroid' and 'intensity-centroid' will place a single coordinate marker for
+            acquisition into each segment; the latter weighs the pixels by their intensity. 'k-means' will place
+            many coordinate markers on the segment, approximately spaced by beam_radius/2; this is the 'brute-force'
+            option.
+        :param beam_radius: spacing between coordinates when using 'brute-force' acquisition
+        :param kwargs:
         :return:
         """
 
-        # TODO: THIS SO NEEDS IMPROVEMENT. Maybe steal from instamatic
-        # ...especially the labeling (is that even needed?)
-        # and segmentation steps are not yet helpful
+        if 'intensity_centroid' in kwargs.keys():
+            print('Please do not use intensity centroid option anymore, and picking_method instead!')
+            if kwargs['intensity_centroid']:
+                picking_method = 'intensity-centroid'
+            else:
+                picking_method = 'region-centroid'
 
-        adf = rescale_intensity(self.img, in_range='image')
-        thr_glob = thr_fun(adf) + thr_offset
+        # STEP 1: thresholding
+        def threshold(img):
+            if local:
+                # binarized = img > rank.otsu(img_as_ubyte(img), disk(disk_size))
+                binarized = img > threshold_local(img, disk_size, method='mean')
+            else:
+                binarized = img > thr_fun(img) + thr_offset
 
-        if local:
-            # binarized = adf > rank.otsu(img_as_ubyte(adf), disk(disk_size))
-            binarized = threshold_local(adf, disk_size, method='mean')
+            return binarized
+
+        # STEP 2: morphology
+        def morphology(binarized):
+            if morph_method == 'legacy':
+                morph = binary_dilation(binarized, disk(1))
+                morph = binary_erosion(morph, disk(morph_disk))
+
+            elif morph_method == 'instamatic':
+                morph = remove_small_objects(binarized, min_size=4 * 4, connectivity=0)  # remove noise
+                morph = binary_closing(morph, disk(morph_disk))  # dilation + erosion
+                morph = binary_erosion(morph, disk(morph_disk))  # erosion
+                if remove_carbon_lacing:
+                    morph = remove_small_objects(morph, min_size=8 * 8, connectivity=0)
+                    morph = remove_small_holes(morph, min_size=32 * 32, connectivity=0)
+                morph = binary_dilation(morph, disk(morph_disk))  # dilation
+
+            elif (morph_method is None) or (morph_method=='none'):
+                morph = binarized
+
+            else:
+                raise ValueError('Unknown morphology method {}'.format(morph_method))
+
+            return morph
+
+        img = rescale_intensity(self.img, in_range='image')
+        binarized = threshold(img)
+        morph = morphology(binarized)
+
+        if two_pass:
+            lmorph = label(morph)
+            #thr_loc = np.ones_like(img)*(thr_fun(img) + thr_offset)
+            thr_loc = np.ones_like(img) * img.max()
+            for ii in range(1, lmorph.max()):
+                mask = lmorph == ii
+                if mask.sum() < 3:
+                    continue
+                thr_loc[mask] = thr_fun(img[mask])
+
+            binarized = img > thr_loc
+            morph = morphology(binarized)
+
+        # get background pixels
+        bkg = np.invert(binary_dilation(morph, disk(morph_disk * 2)) | morph)
+
+        # STEP 3: segmentation
+        if segmentation_method == 'distance-watershed':
+            distance = ndi.distance_transform_edt(morph)
+            local_max = peak_local_max(distance, indices=False,
+                                       min_distance=min_dist, labels=label(morph), exclude_border=True)
+            label_image = label(local_max)
+            self.labels = watershed(-distance, label_image, mask=morph)
+
+        elif segmentation_method == 'intensity-watershed':
+            distance = ndi.distance_transform_edt(morph)
+            local_max = peak_local_max(img, indices=False, min_distance=min_dist, labels=label(morph))
+            label_image = label(local_max)
+            self.labels = watershed(img.max()-img, label_image, mask=morph)
+
+        elif segmentation_method == 'random-walker':
+            # From instamatic. Works a bit different from watershed version currently, as it adds another "background"
+            # label. Still room for improvement...
+            markers = morph * 2 + bkg
+            self.labels = label(random_walker(img, markers, beta=50, spacing=(5, 5), mode='bf')) - 1
+            #self.labels = segmented.astype(int) - 1
+
         else:
-            binarized = adf > thr_glob
-
-        adf2 = erosion(dilation(binarized, disk(1)), disk(morph_disk))
-        # adf3 = dilation(adf2, disk(2))
-        distance = ndi.distance_transform_edt(adf2)
-        local_max = peak_local_max(distance, indices=False, min_distance=min_dist, labels=adf2)
-        label_image = label(local_max)
-        self.labels = watershed(-distance, label_image, mask=adf2)
+            raise ValueError('Unknown segmentation method {}'.format(segmentation_method))
 
         props = self.get_regionprops()
 
-        if intensity_centroid:
+        # STEP 4: get crystal coordinates from segments
+        if picking_method == 'intensity-centroid':
             self.coordinates = np.array([p.weighted_centroid for p in props])
-        else:
+            self.crystals['segment_id'] = self.crystals['crystal_id']
+
+        elif picking_method == 'region-centroid':
             self.coordinates = np.array([p.centroid for p in props])
+            self.crystals['segment_id'] = self.crystals['crystal_id']
+
+        elif picking_method == 'k-means':
+            coords = []
+            segs = []
+            for ii, prop in enumerate(props):
+                area = prop.area
+                bbox = np.array(prop.bbox)
+                origin = bbox[0:2]
+                ncoords = int(area // (np.pi*beam_radius**2)) + 1
+
+                if ncoords > 1:
+                    coordinates = np.argwhere(prop.image)
+                    # kmeans needs normalized data (w), store std to calculate coordinates after
+                    w, std = whiten(coordinates)
+                    #km = KMeans(ncoords, max_iter=20, n_jobs=-1).fit(w)
+                    #cluster_centroids = km.cluster_centers_
+                    cluster_centroids, closest_centroids = kmeans2(w, ncoords, iter=20, minit='points')
+                    coords.extend(cluster_centroids * std + origin[0:2])
+                    segs.extend([ii]*len(cluster_centroids))
+                else:
+                    coords.append(prop.centroid)
+                    segs.append(ii)
+
+            self.coordinates = np.array(coords)
+            self.crystals['segment_id'] = segs
+
+        else:
+            raise ValueError('Unknown coordinate method {}'.format(picking_method))
 
         self.mask = np.ndarray((0, 0)) # invalidate mask
         self.coordinate_source = 'picked'
         self.reference = None
 
         pdf = pd.DataFrame([{p: rp[p] for p in ['area', 'equivalent_diameter', 'major_axis_length',
-                 'minor_axis_length', 'orientation']} for rp in props],
-                           index=self.crystals.index)
+                 'minor_axis_length', 'orientation']} for rp in props])
 
-        self.crystals = pd.concat([self.crystals, pdf], axis=1)
+        self.crystals = self.crystals.merge(pdf, left_on='segment_id', right_index=True, how='left')
 
-        print('{} particles found.'.format(self.coordinates.shape[0]))
+        print('{} particles found in {} segments.'.format(self.coordinates.shape[0], self.labels.max()))
 
         if show_plot:
-            fig, ax = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(8, 12))
-            ax[0, 0].imshow(adf, cmap='inferno', vmin=np.percentile(adf, 1), vmax=np.percentile(adf, 99))
-            ax[0, 0].set_title('ADF image')
-            ax[0, 1].imshow(binarized, cmap='inferno')
-            ax[0, 1].set_title('Threshold')
-            ax[1, 0].imshow(adf2, cmap='inferno')
-            ax[1, 0].set_title('Erosion')
-            ax[1, 1].imshow(label_image, cmap='flag_r')
-            ax[1, 1].set_title('Labeling')
-            ax[2, 0].imshow(self.labels, cmap='flag_r')
-            ax[2, 0].set_title('Segments')
-            ax[2, 1].imshow(adf, cmap='gray', vmin=np.percentile(adf, 1), vmax=np.percentile(adf, 99))
-            ax[2, 1].scatter(self.coordinates[:, 1], self.coordinates[:, 0], marker='o', facecolors='none', edgecolors='y', s=50)
-            ax[2, 1].set_title('Coordinates')
+            fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10))
+            ax[0].imshow(img, cmap='gray', vmin=np.percentile(img, 1), vmax=np.percentile(img, 99))
+            ax[0].contour(binarized, [0.5], linewidths=0.5, colors="yellow")
+            ax[0].contour(morph, [0.5], linewidths=0.5, colors="green")
+            ax[0].set_title('ADF image')
+            ax[1].imshow(img, cmap='gray', vmin=np.percentile(img, 1))
+            if show_segments:
+                ax[1].contour(self.labels, np.arange(self.labels.max()) + 0.5, linewidths=0.5, cmap='flag_r')
+
+            ax[1].scatter(self.coordinates[:, 1], self.coordinates[:, 0], marker='o', facecolors='none', edgecolors='g',
+                          s=20)
+            #ax[1].contour(self.labels, np.arange(self.labels.max())+0.5, linewidths=0.5, colors='green')
+            #for ii in range(self.labels.max()):
+            #    ax[1].contour(self.labels == ii, [0.5], linewidths=0.5, colors='green')
+            ax[1].set_title('{} coordinates, {} segments'.format(self.coordinates.shape[0], self.labels.max()))
+            #plt.show()
 
     def align_overview(self, reference, show_plot=False,
                        method='ecc', use_gradient=False, transfer_props=False):
@@ -354,7 +501,7 @@ class OverviewImg:
         sh = sh.loc[inrange,:]
         if y_pos_tol is not None:
             sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(min(self.img.shape[0]/100, len(sh)-10)),
-                                       max_rows=self.img.shape[0], inc=10)
+                                       max_rows=self.img.shape[0], inc=25)
         sh = tools.set_frames(sh, frames)
         sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
         self.shots = sh

@@ -299,12 +299,22 @@ def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limi
         x2 = int(x_0 + radius)
         y1 = int(y_0 - radius)
         y2 = int(y_0 + radius)
+        if (x1 < 0) or (x2 > img.shape[1]) or (y1 < 0) or (y2 > img.shape[0]):
+            print('Cannot cut image around peak. Centering.')
+            x1 = int(img.shape[1] / 2 - radius)
+            x2 = int(img.shape[1] / 2 + radius)
+            y1 = int(img.shape[0] / 2 - radius)
+            y2 = int(img.shape[0] / 2 + radius)
         img = img[y1:y2, x1:x2]
     else:
         x1 = 0
         y1 = 0
     if amp is None:
-        amp = np.percentile(img, 99.99)
+        try:
+            amp = np.percentile(img, 99)
+        except Exception as err:
+            print('Something weird: {} Cannot get image percentile. Img size is {}. Skipping.'.format(err, img.shape))
+            return np.array([-1, x_0, y_0, scale])
 
     cut = np.where(img > threshold)
     x = cut[1] + x1
@@ -741,6 +751,10 @@ def center_image(imgs, x0, y0, xsize, ysize, padval):
         # Preprocess arguments and call function again, using map_blocks along the stack direction
         x0 = x0.reshape(-1, 1, 1)
         y0 = y0.reshape(-1, 1, 1)
+        if not isinstance(x0, da.Array):
+            x0 = da.from_array(x0, (imgs.chunks[0], 1, 1))
+        if not isinstance(y0, da.Array):
+            y0 = da.from_array(y0, (imgs.chunks[0], 1, 1))
         return imgs.map_blocks(center_image, x0, y0, xsize, ysize, padval,
                                chunks=(imgs.chunks[0], ysize, xsize),
                                dtype=imgs.dtype)
