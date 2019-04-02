@@ -115,8 +115,8 @@ class OverviewImg:
         self.reference = None
         self.coordinate_source = 'none'
         self._detector_file = None
-        self.meta = None
-        self.meta_diff = None
+        self._meta = None
+        self._meta_diff = None
         self._img_label = None
 
         if basename is not None:
@@ -213,13 +213,31 @@ class OverviewImg:
         fn = value + '.json'
         if os.path.isfile(fn):
             print('Reading file {}'.format(fn))
-            m = json.load(open(fn))
-            self.meta_diff = json_normalize(m, sep='_')
-            self.meta_diff.columns = [
-                cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
-                for cn in self.meta_diff.columns]
-            #except:
-        #    print('Could not read detector meta file.')
+            self._meta_diff = json.load(open(fn))
+
+    @property
+    def meta(self):
+        ret = json_normalize(self._meta, sep='_')
+        ret.columns = [
+            cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
+            for cn in ret]
+        return ret
+
+    @meta.setter
+    def meta(self, value):
+        self._meta = value
+
+    @property
+    def meta_diff(self):
+        ret = json_normalize(self._meta_diff, sep='_')
+        ret.columns = [
+            cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
+            for cn in ret]
+        return ret
+
+    @meta_diff.setter
+    def meta_diff(self, value):
+        self._meta_diff = value
 
     def get_regionprops(self):
         return regionprops(self.labels, self.img, cache=True, coordinates='rc')
@@ -336,7 +354,7 @@ class OverviewImg:
         sh = sh.loc[inrange,:]
         if y_pos_tol is not None:
             sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(min(self.img.shape[0]/100, len(sh)-10)),
-                                       max_rows=self.img.shape[0], inc=25)
+                                       max_rows=self.img.shape[0], inc=10)
         sh = tools.set_frames(sh, frames)
         sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
         self.shots = sh
@@ -376,10 +394,10 @@ class OverviewImg:
             print('Saving file {}'.format(fn))
             imsave(fn, self.mask)
 
-        if self.meta:
+        if self._meta:
             fn = basename + '.json'
             print('Saving file {}'.format(fn))
-            json.dump(self.meta, open(fn, 'w'), indent=4)
+            json.dump(self._meta, open(fn, 'w'), indent=4)
 
         if self.coordinates.size:
             fn = basename + '_coord.txt'
@@ -405,11 +423,7 @@ class OverviewImg:
         try:
             fn = basename + '.json'
             print('Reading file {}'.format(fn))
-            m = json.load(open(fn))
-            self.meta = json_normalize(m, sep='_')
-            self.meta.columns = [
-                cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
-                for cn in self.meta.columns]
+            self._meta = json.load(open(fn))
         except:
             print('Could not read meta file')
 
@@ -524,13 +538,13 @@ class OverviewImg:
         cryst['run'] = self.run_id
         lists = {'crystals': cryst}
 
-        if self.meta is not None:
+        if self._meta is not None:
             m = self.meta.copy()
             m['region'] = self.region_id
             m['run'] = self.run_id
             lists.update({'stem_acqdata': m})
 
-        if self.meta_diff is not None:
+        if self._meta_diff is not None:
             md = self.meta_diff.copy()
             md['region'] = self.region_id
             md['run'] = self.run_id
