@@ -707,7 +707,10 @@ def peak_finder(img_raw, xy, profile = None, pxmask = None, noise = np.array
 def center_sgl_image(img, x0, y0, xsize, ysize, padval):
     """
     Shits a single image, such that the original image coordinates x0, y0 are in the center of the
-    output image, which as a size of xsize, ysize
+    output image, which as a size of xsize, ysize.
+    IMPORTANT NOTE: the coordinates in this function refer to pixel centers, not pixel corners
+    (as e.g. CrystFELs peak positions). I.e., if shifting based on CrystFEL output or similar, the shifts
+    must be increased by 0.5.
     :param img: input image (2D array, must be integer)
     :param x0: x coordinate in img to be in center of output image
     :param y0: y coordinate in img to be in center of output image
@@ -717,8 +720,9 @@ def center_sgl_image(img, x0, y0, xsize, ysize, padval):
     :return: output image of shape (ysize, xsize)
     """
     simg = np.array(padval).astype(img.dtype) * np.ones((ysize, xsize), dtype=img.dtype)
-
-    xin = np.ceil(np.array([-xsize / 2, xsize / 2]) + x0, np.empty(2)).astype(int64)  # initial coordinate syste
+    #int64=np.int64
+    #x0 -= 0.5
+    xin = np.ceil(np.array([-xsize / 2, xsize / 2]) + x0, np.empty(2)).astype(int64)  # initial coordinate system
     xout = np.array([0, simg.shape[1]], dtype=int64)  # now start constructing the final coordinate system
     if xin[0] < 0:
         xout[0] = -xin[0]
@@ -735,7 +739,7 @@ def center_sgl_image(img, x0, y0, xsize, ysize, padval):
     if yin[1] > img.shape[0]:
         yout[1] = yout[1] - (yin[1] - img.shape[0])
         yin[1] = img.shape[0]
-
+    #print(xin,xout,yin,yout)
     simg[yout[0]:yout[1], xout[0]:xout[1]] = img[yin[0]:yin[1], xin[0]:xin[1]]
 
     return simg

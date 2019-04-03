@@ -10,7 +10,8 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from astropy.convolution import Gaussian2DKernel, convolve
 
 from . import gap_pixels
-from .io import save_lambda_img, get_meta_lists, get_data_stacks, get_meta_array
+from .io import get_meta_lists, get_data_stacks, get_meta_array
+from lambda_tools.legacy import save_lambda_img
 from .proc2d import correct_dead_pixels
 
 

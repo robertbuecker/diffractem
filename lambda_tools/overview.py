@@ -706,7 +706,7 @@ class OverviewImg:
                                 subset_label=self.subset)
 
         # must come last, so that all other parameters are properly set (shots is auto-generated)
-        if self.shots.size:
+        if self._shots.size:
             lists.update({'shots': self.shots})
 
         io.store_meta_lists(filename, {self.subset: lists}, flat=False) # MUST go last, as store_meta_array has side-effects
