@@ -19,6 +19,7 @@ from skimage.transform import matrix_transform
 from tifffile import imread, imsave
 import os
 import h5py
+import dask.array as da
 
 from lambda_tools import tools, io
 
@@ -136,6 +137,7 @@ class OverviewImg:
         self.meta = None
         self.meta_diff = None
         self._img_label = None
+        self.sample = ''
 
         if basename is not None:
             self.read(basename)
@@ -608,6 +610,80 @@ class OverviewImg:
         return colors, imgh, scath
 
     @classmethod
+    def from_nxs(cls, filename, subset='entry', data_grp='data', map_grp='map'):
+
+        # to be learned later?!
+        self = cls(subset=subset)
+
+        with h5py.File(filename) as f:
+            if map_grp is not None:
+                self.img = f[f'/{subset}/{map_grp}/image'][...]
+                try:
+                    self.meta = io.h5_to_dict(f'{subset}/instrument_{map_grp}')
+                except KeyError:
+                    print(f'No acquisition data found for map image {data_grp}')
+                try:
+                    self.crystals = pd.read_hdf(filename, f'/{subset}/{map_grp}/features')
+                except KeyError:
+                    print(f'No feature list found for map image {map_grp}')
+
+            if data_grp is not None:
+                try:
+                    self.meta_diff = io.h5_to_dict(f'{subset}/instrument')
+                except KeyError:
+                    print(f'No acquisition data found for data stack {data_grp}')
+                try:
+                    self.shots = pd.read_hdf(filename, f'/{subset}/{data_grp}/shots')
+                except KeyError:
+                    print(f'No shot list found for data stack {data_grp}')
+
+            try:
+                sgrp = f[f'/{subset}/sample']
+                self.sample = sgrp['name'].value
+                self.run_id = sgrp['run_id'].value
+                self.region_id = sgrp['region_id'].value
+            except KeyError:
+                print('No sufficient sample information found')
+
+    def to_nxs(self, filename, subset='entry', data_grp='data', map_grp='map', store_diff_meta=False):
+
+        # the NXS interface has way less logic attached to it... note that it does NOT support the mask mechanism
+        # anymore. This is the future.
+        # NOTE: this function will NOT store diffraction acquisition data by default
+
+        if subset != self.subset:
+            self._subset = subset
+            print(f'Subset label changed to {subset}')
+
+        # image data
+        with h5py.File(filename) as f:
+            io.dict_to_h5(f.require_group(f'/{subset}/instrument_{map_grp}/STEM_Image'), {'data': self.img})
+            io.dict_to_h5(f.require_group(f'/{subset}/sample'),
+                          {'run_id': self.run_id, 'region_id': self.region_id, 'name': self.sample})
+
+        # metadata
+        if self._meta is None:
+            m = {}
+        else:
+            m = self._meta
+
+        io.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument_{map_grp}',
+                       data_location=f'/{subset}/instrument_{map_grp}/STEM_Image/data',
+                       data_grp=f'/{subset}/{map_grp}', data_field='image')
+
+        if store_diff_meta:
+            if self._meta_diff is None:
+                m = {}
+            else:
+                m = self._meta_diff
+            io.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument', data_grp=None)
+
+        # lists
+        self.crystals.to_hdf(filename, f'/{subset}/{map_grp}/features', format='table', data_columns=True)
+        if self._shots.size:
+            self.shots.to_hdf(filename, f'/{subset}/{data_grp}/shots', format='table', data_columns=True)
+
+    @classmethod
     def from_h5(cls, filename, region_id=None, run_id=None, subset=None):
         """
         Load overview image data from HDF5 file. Caveat: acquisition metadata will be flattened!
@@ -657,6 +733,7 @@ class OverviewImg:
         if len(self.crystals) == 0:
             raise ValueError('No crystals or shots list found in HDF5 file.')
 
+        print(meta.keys())
         if 'stem_acqdata' in meta.keys():
             self.meta = meta['stem_acqdata'].loc[(meta['stem_acqdata']['region']==self.region_id) & (meta['stem_acqdata']['run']==self.run_id)]
             self.tilt = np.round(self.meta['Stage_A'].values * 180 / np.pi)
@@ -670,6 +747,7 @@ class OverviewImg:
         self.crystals.drop(['region', 'run'], axis=1, inplace=True)
 
         return self
+
 
     def to_h5(self, filename):
         """

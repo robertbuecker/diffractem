@@ -17,15 +17,22 @@ import os.path
 from . import normalize_names
 
 
-def dict2h5(grp, meta, exclude=(), include=None):
-    for k, v in meta.items():
+def dict_to_h5(grp, data, exclude=()):
+    """
+    Write dictionary into HDF group (or file) object
+    :param grp: HDF group or file object
+    :param data: dictionary to be written into HDF5
+    :param exclude: dataset or group names to be excluded
+    :return:
+    """
+    for k, v in data.items():
         nk = normalize_names(k)
         if k in exclude:
             continue
         elif (include is not None) and (k not in include):
             pass
         elif isinstance(v, dict):
-            dict2h5(grp.require_group(nk), v)
+            dict_to_h5(grp.require_group(nk), v)
         else:
             if nk in grp.keys():
                 grp[nk][...] = v
@@ -33,23 +40,44 @@ def dict2h5(grp, meta, exclude=(), include=None):
                 grp.create_dataset(nk, data=v)
 
 
-def store_to_nxs(nxs_file, meta_file=None, exclude=('Detector',), include=None,
-                 meta_grp='/entry/instrument', data_grp='/entry/data',
-                 data_field='data', data_location='/entry/instrument/detector/data',
-                 new_data=None):
+def h5_to_dict(grp, exclude=('data', 'image'), max_len=100):
+    """
+    Get dictionary from HDF group (or file) object
+    :param grp: HDF group or file
+    :param exclude: (sub-)group or dataset names to be excluded; by default 'data' and 'image
+    :param max_len: maximum length of data field to be included (along first direction)
+    :return: dictionary corresponding to HDF group
+    """
+    d = {}
+    for k, v in grp.items():
+        if k in exclude:
+            continue
+        if isinstance(v, h5py.Group):
+            d[k] = h5_to_dict(v)
+        elif isinstance(v, h5py.Dataset):
+            if (len(v.shape) > 0) and (len(v) > max_len):
+                continue
+            d[k] = v.value
+    return d
 
-    if meta_file is None:
-        meta_file = nxs_file.rsplit('.', 1)[0] + '.json'
+
+def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/instrument',
+                data_grp='/entry/data', data_field='data', data_location='/entry/instrument/detector/data'):
 
     f = h5py.File(nxs_file)
-    meta = json.load(open(meta_file))
-    dict2h5(f.require_group(meta_grp), meta, exclude=exclude, include=include)
 
-    if new_data is not None:
-        ds = f.require_dataset(data_location, new_data.shape, new_data.dtype)
-        ds[...] = new_data
+    if meta is None:
+        meta = nxs_file.rsplit('.', 1)[0] + '.json'
 
-    if data_location is not None:
+    if isinstance(meta, str):
+        meta = json.load(open(meta))
+
+    elif isinstance(meta, dict):
+        pass
+
+    dict_to_h5(f.require_group(meta_grp), meta, exclude=exclude, include=include)
+
+    if data_grp is not None:
         dgrp = f.require_group(data_grp)
         dgrp.attrs['NX_class'] = 'NXdata'
         dgrp.attrs['signal'] = data_field
