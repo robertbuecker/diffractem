@@ -10,3 +10,9 @@ def gap_pixels():
         gaps[:, k:k+6] = True
     gaps[255:261] = True
     return gaps
+
+def normalize_names(strin):
+    strout = strin
+    for character in [' ', '/', '(', ')', '-']:
+        strout = strout.replace(character, '_')
+    return strout

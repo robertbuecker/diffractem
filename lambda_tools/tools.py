@@ -15,6 +15,8 @@ from lambda_tools.legacy import save_lambda_img
 from .proc2d import correct_dead_pixels
 
 
+
+
 def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
               rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, peaks=True, figsize=(15, 10),
               meta=None, stacks=None, width=616, xoff=0, yoff=0, ellipticity = 0, **kwargs):

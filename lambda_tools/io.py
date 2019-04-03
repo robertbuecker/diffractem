@@ -14,6 +14,51 @@ from collections import defaultdict
 import dask.diagnostics
 from io import StringIO
 import os.path
+from . import normalize_names
+
+
+def dict2h5(grp, meta, exclude=(), include=None):
+    for k, v in meta.items():
+        nk = normalize_names(k)
+        if k in exclude:
+            continue
+        elif (include is not None) and (k not in include):
+            pass
+        elif isinstance(v, dict):
+            dict2h5(grp.require_group(nk), v)
+        else:
+            if nk in grp.keys():
+                grp[nk][...] = v
+            else:
+                grp.create_dataset(nk, data=v)
+
+
+def store_to_nxs(nxs_file, meta_file=None, exclude=('Detector',), include=None,
+                 meta_grp='/entry/instrument', data_grp='/entry/data',
+                 data_field='data', data_location='/entry/instrument/detector/data',
+                 new_data=None):
+
+    if meta_file is None:
+        meta_file = nxs_file.rsplit('.', 1)[0] + '.json'
+
+    f = h5py.File(nxs_file)
+    meta = json.load(open(meta_file))
+    dict2h5(f.require_group(meta_grp), meta, exclude=exclude, include=include)
+
+    if new_data is not None:
+        ds = f.require_dataset(data_location, new_data.shape, new_data.dtype)
+        ds[...] = new_data
+
+    if data_location is not None:
+        dgrp = f.require_group(data_grp)
+        dgrp.attrs['NX_class'] = 'NXdata'
+        dgrp.attrs['signal'] = data_field
+
+        if data_field in dgrp.keys():
+            del dgrp[data_field]
+        dgrp[data_field] = h5py.SoftLink(data_location)
+
+    f.close()
 
 
 def read_crystfel_stream(filename, serial_offset=-1):
