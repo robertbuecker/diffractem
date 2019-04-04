@@ -292,9 +292,22 @@ def load_lambda_img(file_or_ds, range=None, use_dask=False, grp_name='entry/inst
     return imgs
 
 
-def make_master_h5(filename, master_name='master.h5', pxmask=None,
+def make_eiger_h5(filename, master_name='master.h5', pxmask=None,
                    wavelength=0.025, distance=1.588, beam_center=(778, 308),
                    data_path='/entry/data', stack='centered', legacy=False):
+    """
+    Mostly intended for nXDS
+    :param filename:
+    :param master_name:
+    :param pxmask:
+    :param wavelength:
+    :param distance:
+    :param beam_center:
+    :param data_path:
+    :param stack:
+    :param legacy:
+    :return:
+    """
 
     if pxmask is None:
         pass
@@ -495,16 +508,45 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     return new_lists, new_stacks
 
 
-def make_virtual_h5(listfile, h5_name, require_files=True):
+def make_master_h5(file_list, file_name=None, abs_path=False):
 
-    with h5py.File(h5_name, 'w') as fh, open(listfile) as fh2:
-        for datafile in fh2.readlines():
-            datafile = datafile.strip()
-            if require_files and (not os.path.isfile(datafile)):
-                pass
-            name = datafile.rsplit('.', 1)[0].rsplit('/', 1)[-1]
-            fh['/entry/meta/' + name] = h5py.ExternalLink(datafile, '/entry/meta')
+    if isinstance(file_list, list) or isinstance(file_list, tuple):
+        fns = file_list
+        if file_name is None:
+            raise ValueError('if files are supplied at list, you must specify an output file name!')
+    elif isinstance(file_list, str):
+        fns = [s.strip() for s in open(file_list, 'r').readlines()]
+        if file_name is None:
+            file_name = file_list.rsplit('.', 1)[0] + '.h5'
+    else:
+        raise TypeError('file_list must be a list file or a list of filenames')
 
+    f = h5py.File(file_name, 'w')
+    subsets = []
+
+    for fn in fns:
+        with h5py.File(fn, 'r') as fsgl:
+            try:
+                sgrp = fsgl['/entry/sample']
+                subset = '{}_{:03d}_{:03d}'.format(sgrp['name'].value, sgrp['region_id'].value, sgrp['run_id'].value)
+            except KeyError as e:
+                print('No sample info found. Using file name for subset.')
+                subset = fn.rsplit('.', 1)[0].rsplit('/', 1)[-1]
+            if subset in subsets:
+                raise KeyError('Subset names are not unique!')
+            else:
+                subsets.append(subset)
+
+            if abs_path:
+                fn2 = os.getcwd() + '/' + fn
+            else:
+                fn2 = fn
+            print(f'Referencing file {fn2} as {subset}')
+            f['/' + subset] = h5py.ExternalLink(fn2, '/entry')
+
+    f.close()
+
+    return file_name
 
 def store_meta_lists(filename, lists, flat=True, **kwargs):
     """
