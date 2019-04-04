@@ -11,8 +11,19 @@ def gap_pixels():
     gaps[255:261] = True
     return gaps
 
+
 def normalize_names(strin):
     strout = strin
     for character in [' ', '/', '(', ')', '-']:
         strout = strout.replace(character, '_')
     return strout
+
+
+def normalize_keys(dictionary):
+    d = {}
+    for k, v in dictionary.items():
+        if isinstance(v, dict):
+            d[normalize_names(k)] = normalize_keys(v)
+        else:
+            d[normalize_names(k)] = v
+    return d

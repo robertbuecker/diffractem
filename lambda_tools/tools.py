@@ -408,3 +408,4 @@ def make_geometry(parameters, file_name=None):
         dict2file(file_name, par, header=';Auto-generated Lambda detector file')
 
     return par
+

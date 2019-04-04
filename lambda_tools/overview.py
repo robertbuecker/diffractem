@@ -21,7 +21,7 @@ import os
 import h5py
 import dask.array as da
 
-from lambda_tools import tools, io
+from lambda_tools import tools, io, normalize_keys
 
 
 def align_ecc(img, img_ref, method='ecc', mode='affine',
@@ -90,7 +90,8 @@ def whiten(obs, check_finite=False):
 
 class OverviewImg:
 
-    def __init__(self, img=None, coordinates=None, basename=None, region_id=0, run_id=0, subset=None):
+    def __init__(self, img=None, coordinates=None, basename=None, region_id=0, run_id=0,
+                 subset=None, sample='', flatten_meta=False):
         """
         Returns an OverviewImg object, which can contain a region overview image, along with particle coordinates,
         meta data, region properties, and a scan mask. It contains methods to extract coordinates by finding
@@ -101,7 +102,6 @@ class OverviewImg:
         :param basename: string identifying the prefix of a set of files that (together) store the data of an overview
             image (as written by the store method)
         """
-
 
         if img is None:
             self._img = np.ndarray((0,0))
@@ -129,7 +129,7 @@ class OverviewImg:
         self.labels = np.ndarray((0,0))
         self.transform_matrix = []
         self.mask = np.ndarray((0,0))
-        self.crystals = pd.DataFrame()
+        self.features = pd.DataFrame()
         self._shots = pd.DataFrame()
         self.reference = None
         self.coordinate_source = 'none'
@@ -137,7 +137,8 @@ class OverviewImg:
         self.meta = None
         self.meta_diff = None
         self._img_label = None
-        self.sample = ''
+        self.sample = sample
+        self.flatten_meta = flatten_meta
 
         if basename is not None:
             self.read(basename)
@@ -164,13 +165,13 @@ class OverviewImg:
         self.labels = np.ndarray((0,0))
         self.transform_matrix = []
         self.mask = np.ndarray((0,0))
-        self.crystals = pd.DataFrame()
+        self.features = pd.DataFrame()
         self._shots = pd.DataFrame()
         self.coordinate_source = 'none'
 
     @property
     def coordinates(self):
-        return self.crystals.loc[:, ['crystal_y', 'crystal_x', 'crystal_id']].values
+        return self.features.loc[:, ['crystal_y', 'crystal_x', 'crystal_id']].values
 
     @coordinates.setter
     def coordinates(self, value):
@@ -181,20 +182,24 @@ class OverviewImg:
 
         cryst = pd.DataFrame(value[:,:2], columns=['crystal_y', 'crystal_x'], index=idx)
         cryst['crystal_id'] = idx
-        self.crystals = cryst
+        self.features = cryst
 
     @property
     def shots(self):
         cols = [c for c in ['crystal_id', 'crystal_x', 'crystal_y']
-                if c in self.crystals.columns]
+                if c in self.features.columns]
 
-        retsh = self._shots.merge(self.crystals.loc[:,cols],
-                                 on='crystal_id', how='left')
+        if not self._shots.shape[0]:
+            return self._shots
+
+        retsh = self._shots.merge(self.features.loc[:, cols],
+                                  on='crystal_id', how='left')
         retsh['run'] = self.run_id
         retsh['region'] = self.region_id
         retsh['shot'] = range(len(retsh))
         retsh['subset'] = self.subset
         retsh['stem'] = self._img_label
+        retsh['sample'] = self.sample
         if self.mask.size:
             retsh['mask'] = self._img_label
         if self.detector_file is not None:
@@ -204,15 +209,15 @@ class OverviewImg:
     @shots.setter
     def shots(self, value):
         coords_in_shots = ('crystal_x' in value.columns) and ('crystal_y' in value.columns)
-        if len(self.crystals) > 0:
-            if not value['crystal_id'].isin(self.crystals['crystal_id'].append(pd.Series(-1))).all():
+        if len(self.features) > 0:
+            if not value['crystal_id'].isin(self.features['crystal_id'].append(pd.Series(-1))).all():
                 raise ValueError('All crystal_id values in the shot list must be in the overview crystal list.')
             if coords_in_shots:
                 print('Crystal coordinates stored in the shot list will be ignored!')
 
         elif coords_in_shots:
             print('Setting crystal coordinates from shot list!')
-            self.crystals = value.query('crystal_id >= 0').drop_duplicates(subset='crystal_id').\
+            self.features = value.query('crystal_id >= 0').drop_duplicates(subset='crystal_id').\
                                 loc[:,['crystal_id', 'crystal_x', 'crystal_y']].reset_index(drop=True)
 
         self._shots = value.loc[:,['crystal_id', 'pos_x', 'pos_y', 'frame']]
@@ -237,11 +242,16 @@ class OverviewImg:
 
     @property
     def meta(self):
-        ret = json_normalize(self._meta, sep='_')
-        ret.columns = [
-            cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
-            for cn in ret]
-        return ret
+        if isinstance(self._meta, pd.DataFrame):
+            return self._meta
+        if self.flatten_meta:
+            ret = json_normalize(self._meta, sep='_')
+            ret.columns = [
+                cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
+                for cn in ret]
+            return ret
+        else:
+            return normalize_keys(self._meta)
 
     @meta.setter
     def meta(self, value):
@@ -249,11 +259,16 @@ class OverviewImg:
 
     @property
     def meta_diff(self):
-        ret = json_normalize(self._meta_diff, sep='_')
-        ret.columns = [
-            cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
-            for cn in ret]
-        return ret
+        if isinstance(self._meta_diff, pd.DataFrame):
+            return self._meta_diff
+        if self.flatten_meta:
+            ret = json_normalize(self._meta_diff, sep='_')
+            ret.columns = [
+                cn.replace('/', '_').replace(' ', '_').replace('(', '_').replace(')', '_').replace('-', '_')
+                for cn in ret]
+            return ret
+        else:
+            return normalize_keys(self._meta_diff)
 
     @meta_diff.setter
     def meta_diff(self, value):
@@ -261,205 +276,6 @@ class OverviewImg:
 
     def get_regionprops(self):
         return regionprops(self.labels, self.img, cache=True, coordinates='rc')
-
-    def find_particles(self, show_plot=True, show_segments=True,
-                       thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49, two_pass=False,  # thresholding
-                       morph_method='legacy', morph_disk=2, remove_carbon_lacing=False,  # morphology
-                       segmentation_method='distance-watershed', min_dist=8,  # segmentation
-                       picking_method='region-centroid', beam_radius=5,  # picking
-                       **kwargs):
-        """
-        Crystal finding algorithm. Attempts to find images in 4 steps:
-        (1) thresholding, yielding a binarized image. Can be done using a global or local (adaptive) threshold.
-            Usually, global works better for STEM images, unless the background is very inhomogeneous. If there are
-            bright-ish "blobs" containing the particles, two_pass should be used.
-        (2) morphological operations, eliminating small features, filling holes etc.. Different sequences of operations
-            are provided which are worth trying out
-        (3) segmentation of the bright regions found by the previous steps, using watershed or random walker schemes
-        (4) generation of crystal coordinates, either using segment centroids, or by filling up the segments with a
-            number of points derived from a typical spacing (beam radius)
-
-        :param show_plot: show a plot in the end to assess the result
-        :param thr_fun: function used for global thresholding. Anything that takes the image as only positional argument
-            can be inserted here (e.g. those from skimage.filters.thresholding). Defaults to threshold_li
-        :param thr_offset: additional offset for found global threshold. Note that the images are normalized to the
-            full 16bit range initially, so typically this value is in the range of 1000s
-        :param local: use local thresholding instead, using the threshold_local function in skimage.filters. Usually
-            a global threshold with two_pass=True works better.
-        :param disk_size: averaging disk range, when local=True
-        :param two_pass: use a two-pass thresholding scheme, where after thresholding and morphological filtering, a
-            separate local threshold is found for each bright region. Then the thresholding is repeated. Often this
-            is far superior to using a local threshold.
-        :param morph_method: selects a sequence of morphological operations. Current options are 'legacy' and
-            'instamatic', the latter derived from Stef Smeets' instamatic package. Just try what works best.
-        :param morph_disk: disk radius for morphological operations.
-        :param remove_carbon_lacing: attempts to remove lacey carbon artifacts. Only works if morph_method is set
-            to 'instamatic'
-        :param segmentation_method: method for segmentation. Options are 'distance-watershed', 'intensity-watershed',
-            and 'random-walker'. The latter is not well tested yet. Usually, 'distance-watershed' is better for clearly
-            visible particles that aggregate slightly, and 'intensity-watershed' for particles within larger blobs.
-        :param min_dist: minimum distance between initial points for segmentation. Ideally corresponds to minimum
-            distance between crystals. Not used for random walker segmentation.
-        :param picking_method: 'region-centroid' and 'intensity-centroid' will place a single coordinate marker for
-            acquisition into each segment; the latter weighs the pixels by their intensity. 'k-means' will place
-            many coordinate markers on the segment, approximately spaced by beam_radius/2; this is the 'brute-force'
-            option.
-        :param beam_radius: spacing between coordinates when using 'brute-force' acquisition
-        :param kwargs:
-        :return:
-        """
-
-        if 'intensity_centroid' in kwargs.keys():
-            print('Please do not use intensity centroid option anymore, and picking_method instead!')
-            if kwargs['intensity_centroid']:
-                picking_method = 'intensity-centroid'
-            else:
-                picking_method = 'region-centroid'
-
-        # STEP 1: thresholding
-        def threshold(img):
-            if local:
-                # binarized = img > rank.otsu(img_as_ubyte(img), disk(disk_size))
-                binarized = img > threshold_local(img, disk_size, method='mean')
-            else:
-                binarized = img > thr_fun(img) + thr_offset
-
-            return binarized
-
-        # STEP 2: morphology
-        def morphology(binarized):
-            if morph_method == 'legacy':
-                morph = binary_dilation(binarized, disk(1))
-                morph = binary_erosion(morph, disk(morph_disk))
-
-            elif morph_method == 'instamatic':
-                morph = remove_small_objects(binarized, min_size=4 * 4, connectivity=0)  # remove noise
-                morph = binary_closing(morph, disk(morph_disk))  # dilation + erosion
-                morph = binary_erosion(morph, disk(morph_disk))  # erosion
-                if remove_carbon_lacing:
-                    morph = remove_small_objects(morph, min_size=8 * 8, connectivity=0)
-                    morph = remove_small_holes(morph, min_size=32 * 32, connectivity=0)
-                morph = binary_dilation(morph, disk(morph_disk))  # dilation
-
-            elif (morph_method is None) or (morph_method=='none'):
-                morph = binarized
-
-            else:
-                raise ValueError('Unknown morphology method {}'.format(morph_method))
-
-            return morph
-
-        img = rescale_intensity(self.img, in_range='image')
-        binarized = threshold(img)
-        morph = morphology(binarized)
-
-        if two_pass:
-            lmorph = label(morph)
-            #thr_loc = np.ones_like(img)*(thr_fun(img) + thr_offset)
-            thr_loc = np.ones_like(img) * img.max()
-            for ii in range(1, lmorph.max()):
-                mask = lmorph == ii
-                if mask.sum() < 3:
-                    continue
-                thr_loc[mask] = thr_fun(img[mask])
-
-            binarized = img > thr_loc
-            morph = morphology(binarized)
-
-        # get background pixels
-        bkg = np.invert(binary_dilation(morph, disk(morph_disk * 2)) | morph)
-
-        # STEP 3: segmentation
-        if segmentation_method == 'distance-watershed':
-            distance = ndi.distance_transform_edt(morph)
-            local_max = peak_local_max(distance, indices=False,
-                                       min_distance=min_dist, labels=label(morph), exclude_border=True)
-            label_image = label(local_max)
-            self.labels = watershed(-distance, label_image, mask=morph)
-
-        elif segmentation_method == 'intensity-watershed':
-            distance = ndi.distance_transform_edt(morph)
-            local_max = peak_local_max(img, indices=False, min_distance=min_dist, labels=label(morph))
-            label_image = label(local_max)
-            self.labels = watershed(img.max()-img, label_image, mask=morph)
-
-        elif segmentation_method == 'random-walker':
-            # From instamatic. Works a bit different from watershed version currently, as it adds another "background"
-            # label. Still room for improvement...
-            markers = morph * 2 + bkg
-            self.labels = label(random_walker(img, markers, beta=50, spacing=(5, 5), mode='bf')) - 1
-            #self.labels = segmented.astype(int) - 1
-
-        else:
-            raise ValueError('Unknown segmentation method {}'.format(segmentation_method))
-
-        props = self.get_regionprops()
-
-        # STEP 4: get crystal coordinates from segments
-        if picking_method == 'intensity-centroid':
-            self.coordinates = np.array([p.weighted_centroid for p in props])
-            self.crystals['segment_id'] = self.crystals['crystal_id']
-
-        elif picking_method == 'region-centroid':
-            self.coordinates = np.array([p.centroid for p in props])
-            self.crystals['segment_id'] = self.crystals['crystal_id']
-
-        elif picking_method == 'k-means':
-            coords = []
-            segs = []
-            for ii, prop in enumerate(props):
-                area = prop.area
-                bbox = np.array(prop.bbox)
-                origin = bbox[0:2]
-                ncoords = int(area // (np.pi*beam_radius**2)) + 1
-
-                if ncoords > 1:
-                    coordinates = np.argwhere(prop.image)
-                    # kmeans needs normalized data (w), store std to calculate coordinates after
-                    w, std = whiten(coordinates)
-                    #km = KMeans(ncoords, max_iter=20, n_jobs=-1).fit(w)
-                    #cluster_centroids = km.cluster_centers_
-                    cluster_centroids, closest_centroids = kmeans2(w, ncoords, iter=20, minit='points')
-                    coords.extend(cluster_centroids * std + origin[0:2])
-                    segs.extend([ii]*len(cluster_centroids))
-                else:
-                    coords.append(prop.centroid)
-                    segs.append(ii)
-
-            self.coordinates = np.array(coords)
-            self.crystals['segment_id'] = segs
-
-        else:
-            raise ValueError('Unknown coordinate method {}'.format(picking_method))
-
-        self.mask = np.ndarray((0, 0)) # invalidate mask
-        self.coordinate_source = 'picked'
-        self.reference = None
-
-        pdf = pd.DataFrame([{p: rp[p] for p in ['area', 'equivalent_diameter', 'major_axis_length',
-                 'minor_axis_length', 'orientation']} for rp in props])
-
-        self.crystals = self.crystals.merge(pdf, left_on='segment_id', right_index=True, how='left')
-
-        print('{} particles found in {} segments.'.format(self.coordinates.shape[0], self.labels.max()))
-
-        if show_plot:
-            fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10))
-            ax[0].imshow(img, cmap='gray', vmin=np.percentile(img, 1), vmax=np.percentile(img, 99))
-            ax[0].contour(binarized, [0.5], linewidths=0.5, colors="yellow")
-            ax[0].contour(morph, [0.5], linewidths=0.5, colors="green")
-            ax[0].set_title('ADF image')
-            ax[1].imshow(img, cmap='gray', vmin=np.percentile(img, 1))
-            if show_segments:
-                ax[1].contour(self.labels, np.arange(self.labels.max()) + 0.5, linewidths=0.5, cmap='flag_r')
-
-            ax[1].scatter(self.coordinates[:, 1], self.coordinates[:, 0], marker='o', facecolors='none', edgecolors='g',
-                          s=20)
-            #ax[1].contour(self.labels, np.arange(self.labels.max())+0.5, linewidths=0.5, colors='green')
-            #for ii in range(self.labels.max()):
-            #    ax[1].contour(self.labels == ii, [0.5], linewidths=0.5, colors='green')
-            ax[1].set_title('{} coordinates, {} segments'.format(self.coordinates.shape[0], self.labels.max()))
-            #plt.show()
 
     def align_overview(self, reference, show_plot=False,
                        method='ecc', use_gradient=False, transfer_props=False):
@@ -477,8 +293,8 @@ class OverviewImg:
         else:
             raise ValueError('Only ecc is allowed as method (for now)')
 
-        self.crystals = reference.crystals.copy()
-        self.crystals.loc[:,['crystal_y', 'crystal_x']] = coords
+        self.features = reference.crystals.copy()
+        self.features.loc[:, ['crystal_y', 'crystal_x']] = coords
 
         # invalidate mask and labels
         self.mask = np.ndarray((0, 0))
@@ -496,7 +312,7 @@ class OverviewImg:
     def make_scan_list(self, offset_x=0, offset_y=0, frames=1, y_pos_tol=1, predist=100, dxmax=300):
         # initialize by copying crystal list
 
-        sh = self.crystals.loc[:,['crystal_id', 'crystal_x', 'crystal_y']].copy()
+        sh = self.features.loc[:, ['crystal_id', 'crystal_x', 'crystal_y']].copy()
         sh['pos_x'] = sh['crystal_x'] + offset_x
         sh['pos_y'] = sh['crystal_y'] + offset_y
         inrange = (0 <= sh['pos_x']) & (sh['pos_x'] < self.img.shape[1]) & (0 <= sh['pos_y']) & (sh['pos_y'] < self.img.shape[0])
@@ -585,7 +401,6 @@ class OverviewImg:
         except:
             print('Could not read coordinate file')
 
-
     def img_scatter_plot(self, ax, colors=None):
         """
         Tool function to make a nice combined scatter and stem figure plot.
@@ -610,7 +425,7 @@ class OverviewImg:
         return colors, imgh, scath
 
     @classmethod
-    def from_nxs(cls, filename, subset='entry', data_grp='data', map_grp='map'):
+    def from_nxs(cls, filename, subset='entry', map_grp='map', diffdata_grp='data'):
 
         # to be learned later?!
         self = cls(subset=subset)
@@ -621,21 +436,21 @@ class OverviewImg:
                 try:
                     self.meta = io.h5_to_dict(f'{subset}/instrument_{map_grp}')
                 except KeyError:
-                    print(f'No acquisition data found for map image {data_grp}')
+                    print(f'No acquisition data found for map image {diffdata_grp}')
                 try:
-                    self.crystals = pd.read_hdf(filename, f'/{subset}/{map_grp}/features')
+                    self.features = pd.read_hdf(filename, f'/{subset}/{map_grp}/features')
                 except KeyError:
                     print(f'No feature list found for map image {map_grp}')
 
-            if data_grp is not None:
+            if diffdata_grp is not None:
                 try:
                     self.meta_diff = io.h5_to_dict(f'{subset}/instrument')
                 except KeyError:
-                    print(f'No acquisition data found for data stack {data_grp}')
+                    print(f'No acquisition data found for data stack {diffdata_grp}')
                 try:
-                    self.shots = pd.read_hdf(filename, f'/{subset}/{data_grp}/shots')
+                    self.shots = pd.read_hdf(filename, f'/{subset}/{diffdata_grp}/shots')
                 except KeyError:
-                    print(f'No shot list found for data stack {data_grp}')
+                    print(f'No shot list found for data stack {diffdata_grp}')
 
             try:
                 sgrp = f[f'/{subset}/sample']
@@ -645,7 +460,7 @@ class OverviewImg:
             except KeyError:
                 print('No sufficient sample information found')
 
-    def to_nxs(self, filename, subset='entry', data_grp='data', map_grp='map', store_diff_meta=False):
+    def to_nxs(self, filename, subset='entry', map_grp='map', diffdata_grp='data', store_diff_meta=False):
 
         # the NXS interface has way less logic attached to it... note that it does NOT support the mask mechanism
         # anymore. This is the future.
@@ -655,7 +470,7 @@ class OverviewImg:
             self._subset = subset
             print(f'Subset label changed to {subset}')
 
-        # image data
+        # image and sample data
         with h5py.File(filename) as f:
             io.dict_to_h5(f.require_group(f'/{subset}/instrument_{map_grp}/STEM_Image'), {'data': self.img})
             io.dict_to_h5(f.require_group(f'/{subset}/sample'),
@@ -676,15 +491,16 @@ class OverviewImg:
                 m = {}
             else:
                 m = self._meta_diff
+
             io.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument', data_grp=None)
 
         # lists
-        self.crystals.to_hdf(filename, f'/{subset}/{map_grp}/features', format='table', data_columns=True)
+        self.features.to_hdf(filename, f'/{subset}/{map_grp}/features', format='table', data_columns=True)
         if self._shots.size:
-            self.shots.to_hdf(filename, f'/{subset}/{data_grp}/shots', format='table', data_columns=True)
+            self.shots.to_hdf(filename, f'/{subset}/{diffdata_grp}/shots', format='table', data_columns=True)
 
     @classmethod
-    def from_h5(cls, filename, region_id=None, run_id=None, subset=None):
+    def from_h5(cls, filename, region_id=None, run_id=None, subset=None, sample=''):
         """
         Load overview image data from HDF5 file. Caveat: acquisition metadata will be flattened!
         :param filename: obvious, right?
@@ -698,6 +514,7 @@ class OverviewImg:
 
         if subset is None:
             if len(meta) > 1:
+                print(meta.keys())
                 raise ValueError('File contains more than one subset. You have to specify which one to read.')
             else:
                 subset = list(meta.keys())[0]
@@ -708,46 +525,49 @@ class OverviewImg:
             regrun = []
             for k, v in meta.items():
                 if ('run' in v.columns) and ('region' in v.columns):
-                    regrun.append(v[['region','run']])
+                    regrun.append(v[['region', 'run']])
 
             if not regrun:
                 raise ValueError('Meta lists do not seem to contain region/run information. You have to give them explicitly!')
 
             regrun = pd.concat(regrun).drop_duplicates()
             if len(regrun) > 1:
+                print(regrun)
                 raise ValueError('Subset contains more than one region/run. You have to give it explicitly!')
 
             region_id = regrun.iloc[0, :]['region']
             run_id = regrun.iloc[0, :]['run']
 
-        self = cls(region_id=region_id, run_id=run_id, subset=subset)
+        self = cls(region_id=region_id, run_id=run_id, subset=subset, sample=sample)
 
         if 'crystals' in meta.keys():
             cryst = meta['crystals']
-            self.crystals = cryst.loc[(cryst['region']==self.region_id) & (cryst['run']==self.run_id), :]
+            self.features = cryst.loc[(cryst['region'] == self.region_id) & (cryst['run'] == self.run_id), :]
 
         if 'shots' in meta.keys():
             self.shots = meta['shots'].loc[
                          (meta['shots']['region'] == self.region_id) & (meta['shots']['run'] == self.run_id), :]
 
-        if len(self.crystals) == 0:
+        if len(self.features) == 0:
             raise ValueError('No crystals or shots list found in HDF5 file.')
 
-        print(meta.keys())
         if 'stem_acqdata' in meta.keys():
             self.meta = meta['stem_acqdata'].loc[(meta['stem_acqdata']['region']==self.region_id) & (meta['stem_acqdata']['run']==self.run_id)]
             self.tilt = np.round(self.meta['Stage_A'].values * 180 / np.pi)
 
-        if 'stem' in self.crystals.columns:
-            self._img = io.get_meta_array(filename, 'stem', self.crystals.iloc[0, :], subset=self.subset)
+        if 'acqdata' in meta.keys():
+            self.meta_diff = meta['acqdata'].loc[(meta['acqdata']['region']==self.region_id) & (meta['acqdata']['run']==self.run_id)]
+            #self.tilt = np.round(self.meta_diff['Stage_A'].values * 180 / np.pi)
 
-        if 'mask' in self.crystals.columns:
-            self.mask = io.get_meta_array(filename, 'mask', self.crystals.iloc[0, :], subset=self.subset)
+        if 'stem' in self.features.columns:
+            self._img = io.get_meta_array(filename, 'stem', self.features.iloc[0, :], subset=self.subset)
 
-        self.crystals.drop(['region', 'run'], axis=1, inplace=True)
+        if 'mask' in self.features.columns:
+            self.mask = io.get_meta_array(filename, 'mask', self.features.iloc[0, :], subset=self.subset)
+
+        self.features.drop(['region', 'run'], axis=1, inplace=True)
 
         return self
-
 
     def to_h5(self, filename):
         """
@@ -758,7 +578,7 @@ class OverviewImg:
         """
 
         # all the implicit fields now have to be made explicit
-        cryst = self.crystals.copy()
+        cryst = self.features.copy()
         cryst['region'] = self.region_id
         cryst['run'] = self.run_id
         lists = {'crystals': cryst}
@@ -788,3 +608,204 @@ class OverviewImg:
             lists.update({'shots': self.shots})
 
         io.store_meta_lists(filename, {self.subset: lists}, flat=False) # MUST go last, as store_meta_array has side-effects
+
+    def find_particles(self, show_plot=True, show_segments=True,
+                       thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49, two_pass=False,
+                       # thresholding
+                       morph_method='legacy', morph_disk=2, remove_carbon_lacing=False,  # morphology
+                       segmentation_method='distance-watershed', min_dist=8,  # segmentation
+                       picking_method='region-centroid', beam_radius=5,  # picking
+                       **kwargs):
+        """
+        Crystal finding algorithm. Attempts to find images in 4 steps:
+        (1) thresholding, yielding a binarized image. Can be done using a global or local (adaptive) threshold.
+            Usually, global works better for STEM images, unless the background is very inhomogeneous. If there are
+            bright-ish "blobs" containing the particles, two_pass should be used.
+        (2) morphological operations, eliminating small features, filling holes etc.. Different sequences of operations
+            are provided which are worth trying out
+        (3) segmentation of the bright regions found by the previous steps, using watershed or random walker schemes
+        (4) generation of crystal coordinates, either using segment centroids, or by filling up the segments with a
+            number of points derived from a typical spacing (beam radius)
+
+        :param show_plot: show a plot in the end to assess the result
+        :param thr_fun: function used for global thresholding. Anything that takes the image as only positional argument
+            can be inserted here (e.g. those from skimage.filters.thresholding). Defaults to threshold_li
+        :param thr_offset: additional offset for found global threshold. Note that the images are normalized to the
+            full 16bit range initially, so typically this value is in the range of 1000s
+        :param local: use local thresholding instead, using the threshold_local function in skimage.filters. Usually
+            a global threshold with two_pass=True works better.
+        :param disk_size: averaging disk range, when local=True
+        :param two_pass: use a two-pass thresholding scheme, where after thresholding and morphological filtering, a
+            separate local threshold is found for each bright region. Then the thresholding is repeated. Often this
+            is far superior to using a local threshold.
+        :param morph_method: selects a sequence of morphological operations. Current options are 'legacy' and
+            'instamatic', the latter derived from Stef Smeets' instamatic package. Just try what works best.
+        :param morph_disk: disk radius for morphological operations.
+        :param remove_carbon_lacing: attempts to remove lacey carbon artifacts. Only works if morph_method is set
+            to 'instamatic'
+        :param segmentation_method: method for segmentation. Options are 'distance-watershed', 'intensity-watershed',
+            and 'random-walker'. The latter is not well tested yet. Usually, 'distance-watershed' is better for clearly
+            visible particles that aggregate slightly, and 'intensity-watershed' for particles within larger blobs.
+        :param min_dist: minimum distance between initial points for segmentation. Ideally corresponds to minimum
+            distance between crystals. Not used for random walker segmentation.
+        :param picking_method: 'region-centroid' and 'intensity-centroid' will place a single coordinate marker for
+            acquisition into each segment; the latter weighs the pixels by their intensity. 'k-means' will place
+            many coordinate markers on the segment, approximately spaced by beam_radius/2; this is the 'brute-force'
+            option.
+        :param beam_radius: spacing between coordinates when using 'brute-force' acquisition
+        :param kwargs:
+        :return:
+        """
+
+        if 'intensity_centroid' in kwargs.keys():
+            print('Please do not use intensity centroid option anymore, and picking_method instead!')
+            if kwargs['intensity_centroid']:
+                picking_method = 'intensity-centroid'
+            else:
+                picking_method = 'region-centroid'
+
+        # STEP 1: thresholding
+        def threshold(img):
+            if local:
+                # binarized = img > rank.otsu(img_as_ubyte(img), disk(disk_size))
+                binarized = img > threshold_local(img, disk_size, method='mean')
+            else:
+                binarized = img > thr_fun(img) + thr_offset
+
+            return binarized
+
+        # STEP 2: morphology
+        def morphology(binarized):
+            if morph_method == 'legacy':
+                morph = binary_dilation(binarized, disk(1))
+                morph = binary_erosion(morph, disk(morph_disk))
+
+            elif morph_method == 'instamatic':
+                morph = remove_small_objects(binarized, min_size=4 * 4, connectivity=0)  # remove noise
+                morph = binary_closing(morph, disk(morph_disk))  # dilation + erosion
+                morph = binary_erosion(morph, disk(morph_disk))  # erosion
+                if remove_carbon_lacing:
+                    morph = remove_small_objects(morph, min_size=8 * 8, connectivity=0)
+                    morph = remove_small_holes(morph, min_size=32 * 32, connectivity=0)
+                morph = binary_dilation(morph, disk(morph_disk))  # dilation
+
+            elif (morph_method is None) or (morph_method == 'none'):
+                morph = binarized
+
+            else:
+                raise ValueError('Unknown morphology method {}'.format(morph_method))
+
+            return morph
+
+        img = rescale_intensity(self.img, in_range='image')
+        binarized = threshold(img)
+        morph = morphology(binarized)
+
+        if two_pass:
+            lmorph = label(morph)
+            # thr_loc = np.ones_like(img)*(thr_fun(img) + thr_offset)
+            thr_loc = np.ones_like(img) * img.max()
+            for ii in range(1, lmorph.max()):
+                mask = lmorph == ii
+                if mask.sum() < 3:
+                    continue
+                thr_loc[mask] = thr_fun(img[mask])
+
+            binarized = img > thr_loc
+            morph = morphology(binarized)
+
+        # get background pixels
+        bkg = np.invert(binary_dilation(morph, disk(morph_disk * 2)) | morph)
+
+        # STEP 3: segmentation
+        if segmentation_method == 'distance-watershed':
+            distance = ndi.distance_transform_edt(morph)
+            local_max = peak_local_max(distance, indices=False,
+                                       min_distance=min_dist, labels=label(morph), exclude_border=True)
+            label_image = label(local_max)
+            self.labels = watershed(-distance, label_image, mask=morph)
+
+        elif segmentation_method == 'intensity-watershed':
+            distance = ndi.distance_transform_edt(morph)
+            local_max = peak_local_max(img, indices=False, min_distance=min_dist, labels=label(morph))
+            label_image = label(local_max)
+            self.labels = watershed(img.max() - img, label_image, mask=morph)
+
+        elif segmentation_method == 'random-walker':
+            # From instamatic. Works a bit different from watershed version currently, as it adds another "background"
+            # label. Still room for improvement...
+            markers = morph * 2 + bkg
+            self.labels = label(random_walker(img, markers, beta=50, spacing=(5, 5), mode='bf')) - 1
+            # self.labels = segmented.astype(int) - 1
+
+        else:
+            raise ValueError('Unknown segmentation method {}'.format(segmentation_method))
+
+        props = self.get_regionprops()
+
+        # STEP 4: get crystal coordinates from segments
+        if picking_method == 'intensity-centroid':
+            self.coordinates = np.array([p.weighted_centroid for p in props])
+            self.features['segment_id'] = self.features['crystal_id']
+
+        elif picking_method == 'region-centroid':
+            self.coordinates = np.array([p.centroid for p in props])
+            self.features['segment_id'] = self.features['crystal_id']
+
+        elif picking_method == 'k-means':
+            coords = []
+            segs = []
+            for ii, prop in enumerate(props):
+                area = prop.area
+                bbox = np.array(prop.bbox)
+                origin = bbox[0:2]
+                ncoords = int(area // (np.pi * beam_radius ** 2)) + 1
+
+                if ncoords > 1:
+                    coordinates = np.argwhere(prop.image)
+                    # kmeans needs normalized data (w), store std to calculate coordinates after
+                    w, std = whiten(coordinates)
+                    # km = KMeans(ncoords, max_iter=20, n_jobs=-1).fit(w)
+                    # cluster_centroids = km.cluster_centers_
+                    cluster_centroids, closest_centroids = kmeans2(w, ncoords, iter=20, minit='points')
+                    coords.extend(cluster_centroids * std + origin[0:2])
+                    segs.extend([ii] * len(cluster_centroids))
+                else:
+                    coords.append(prop.centroid)
+                    segs.append(ii)
+
+            self.coordinates = np.array(coords)
+            self.features['segment_id'] = segs
+
+        else:
+            raise ValueError('Unknown coordinate method {}'.format(picking_method))
+
+        self.mask = np.ndarray((0, 0))  # invalidate mask
+        self.coordinate_source = 'picked'
+        self.reference = None
+
+        pdf = pd.DataFrame([{p: rp[p] for p in ['area', 'equivalent_diameter', 'major_axis_length',
+                                                'minor_axis_length', 'orientation']} for rp in props])
+
+        self.features = self.features.merge(pdf, left_on='segment_id', right_index=True, how='left')
+
+        print('{} particles found in {} segments.'.format(self.coordinates.shape[0], self.labels.max()))
+
+        if show_plot:
+            fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10))
+            ax[0].imshow(img, cmap='gray', vmin=np.percentile(img, 1), vmax=np.percentile(img, 99))
+            ax[0].contour(binarized, [0.5], linewidths=0.5, colors="yellow")
+            ax[0].contour(morph, [0.5], linewidths=0.5, colors="green")
+            ax[0].set_title('ADF image')
+            ax[1].imshow(img, cmap='gray', vmin=np.percentile(img, 1))
+            if show_segments:
+                ax[1].contour(self.labels, np.arange(self.labels.max()) + 0.5, linewidths=0.5, cmap='flag_r')
+
+            ax[1].scatter(self.coordinates[:, 1], self.coordinates[:, 0], marker='o', facecolors='none',
+                          edgecolors='g',
+                          s=20)
+            # ax[1].contour(self.labels, np.arange(self.labels.max())+0.5, linewidths=0.5, colors='green')
+            # for ii in range(self.labels.max()):
+            #    ax[1].contour(self.labels == ii, [0.5], linewidths=0.5, colors='green')
+            ax[1].set_title('{} coordinates, {} segments'.format(self.coordinates.shape[0], self.labels.max()))
+            # plt.show()

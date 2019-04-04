@@ -14,7 +14,7 @@ from collections import defaultdict
 import dask.diagnostics
 from io import StringIO
 import os.path
-from . import normalize_names
+from lambda_tools import normalize_names
 
 
 def dict_to_h5(grp, data, exclude=()):
@@ -29,8 +29,6 @@ def dict_to_h5(grp, data, exclude=()):
         nk = normalize_names(k)
         if k in exclude:
             continue
-        elif (include is not None) and (k not in include):
-            pass
         elif isinstance(v, dict):
             dict_to_h5(grp.require_group(nk), v)
         else:
@@ -75,7 +73,10 @@ def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/ins
     elif isinstance(meta, dict):
         pass
 
-    dict_to_h5(f.require_group(meta_grp), meta, exclude=exclude, include=include)
+    elif isinstance(meta, pd.DataFrame):
+        meta = next(iter(meta.to_dict('index').values()))
+
+    dict_to_h5(f.require_group(meta_grp), meta, exclude=exclude)
 
     if data_grp is not None:
         dgrp = f.require_group(data_grp)
