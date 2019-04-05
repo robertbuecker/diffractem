@@ -90,6 +90,60 @@ def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/ins
     f.close()
 
 
+def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
+            print_skipped=False, h5_folder=None, h5_suffix='.h5'):
+    """
+    Copies h5/nxs files or lists of them
+    :param fn_from:
+    :param fn_to:
+    :param exclude:
+    :param mode:
+    :param print_skipped:
+    :param h5_folder:
+    :param h5_suffix:
+    :return:
+    """
+
+    if fn_from.rsplit('.', 1)[-1] == 'lst':
+        old_files = [f.strip() for f in open(fn_from).readlines()]
+        new_files = []
+
+        for ofn in old_files:
+            # this loop could beautifully be parallelized. For later...
+            if h5_folder is None:
+                h5_folder = ofn.rsplit('/', 1)[0]
+            if h5_suffix is None:
+                h5_suffix = ofn.rsplit('.', 1)[-1]
+            nfn = h5_folder + '/' + ofn.rsplit('.', 1)[0].rsplit('/', 1)[-1] + h5_suffix
+            new_files.append(nfn)
+            # exclude detector data and shot list
+            copy_h5(ofn, nfn, exclude, mode, print_skipped)
+
+        open(fn_to, 'w').write('\n'.join(new_files));
+
+        return
+
+    f = h5py.File(fn_from, 'r')
+    f2 = h5py.File(fn_to, mode)
+
+    exclude_regex = [re.compile(ex.replace('%', '.*')) for ex in exclude]
+
+    def copy_exclude(key, ds):
+        if not isinstance(ds, h5py.Dataset):
+            return
+        for ek in exclude_regex:
+            if ek.fullmatch('/' + key) is not None:
+                if print_skipped:
+                    print(f'Skipping key {key} due to {ek}')
+                return
+        f2.copy(ds, key)
+
+    f.visititems(lambda k, v: copy_exclude(k, v))
+
+    f.close()
+    f2.close()
+
+
 def read_crystfel_stream(filename, serial_offset=-1):
     import pandas as pd
     from io import StringIO
@@ -508,7 +562,8 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     return new_lists, new_stacks
 
 
-def make_master_h5(file_list, file_name=None, abs_path=False):
+def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
+                   remote_group='/entry', verbose=False):
 
     if isinstance(file_list, list) or isinstance(file_list, tuple):
         fns = file_list
@@ -527,7 +582,7 @@ def make_master_h5(file_list, file_name=None, abs_path=False):
     for fn in fns:
         with h5py.File(fn, 'r') as fsgl:
             try:
-                sgrp = fsgl['/entry/sample']
+                sgrp = fsgl[remote_group + '/sample']
                 subset = '{}_{:03d}_{:03d}'.format(sgrp['name'].value, sgrp['region_id'].value, sgrp['run_id'].value)
             except KeyError as e:
                 print('No sample info found. Using file name for subset.')
@@ -541,14 +596,17 @@ def make_master_h5(file_list, file_name=None, abs_path=False):
                 fn2 = os.getcwd() + '/' + fn
             else:
                 fn2 = fn
-            print(f'Referencing file {fn2} as {subset}')
-            f['/' + subset] = h5py.ExternalLink(fn2, '/entry')
+            if verbose:
+                print(f'Referencing file {fn2} as {subset}')
+            if local_group != '/':
+                f.require_group(local_group)
+            f[local_group + '/' + subset] = h5py.ExternalLink(fn2, remote_group)
 
     f.close()
 
     return file_name
 
-def store_meta_lists(filename, lists, flat=True, **kwargs):
+def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kwargs):
     """
     Store pandas DataFrames into HDF file, using the standard structure.
     :param filename: Name of HDF file to store lists into
@@ -559,33 +617,37 @@ def store_meta_lists(filename, lists, flat=True, **kwargs):
     :return: nothing
     """
 
-    #if filename.rsplit('.',1)[1] == 'lst':
-    #    make_virtual_h5(filename, 'temp.h5')
-    #    fn2 = 'temp.h5'
-    #else:
-    #    fn2 = filename
+    if filename.rsplit('.', 1)[-1] == 'lst':
+        # this only works with new-style nxs files...
+        fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
+        fn2 = make_master_h5(filename, fn2)
+        lists = get_meta_lists(fn2, flat, base_path, labels)
+        os.remove(fn2)
+        return lists
 
     with pd.HDFStore(filename) as store:
 
         if flat:
             for ln, l in lists.items():
                 for ssn, ssl in l.groupby('subset'):
-                    #print(ssn, '/entry/meta/{}/{}'.format(ssn, ln))
+                    path = (base_path.replace('%', '{}') + '/{}').format(ssn, ln)
+                    print(path)
                     try:
-                        store.put('/entry/meta/{}/{}'.format(ssn, ln), ssl, format='table', data_columns=True, **kwargs)
+                        store.put(path, ssl, format='table', data_columns=True, **kwargs)
                     except ValueError as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put('/entry/meta/{}/{}'.format(ssn, ln), ssl, format='table', **kwargs)
+                        store.put(path, ssl, format='table', **kwargs)
 
         else:
             for ssn, ssls in lists.items():
                 for ln, ssl in ssls.items():
-                    #print(ssn, '/entry/meta/{}/{}'.format(ssn, ln))
+                    path = (base_path.replace('%', '{}') + '/{}').format(ssn, ln)
+                    print(path)
                     try:
-                        store.put('/entry/meta/{}/{}'.format(ssn, ln), ssl, format='table', data_columns=True, **kwargs)
+                        store.put(path, ssl, format='table', data_columns=True, **kwargs)
                     except Exception as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put('/entry/meta/{}/{}'.format(ssn, ln), ssl, format='table', **kwargs)
+                        store.put(path, ssl, format='table', **kwargs)
 
 
 def store_data_stacks(filename, stacks, flat=True, shots=None, **kwargs):
@@ -615,12 +677,6 @@ def store_data_stacks(filename, stacks, flat=True, shots=None, **kwargs):
     print('Computing and storing the following stacks: ')
     for k, v in allstacks.items():
         print(k, '\t', v)
-        #incompatible with multiple subsets
-        #try:
-        #    assert v.shape[0] == allstacks[list(allstacks.keys())[0]].shape[0]
-        #    assert v.chunks[0] == allstacks[list(allstacks.keys())[0]].chunks[0]
-        #except AssertionError as err:
-        #    raise ValueError('Height or chunk structure of stacks are not equal!')
 
     with dask.diagnostics.ProgressBar():
         #print(kwargs)
@@ -679,7 +735,7 @@ def store_meta_array(filename, array_label, identifier, array, shots=None, listn
     return label_string, meta_path
 
 
-def get_meta_lists(filename, flat=True, base_path='/entry/meta', labels=None):
+def get_meta_lists(filename, flat=True, base_path='/entry/meta/%', labels=None):
     """
     Reads all pandas metadata lists from a (processed) HDF file and returns them as a nested dictionary of DataFrames.
     Typically the first function to call on a file, also useful to just get a quick idea what data is in it.
@@ -690,51 +746,37 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta', labels=None):
     'subset2_name": .....} etc. if flat=False.
     """
 
-    subsets = {}
+    if filename.rsplit('.', 1)[-1] == 'lst':
+        # this only works with new-style nxs files...
+        fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
+        fn2 = make_master_h5(filename, fn2)
+        lists = get_meta_lists(fn2, flat, base_path, labels)
+        os.remove(fn2)
+        return lists
+
+    identifiers = base_path.rsplit('%', 1)
+    fh = h5py.File(filename, 'r')
+    base_grp = fh[identifiers[0]]
+
     lists = {}
 
-    if filename.rsplit('.',1)[1] == 'h5':
-        fh = h5py.File(filename, 'r')
-        for name, grp in fh[base_path].items():
-            if isinstance(grp, h5py.Group):
-                lists.update({name: {}})
-                for tname, tgrp in grp.items():
-                    if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
-                        lists[name].update({tname: pd.read_hdf(filename, tgrp.name)})
+    for subset, ssgrp in base_grp.items():
 
-        fh.close()
+        if identifiers[1]:
+            grp = ssgrp[identifiers[1].strip('/')]
+        else:
+            # subset identifier is on last level
+            grp = ssgrp
 
-    # TODO: parallelize this using e.g. joblib or concurrent.futures
-    if filename.rsplit('.',1)[1] == 'lst':
-        with open(filename) as fh:
-            fns = [fn.strip() for fn in fh.readlines()]
-
-        for fn in fns:
-            fh = h5py.File(fn.strip(), 'r')
-            name = fn.rsplit('.', 1)[0].rsplit('/',1)[-1]
-            if name in lists.keys():
-                raise ValueError('File names in list file must be unique (different directories do not suffice).')
-
-            if 'shots' in fh[base_path].keys():         # lists are directly stored in base path (new scheme)
-                grp = fh[base_path]
-
-            else:   # legacy file
-                found = False
-                for _, theGrp in fh[base_path].items():
-                    if found:
-                        raise ValueError('When operating with a list file, only single-subset h5 files are allowed.')
-                    if isinstance(theGrp, h5py.Group):
-                        grp = theGrp
-                        found = True
-                if not found:
-                    raise ValueError('No group found below path ' + base_path)
-
-            lists.update({name: {}})
+        if isinstance(grp, h5py.Group):
+            lists.update({subset: {}})
             for tname, tgrp in grp.items():
                 if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
-                    lists[name].update({tname: pd.read_hdf(fn, tgrp.name)})
+                    fieldname = identifiers[0] + subset + identifiers[1] + '/' + tname
+                    lists[subset].update({tname: pd.read_hdf(filename, fieldname)})
+                    lists[subset][tname]['subset'] = subset
 
-            fh.close()
+    fh.close()
 
     if flat:
         tables = defaultdict(list)
@@ -744,11 +786,17 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta', labels=None):
                 tables[tn].append(td)
         lists = {k: pd.concat(v, sort=False).reset_index(drop=True) for k, v in tables.items()}
 
-    del subsets
     return lists
 
+def get_nxs_list(filename, what='shots'):
+    if what == 'shots':
+        return get_meta_lists(filename, True, '/%/data', 'shots')['shots']
+    if what in ['crystals', 'features']:
+        return get_meta_lists(filename, True, '/%/map', 'features')['features']
+    # for later: if none of the usual ones, just crawl the file for something matching
+    return None
 
-def get_data_stacks(filename, flat=True, base_path='/entry/data', labels=None):
+def get_data_stacks(filename, flat=True, base_path='/entry/data/%', labels=None):
     """
     Reads all data arrays from a (processed) HDF file as dask dataframes and returns them as a nested dictionary.
     :param filename: Name of the HDF data file from serial acquisition.
@@ -758,18 +806,36 @@ def get_data_stacks(filename, flat=True, base_path='/entry/data', labels=None):
     'subset2_name": .....} etc. if flat=False.
     """
 
-    fh = h5py.File(filename)
-    subsets = {}
-    for name, grp in fh[base_path].items():
-        if isinstance(grp, h5py.Group):
-            subsets.update({name: grp})
+    if filename.rsplit('.', 1)[-1] == 'lst':
+        # this only works with new-style nxs files...
+        fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
+        fn2 = make_master_h5(filename, fn2)
+        stacks = get_data_stacks(fn2, flat, base_path, labels)
+        os.remove(fn2)
+        return stacks
+
+    identifiers = base_path.rsplit('%', 1)
+    fh = h5py.File(filename, 'r')
+    base_grp = fh[identifiers[0]]
 
     stacks = {}
-    for name, grp in subsets.items():
-        stacks.update({name: {}})
-        for tname, ds in grp.items():
-            if ((labels is None) or (tname in labels)) and isinstance(ds, h5py.Dataset):
-                stacks[name].update({tname: da.from_array(ds, chunks=ds.chunks)})
+
+    for subset, ssgrp in base_grp.items():
+
+        if identifiers[1]:
+            grp = ssgrp[identifiers[1].strip('/')]
+        else:
+            # subset identifier is on last level
+            grp = ssgrp
+
+        if isinstance(grp, h5py.Group):
+            stacks.update({subset: {}})
+            for dslabel, ds in grp.items():
+                if ((labels is None) or (dslabel in labels)) \
+                        and isinstance(ds, h5py.Dataset) and ('pandas_type' not in ds.attrs):
+                    stacks[subset].update({dslabel: da.from_array(ds, ds.chunks)})
+
+    fh.close()
 
     if flat:
         stks = defaultdict(list)

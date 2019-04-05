@@ -91,7 +91,7 @@ def whiten(obs, check_finite=False):
 class OverviewImg:
 
     def __init__(self, img=None, coordinates=None, basename=None, region_id=0, run_id=0,
-                 subset=None, sample='', flatten_meta=False):
+                 subset=None, sample='', detector_file=None, flatten_meta=False):
         """
         Returns an OverviewImg object, which can contain a region overview image, along with particle coordinates,
         meta data, region properties, and a scan mask. It contains methods to extract coordinates by finding
@@ -133,7 +133,9 @@ class OverviewImg:
         self._shots = pd.DataFrame()
         self.reference = None
         self.coordinate_source = 'none'
-        self._detector_file = None
+        self._detector_file = detector_file
+        if detector_file is not None:
+            self.detector_file = detector_file
         self.meta = None
         self.meta_diff = None
         self._img_label = None
@@ -500,7 +502,7 @@ class OverviewImg:
             self.shots.to_hdf(filename, f'/{subset}/{diffdata_grp}/shots', format='table', data_columns=True)
 
     @classmethod
-    def from_h5(cls, filename, region_id=None, run_id=None, subset=None, sample=''):
+    def from_h5(cls, filename, region_id=None, run_id=None, subset=None, **kwargs):
         """
         Load overview image data from HDF5 file. Caveat: acquisition metadata will be flattened!
         :param filename: obvious, right?
@@ -538,7 +540,7 @@ class OverviewImg:
             region_id = regrun.iloc[0, :]['region']
             run_id = regrun.iloc[0, :]['run']
 
-        self = cls(region_id=region_id, run_id=run_id, subset=subset, sample=sample)
+        self = cls(region_id=region_id, run_id=run_id, subset=subset, **kwargs)
 
         if 'crystals' in meta.keys():
             cryst = meta['crystals']
