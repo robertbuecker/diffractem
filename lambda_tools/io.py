@@ -1,13 +1,10 @@
 import re
 from glob import glob
 from warnings import warn
-import hdf5plugin
-import tables
 import h5py
 import numpy as np
 import pandas as pd
 import tifffile
-from tifffile import imread
 from dask import array as da
 import json
 from collections import defaultdict
@@ -15,6 +12,7 @@ import dask.diagnostics
 from io import StringIO
 import os.path
 from lambda_tools import normalize_names
+from tifffile import imread
 
 
 def dict_to_h5(grp, data, exclude=()):
@@ -129,8 +127,9 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
     exclude_regex = [re.compile(ex.replace('%', '.*')) for ex in exclude]
 
     def copy_exclude(key, ds):
-        if not isinstance(ds, h5py.Dataset):
+        if not (isinstance(ds, h5py.Dataset) or isinstance(ds, h5py.SoftLink)):
             return
+        # TODO: some logic for groups
         for ek in exclude_regex:
             if ek.fullmatch('/' + key) is not None:
                 if print_skipped:
@@ -618,12 +617,26 @@ def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kw
     """
 
     if filename.rsplit('.', 1)[-1] == 'lst':
-        # this only works with new-style nxs files...
         fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
-        fn2 = make_master_h5(filename, fn2)
-        lists = get_meta_lists(fn2, flat, base_path, labels)
+        # unfortunately, the usual master-h5 trick does not work because pandas' to_hdf does not handle
+        # external links properly. still using a similar mechanism, to enforce consistency.
+        with h5py.File(make_master_h5(filename, fn2)) as f:
+            subsets = list(f.keys())
+            links = [f.get(k, getlink=True) for k in subsets]
         os.remove(fn2)
-        return lists
+        # now store to files one-by-one
+        for ssn, lnk in zip(subsets, links):
+            print(ssn)
+            with pd.HDFStore(lnk.filename) as store:
+                for ln, l in lists.items():
+                    ssl = l.loc[l['subset'] == ssn, :]
+                    path = base_path.replace('/%', lnk.path) + '/' + ln
+                    try:
+                        store.put(path, ssl.drop('subset',axis=1), format='table', data_columns=True, **kwargs)
+                    except ValueError as err:
+                        # most likely, the column titles contain something not compatible with h5 data columns
+                        store.put(path, ssl.drop('subset',axis=1), format='table', **kwargs)
+        return
 
     with pd.HDFStore(filename) as store:
 
@@ -633,10 +646,10 @@ def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kw
                     path = (base_path.replace('%', '{}') + '/{}').format(ssn, ln)
                     print(path)
                     try:
-                        store.put(path, ssl, format='table', data_columns=True, **kwargs)
+                        store.put(path, ssl.drop('subset',axis=1), format='table', data_columns=True, **kwargs)
                     except ValueError as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, ssl, format='table', **kwargs)
+                        store.put(path, ssl.drop('subset',axis=1), format='table', **kwargs)
 
         else:
             for ssn, ssls in lists.items():
@@ -644,13 +657,13 @@ def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kw
                     path = (base_path.replace('%', '{}') + '/{}').format(ssn, ln)
                     print(path)
                     try:
-                        store.put(path, ssl, format='table', data_columns=True, **kwargs)
+                        store.put(path, ssl.drop('subset',axis=1), format='table', data_columns=True, **kwargs)
                     except Exception as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, ssl, format='table', **kwargs)
+                        store.put(path, ssl.drop('subset',axis=1), format='table', **kwargs)
 
 
-def store_data_stacks(filename, stacks, flat=True, shots=None, **kwargs):
+def store_data_stacks(filename, stacks, flat=True, shots=None, base_path='/entry/data/%', **kwargs):
     """
     Compute and store dask arrays into HDF file, using the standard structure
     :param filename: Name of HDF file to store arrays into
@@ -661,18 +674,56 @@ def store_data_stacks(filename, stacks, flat=True, shots=None, **kwargs):
     :param kwargs: forwarded to dask.array.to_hdf5
     :return: nothing
     """
+
+    if filename.rsplit('.', 1)[-1] == 'lst':
+        fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
+        # unfortunately, the usual master-h5 trick does not work because dask's to_hdf5 does not handle
+        # external links properly. still using a similar mechanism, to enforce consistency.
+        with h5py.File(make_master_h5(filename, fn2)) as f:
+            subsets = list(f.keys())
+            links = [f.get(k, getlink=True) for k in subsets]
+            ssadd = {s: l for s, l in zip(subsets, links)}
+        os.remove(fn2)
+
+        datasets = []
+        arrays = []
+        files =[]
+        for subset, idcs in shots.groupby('subset').indices.items():
+            lnk = ssadd[subset]
+            f = h5py.File(lnk.filename)
+            files.append(f)
+
+            for sn, s in stacks.items():
+                arr = s[idcs,...]
+                path = base_path.replace('/%', lnk.path) + '/' + sn
+                ds = f.require_dataset(path, shape=arr.shape, dtype=arr.dtype, **kwargs)
+                arrays.append(arr)
+                datasets.append(ds)
+
+                print(f'Storing stack {sn} for subset {subset} into {lnk.filename} -> {path}')
+
+        with dask.diagnostics.ProgressBar():
+            da.store(arrays, datasets)
+
+        [f.close() for f in files]
+
+        return
+
     allstacks = {}
+
     if flat:
         for sn, s in stacks.items():
             if shots is None:
                 raise ValueError('When using a flat dict, you have to supply a shot list with subset column')
-            for ssn, idcs in shots.groupby('subset').indices.items():
-                allstacks.update({'/entry/data/{}/{}'.format(ssn, sn): s[idcs, ...]})
+            for subset, idcs in shots.groupby('subset').indices.items():
+                allstacks.update({
+                    base_path.replace('%', '{}').format(subset) + '/' + sn: s[idcs, ...]})
 
     else:
-        for ssn, ssss in stacks.items():
+        for subset, ssss in stacks.items():
             for sn, sss in ssss.items():
-                allstacks.update({'/entry/data/{}/{}'.format(ssn, sn): sss})
+                allstacks.update({
+                    base_path.replace('%', '{}').format(subset) + '/' + sn: sss})
 
     print('Computing and storing the following stacks: ')
     for k, v in allstacks.items():
@@ -788,13 +839,23 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta/%', labels=None):
 
     return lists
 
+
 def get_nxs_list(filename, what='shots'):
     if what == 'shots':
-        return get_meta_lists(filename, True, '/%/data', 'shots')['shots']
+        return get_meta_lists(filename, True, '/%/data', ['shots'])['shots']
     if what in ['crystals', 'features']:
-        return get_meta_lists(filename, True, '/%/map', 'features')['features']
+        return get_meta_lists(filename, True, '/%/map', ['features'])['features']
     # for later: if none of the usual ones, just crawl the file for something matching
     return None
+
+
+def store_nxs_list(filename, list, what='shots'):
+    if what == 'shots':
+        store_meta_lists(filename, {'shots': list}, True, '/%/data')
+    if what in ['crystals', 'features']:
+        return store_meta_lists(filename, {'features': list}, True, '/%/map')
+    # for later: if none of the usual ones, just crawl the file for something matching
+
 
 def get_data_stacks(filename, flat=True, base_path='/entry/data/%', labels=None):
     """

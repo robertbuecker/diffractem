@@ -247,3 +247,5 @@ def save_lambda_img(img, base_fname='lambda_image', formats=('nxs',),
             save_lambda_img(img.astype(np.float64), base_fname + '_avg',
                             formats, pixel_size, meta, bigtiff=False,
                             compression=compression, make_average=False, **kwargs)
+
+
