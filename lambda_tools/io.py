@@ -128,28 +128,55 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
 
         return
 
-    f = h5py.File(fn_from, 'r')
-    f2 = h5py.File(fn_to, mode)
+    try:
 
-    exclude_regex = [re.compile(ex.replace('%', '.*')) for ex in exclude]
+        f = h5py.File(fn_from)
+        f2 = h5py.File(fn_to, mode)
 
-    def copy_exclude(key, ds):
-        if key.endswith('image'):
-            #print(type(ds))
-            pass
-        if not (isinstance(ds, h5py.Dataset) or isinstance(ds, h5py.SoftLink)):
-            #print(key)
-            return
-        # TODO: some logic for groups
-        # TODO: somehow deal with links
-        for ek in exclude_regex:
-            if ek.fullmatch('/' + key) is not None:
-                if print_skipped:
-                    print(f'Skipping key {key} due to {ek}')
-                return
-        f2.copy(ds, key)
+        exclude_regex = [re.compile(ex.replace('%', '.*')) for ex in exclude]
 
-    f.visititems(lambda k, v: copy_exclude(k, v))
+        def copy_exclude(key, ds, to):
+
+            for ek in exclude_regex:
+                if ek.fullmatch(ds.name) is not None:
+                    if print_skipped:
+                        print(f'Skipping key {key} due to {ek}')
+                    return
+
+            if isinstance(ds, h5py.Dataset):
+                if 'data' in ds.name:
+                    #print(f'Copying dataset {ds.name}')
+                to.copy(ds, key)
+
+            elif isinstance(ds, h5py.Group) and 'table_type' in ds.attrs.keys():
+                # pandas table is a group. Do NOT traverse into it or pain
+                #print(f'Copying table {key}')
+                to.copy(ds, key)
+
+            elif isinstance(ds, h5py.Group):
+                #print(f'Creating group {key}')
+                new_grp = to.require_group(key)
+                for k, v in ds.attrs.items():
+                    #if
+                    try:
+                        new_grp.attrs.create(k, v)
+                    except TypeError as err:
+                        new_grp.attrs.create(k, np.string_(v))
+
+                for k, v in ds.items():
+                    lnk = ds.get(k, getlink=True)
+                    if isinstance(lnk, h5py.SoftLink):
+                        new_grp[k] = h5py.SoftLink(lnk.path)
+                        continue
+                    copy_exclude(k, v, new_grp)
+
+        copy_exclude('/', f, f2)
+
+    except Exception as err:
+        f.close()
+        f2.close()
+        os.remove(fn_to)
+        raise err
 
     f.close()
     f2.close()
