@@ -39,13 +39,15 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
 
     if file_name.endswith('.lst'):
         # this only works with new-style nxs files...
-        fn2 = file_name.rsplit('.', 1)[0] + '_temp.h5'
-        fn2 = make_master_h5(file_name, fn2)
-        diff_plot(fn2, idcs, setname, ovname, radii, beamdiam,
-              rings, scanpx, clen, stem, peaks, figsize,
-              meta, stacks, width, xoff, yoff, ellipticity, base_path='/%/data',
-              stem_path='/%/instrument_map/STEM_Image/data', **kwargs)
-        os.remove(fn2)
+        try:
+            fn2 = file_name.rsplit('.', 1)[0] + '_temp.h5'
+            fn2 = make_master_h5(file_name, fn2)
+            diff_plot(fn2, idcs, setname, ovname, radii, beamdiam,
+                  rings, scanpx, clen, stem, peaks, figsize,
+                  meta, stacks, width, xoff, yoff, ellipticity, base_path='/%/data',
+                  stem_path='/%/instrument_map/STEM_Image/data', **kwargs)
+        finally:
+            os.remove(fn2)
         return
 
     if meta is None:

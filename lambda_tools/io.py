@@ -550,13 +550,15 @@ def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kw
         fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
         # unfortunately, the usual master-h5 trick does not work because pandas' to_hdf does not handle
         # external links properly. still using a similar mechanism, to enforce consistency.
-        with h5py.File(make_master_h5(filename, fn2)) as f:
-            subsets = {}
-            for k in f.keys():
-                link = f.get(k, getlink=True)
-                subsets[k] = {'path': link.path, 'filename': link.filename}
-                del link
-        os.remove(fn2)
+        try:
+            with h5py.File(make_master_h5(filename, fn2)) as f:
+                subsets = {}
+                for k in f.keys():
+                    link = f.get(k, getlink=True)
+                    subsets[k] = {'path': link.path, 'filename': link.filename}
+                    del link
+        finally:
+            os.remove(fn2)
         # now store to files one-by-one
         for ssn, lnk in subsets.items():
             print(ssn)
@@ -567,10 +569,10 @@ def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kw
                     ssl = l.loc[l['subset'] == ssn, :]
                     path = base_path.replace('/%', lnk['path']) + '/' + ln
                     try:
-                        store.put(path, ssl.drop('subset',axis=1), format='table', data_columns=True, **kwargs)
+                        store.put(path, ssl.drop('subset', axis=1), format='table', data_columns=True, **kwargs)
                     except ValueError as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, ssl.drop('subset',axis=1), format='table', **kwargs)
+                        store.put(path, ssl.drop('subset', axis=1), format='table', **kwargs)
 
         return
 
@@ -623,11 +625,13 @@ def store_data_stacks(filename, stacks, flat=True, shots=None, base_path='/entry
         fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
         # unfortunately, the usual master-h5 trick does not work because dask's to_hdf5 does not handle
         # external links properly. still using a similar mechanism, to enforce consistency.
-        with h5py.File(make_master_h5(filename, fn2)) as f:
-            subsets = list(f.keys())
-            links = [f.get(k, getlink=True) for k in subsets]
-            ssadd = {s: l for s, l in zip(subsets, links)}
-        os.remove(fn2)
+        try:
+            with h5py.File(make_master_h5(filename, fn2)) as f:
+                subsets = list(f.keys())
+                links = [f.get(k, getlink=True) for k in subsets]
+                ssadd = {s: l for s, l in zip(subsets, links)}
+        finally:
+            os.remove(fn2)
 
         datasets = []
         arrays = []
@@ -744,9 +748,11 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta/%', labels=None):
     if filename.rsplit('.', 1)[-1] == 'lst':
         # this only works with new-style nxs files...
         fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
-        fn2 = make_master_h5(filename, fn2)
-        lists = get_meta_lists(fn2, flat, base_path, labels)
-        os.remove(fn2)
+        try:
+            fn2 = make_master_h5(filename, fn2)
+            lists = get_meta_lists(fn2, flat, base_path, labels)
+        finally:
+            os.remove(fn2)
         # TODO: consider more mangling here
 
         return lists
@@ -828,10 +834,12 @@ def get_data_stacks(filename, flat=True, base_path='/entry/data/%', labels=None)
 
     if filename.rsplit('.', 1)[-1] == 'lst':
         # this only works with new-style nxs files...
-        fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
-        fn2 = make_master_h5(filename, fn2)
-        stacks = get_data_stacks(fn2, flat, base_path, labels)
-        os.remove(fn2)
+        try:
+            fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
+            fn2 = make_master_h5(filename, fn2)
+            stacks = get_data_stacks(fn2, flat, base_path, labels)
+        finally:
+            os.remove(fn2)
         return stacks
 
     identifiers = base_path.rsplit('%', 1)
