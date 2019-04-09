@@ -13,6 +13,20 @@ from lambda_tools import normalize_names
 from tifffile import imread
 
 
+def get_files(file_list):
+
+    if isinstance(file_list, list) or isinstance(file_list, tuple):
+        return file_list
+
+    elif isinstance(file_list, str) and file_list.endswith('.lst'):
+        return [s.strip() for s in open(file_list, 'r').readlines()]
+
+    elif isinstance(file_list, str) and (file_list.endswith('.h5') or file_list.endswith('.nxs')):
+        return [file_list, ]
+
+    else:
+        raise TypeError('file_list must be a list file, single h5/nxs file, or a list of filenames')
+
 def dict_to_h5(grp, data, exclude=()):
     """
     Write dictionary into HDF group (or file) object
@@ -471,30 +485,27 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
 def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
                    remote_group='/entry', verbose=False):
 
-    if isinstance(file_list, list) or isinstance(file_list, tuple):
-        fns = file_list
-        if file_name is None:
-            raise ValueError('if files are supplied at list, you must specify an output file name!')
-    elif isinstance(file_list, str):
-        fns = [s.strip() for s in open(file_list, 'r').readlines()]
+    fns = get_files(file_list)
+
+    if isinstance(file_list, str) and file_list.endswith('.lst'):
         if file_name is None:
             file_name = file_list.rsplit('.', 1)[0] + '.h5'
     else:
-        raise TypeError('file_list must be a list file or a list of filenames')
+        if file_name is None:
+            raise ValueError('Please provide output file name explicitly, if input is not a file list.')
 
     f = h5py.File(file_name, 'w')
-    subsets = []
 
-    for fn in fns:
-        with h5py.File(fn, 'r') as fsgl:
-            try:
-                sgrp = fsgl[remote_group + '/sample']
-                subset = '{}_{:03d}_{:03d}'.format(sgrp['name'].value, sgrp['region_id'].value, sgrp['run_id'].value)
-            except KeyError as e:
-                print('No sample info found. Using file name for subset.')
-                subset = fn.rsplit('.', 1)[0].rsplit('/', 1)[-1]
+    try:
+
+        subsets = []
+
+        for fn in fns:
+
+            subset = fn.rsplit('.', 1)[0].rsplit('/', 1)[-1]
+
             if subset in subsets:
-                raise KeyError('Subset names are not unique!')
+                raise KeyError('File names are not unique!')
             else:
                 subsets.append(subset)
 
@@ -502,11 +513,21 @@ def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
                 fn2 = os.getcwd() + '/' + fn
             else:
                 fn2 = fn
+
+            if not os.path.isfile(fn2):
+                raise FileNotFoundError(f'File {fn2} present in {file_list} not found!')
+
             if verbose:
                 print(f'Referencing file {fn2} as {subset}')
             if local_group != '/':
                 f.require_group(local_group)
+
             f[local_group + '/' + subset] = h5py.ExternalLink(fn2, remote_group)
+
+    except Exception as err:
+        f.close()
+        os.remove(file_name)
+        raise err
 
     f.close()
 
