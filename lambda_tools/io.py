@@ -4,7 +4,6 @@ from warnings import warn
 import h5py
 import numpy as np
 import pandas as pd
-import tifffile
 from dask import array as da
 import json
 from collections import defaultdict
@@ -60,13 +59,17 @@ def h5_to_dict(grp, exclude=('data', 'image'), max_len=100):
 def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/instrument',
                 data_grp='/entry/data', data_field='data', data_location='/entry/instrument/detector/data'):
 
-    f = h5py.File(nxs_file)
+    f = h5py.File(nxs_file,'r+')
 
     if meta is None:
         meta = nxs_file.rsplit('.', 1)[0] + '.json'
 
     if isinstance(meta, str):
-        meta = json.load(open(meta))
+        try:
+            meta = json.load(open(meta))
+        except FileNotFoundError:
+            print('No metafile found.')
+            meta = {}
 
     elif isinstance(meta, dict):
         pass
@@ -91,14 +94,17 @@ def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/ins
 def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
             print_skipped=False, h5_folder=None, h5_suffix='.h5'):
     """
-    Copies h5/nxs files or lists of them
-    :param fn_from:
-    :param fn_to:
-    :param exclude:
-    :param mode:
-    :param print_skipped:
-    :param h5_folder:
-    :param h5_suffix:
+    Copies datasets h5/nxs files or lists of them to new ones, with exclusion of datasets
+    BUG: currently not copying group attributes and soft links. Both in the works...
+    :param fn_from: single h5/nxs file or list file
+    :param fn_to: new file name, or new list file. If the latter, specify with h5_folder and h5_suffix how the new names
+        are supposed to be constructed
+    :param exclude: patterns for data sets to be excluded. All regular expressions are allowed, % is mapped to .*
+        (i.e., any string of any length), for compatibility with CrystFEL
+    :param mode: mode in which new files are opened. By default w-, i.e., files are created, but never overwritten
+    :param print_skipped: print the skipped data sets, for debugging
+    :param h5_folder: if operating on a list: folder where new h5 files should go
+    :param h5_suffix: if operating on a list: suffix appended to old files (after stripping their extension)
     :return:
     """
 
@@ -117,7 +123,8 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
             # exclude detector data and shot list
             copy_h5(ofn, nfn, exclude, mode, print_skipped)
 
-        open(fn_to, 'w').write('\n'.join(new_files));
+        with open(fn_to, 'w') as f:
+            f.write('\n'.join(new_files))
 
         return
 
@@ -127,9 +134,14 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
     exclude_regex = [re.compile(ex.replace('%', '.*')) for ex in exclude]
 
     def copy_exclude(key, ds):
+        if key.endswith('image'):
+            #print(type(ds))
+            pass
         if not (isinstance(ds, h5py.Dataset) or isinstance(ds, h5py.SoftLink)):
+            #print(key)
             return
         # TODO: some logic for groups
+        # TODO: somehow deal with links
         for ek in exclude_regex:
             if ek.fullmatch('/' + key) is not None:
                 if print_skipped:
@@ -144,6 +156,13 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
 
 
 def read_crystfel_stream(filename, serial_offset=-1):
+    """
+    Reads a crystfel stream file and returns the contained peaks and predictions
+    :param filename: obvious, right?
+    :param serial_offset: offset to be applied to the event serial numbers in the crystfel file. By default -1,
+        as the crystfel serials are 1-based by default.
+    :return: peak list, prediction list
+    """
     import pandas as pd
     from io import StringIO
     with open(filename, 'r') as fh:
@@ -161,9 +180,14 @@ def read_crystfel_stream(filename, serial_offset=-1):
         # Event id and indexing scheme
         if 'Event:' in l:
             event = l.split(': ')[-1].strip()
-            shotnr = int(event.split('//')[1])
+            shotnr = int(event.split('//')[-1])
             subset = event.split('//')[0].strip()
+            if not subset:
+                subset = '(none)'
+            #print(event, ':', shotnr, ':', subset)
             continue
+        if 'Image filename:' in l:
+            filename = l.split(':')[-1].strip()
         if 'Image serial number:' in l:
             serial = int(l.split(': ')[1]) + serial_offset
             continue
@@ -177,7 +201,8 @@ def read_crystfel_stream(filename, serial_offset=-1):
             continue
 
         if init_peak:
-            linedat_peak.append('{} {} {} {} {}'.format(l.strip(), event, serial, subset, shotnr))
+            #print(filename, event, serial, subset, shotnr)
+            linedat_peak.append('{} {} {} {} {} {}'.format(l.strip(), filename, event, serial, subset, shotnr))
 
         if 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in l:  # 'Peaks from peak search' in l: #Placed after the writing, so that line are written from the next
             init_peak = True
@@ -206,7 +231,7 @@ def read_crystfel_stream(filename, serial_offset=-1):
             continue
 
         if init_index:
-            recurrent_info = [event, serial, subset, shotnr, indexer, a, b, c, al, be, ga, astar_x, astar_y, astar_z, bstar_x, bstar_y,
+            recurrent_info = [filename, event, serial, subset, shotnr, indexer, a, b, c, al, be, ga, astar_x, astar_y, astar_z, bstar_x, bstar_y,
                               bstar_z, cstar_x, cstar_y, cstar_z]  # List with recurrent info
             recurrent_info = ' '.join(
                 map(str, recurrent_info))  # Transform list of several element in a list of a single string
@@ -217,10 +242,10 @@ def read_crystfel_stream(filename, serial_offset=-1):
             continue
 
     df_peak = pd.read_csv(StringIO('\n'.join(linedat_peak)), delim_whitespace=True, header=None,
-                          names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'Event', 'serial', 'subset', 'shot_in_subset']
+                          names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'File', 'Event', 'serial', 'subset', 'shot_in_subset']
                           ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
     df_index = pd.read_csv(StringIO('\n'.join(linedat_index)), delim_whitespace=True, header=None,
-                           names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel',
+                           names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel', 'File',
                                   'Event', 'serial', 'subset', 'shot_in_subset', 'Indexer', 'a', 'b', 'c', 'Alpha', 'Beta', 'Gamma',
                                   'astar_x', 'astar_y', 'astar_z', 'bstar_x', 'bstar_y', 'bstar_z', 'cstar_x',
                                   'cstar_y', 'cstar_z']
@@ -231,45 +256,6 @@ def read_crystfel_stream(filename, serial_offset=-1):
     #                    sort=False)  # , pd.concat([df_peak,df_index], keys=['peak', 'indexer']) to add hierarchical indexes, but here all the 'peak' have the Indexer column displaying NaN
 
     return df_peak, df_index
-
-
-def read_nxds_spots(filename='SPOT.nXDS', merge_into=None):
-    event = -1
-    skipnext = True
-    linedat = []
-    pattern = re.compile('(\d+)\s+')
-    for ln, l in enumerate(open(filename,'r')):
-        if skipnext:
-            skipnext = False
-            continue
-
-        nr = pattern.match(l)
-        if nr is not None:
-            event = int(nr.group(0)) - 1 #nXDS is 1-based
-            skipnext = True
-            continue
-
-        linedat.append('{} {}'.format(l.strip(), event))
-
-    nxds_peaks = pd.read_csv(StringIO('\n'.join(linedat)), delim_whitespace=True, header=None,
-                       names=['Panel','fs/px', 'ss/px', 'Intensity', 'h', 'k', 'l', 'Event']
-                       )
-
-    nxds_peaks['Indexer'] = 'nXDS'
-
-    if merge_into is not None:
-
-        merge_into = merge_into.drop(merge_into.columns.intersection(['h', 'k', 'l']), axis=1)
-
-        merge_into['Pos'] = merge_into.groupby('Event').cumcount()
-        nxds_peaks['Pos'] = nxds_peaks.groupby('Event').cumcount()
-        nxds_peaks = merge_into.merge(nxds_peaks.loc[:, ['Event', 'Pos', 'h', 'k', 'l']],
-                                      on=['Event', 'Pos'], how='left', suffixes=('_nXDS', '')).\
-                                    drop('Pos', axis=1)
-
-        nxds_peaks[['h', 'k', 'l']] = nxds_peaks[['h', 'k', 'l']].fillna(0).apply(lambda x: x.astype(int))
-
-    return nxds_peaks
 
 
 def write_nxds_spots(peaks, filename='SPOT.nXDS', prefix='diffdat_?????', threshold=0,
@@ -296,7 +282,7 @@ def write_nxds_spots(peaks, filename='SPOT.nXDS', prefix='diffdat_?????', thresh
 def copy_meta(fn_from, fn_to, base_group='/entry/instrument/detector', exclude=('data',), shallow=False):
     """
     Copy sub-tree of h5/nxs file to another one. Typically pretty useful to copy over detector data from nxs files.
-    Data in the new file are not overwritten
+    Data in the new file are not overwritten.
     :param fn_from: source file name
     :param fn_to: target file name
     :param base_group: HDF5 path of group to be copied
@@ -304,6 +290,7 @@ def copy_meta(fn_from, fn_to, base_group='/entry/instrument/detector', exclude=(
     of objects below base_group
     :param shallow: only use one level of contents
     """
+    print('copy_meta is deprecated. Use copy_h5 instead!')
     fh_to = h5py.File(fn_to)
     fh_from = h5py.File(fn_from, mode='r')    
     for k in fh_from[base_group].keys():
@@ -343,64 +330,6 @@ def load_lambda_img(file_or_ds, range=None, use_dask=False, grp_name='entry/inst
             imgs = ds[range[0]:range[1],:,:]
 
     return imgs
-
-
-def make_eiger_h5(filename, master_name='master.h5', pxmask=None,
-                   wavelength=0.025, distance=1.588, beam_center=(778, 308),
-                   data_path='/entry/data', stack='centered', legacy=False):
-    """
-    Mostly intended for nXDS
-    :param filename:
-    :param master_name:
-    :param pxmask:
-    :param wavelength:
-    :param distance:
-    :param beam_center:
-    :param data_path:
-    :param stack:
-    :param legacy:
-    :return:
-    """
-
-    if pxmask is None:
-        pass
-    elif isinstance(pxmask, str):
-        with tifffile.TiffFile(pxmask) as tif:
-            pxmask = tif.asarray().astype(np.uint32)
-    elif isinstance(pxmask, np.ndarray):
-        pxmask = pxmask.astype(np.uint32)
-
-    with h5py.File(master_name, 'w') as fh, h5py.File(filename, 'r') as img:
-
-        detector = fh.create_group('/entry/instrument/detector')
-        detectorSpecific = detector.create_group('detectorSpecific')
-        data = fh.create_group('/entry/data')
-
-        if pxmask is not None:
-            pxmask[pxmask != 0] = 1
-            detectorSpecific['pixel_mask'] = pxmask
-
-        nimg = 0
-
-        for ii, (_, it) in enumerate(img[data_path].items()):
-            target = it.name + '/' + stack
-            data['data_{:06d}'.format(ii + 1)] = h5py.ExternalLink(filename, target)
-            nimg += img[target].shape[0]
-            if (pxmask is None) and (ii == 0):
-                pxmask = np.zeros(img[target].shape[1:3], dtype=np.uint32)
-
-        fh['/entry/instrument/beam/incident_wavelength'] = wavelength
-
-        detectorSpecific['nimages'] = nimg
-        detectorSpecific['ntrigger'] = nimg
-        detectorSpecific['pixel_mask'] = pxmask
-        detector['detector_distance'] = distance
-        detector['x_pixel_size'] = 55e-6
-        detector['y_pixel_size'] = 55e-6
-
-    print('Wrote master file {}'.format(master_name))
-
-    return nimg
 
 
 def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_id', 'frame'),
@@ -605,6 +534,7 @@ def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
 
     return file_name
 
+
 def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kwargs):
     """
     Store pandas DataFrames into HDF file, using the standard structure.
@@ -621,21 +551,27 @@ def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kw
         # unfortunately, the usual master-h5 trick does not work because pandas' to_hdf does not handle
         # external links properly. still using a similar mechanism, to enforce consistency.
         with h5py.File(make_master_h5(filename, fn2)) as f:
-            subsets = list(f.keys())
-            links = [f.get(k, getlink=True) for k in subsets]
+            subsets = {}
+            for k in f.keys():
+                link = f.get(k, getlink=True)
+                subsets[k] = {'path': link.path, 'filename': link.filename}
+                del link
         os.remove(fn2)
         # now store to files one-by-one
-        for ssn, lnk in zip(subsets, links):
+        for ssn, lnk in subsets.items():
             print(ssn)
-            with pd.HDFStore(lnk.filename) as store:
+            fh = h5py.File(lnk['filename']) # otherwise file-open-trouble between pandas and h5py.
+            fh.close()
+            with pd.HDFStore(lnk['filename']) as store:
                 for ln, l in lists.items():
                     ssl = l.loc[l['subset'] == ssn, :]
-                    path = base_path.replace('/%', lnk.path) + '/' + ln
+                    path = base_path.replace('/%', lnk['path']) + '/' + ln
                     try:
                         store.put(path, ssl.drop('subset',axis=1), format='table', data_columns=True, **kwargs)
                     except ValueError as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
                         store.put(path, ssl.drop('subset',axis=1), format='table', **kwargs)
+
         return
 
     with pd.HDFStore(filename) as store:
@@ -645,22 +581,30 @@ def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kw
                 for ssn, ssl in l.groupby('subset'):
                     path = (base_path.replace('%', '{}') + '/{}').format(ssn, ln)
                     print(path)
+                    if 'subset' in ssl.columns:
+                        to_store = ssl.drop('subset', axis=1)
+                    else:
+                        to_store = ssl
                     try:
-                        store.put(path, ssl.drop('subset',axis=1), format='table', data_columns=True, **kwargs)
+                        store.put(path, to_store, format='table', data_columns=True, **kwargs)
                     except ValueError as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, ssl.drop('subset',axis=1), format='table', **kwargs)
+                        store.put(path, to_store, format='table', **kwargs)
 
         else:
             for ssn, ssls in lists.items():
                 for ln, ssl in ssls.items():
                     path = (base_path.replace('%', '{}') + '/{}').format(ssn, ln)
                     print(path)
+                    if 'subset' in ssl.keys():
+                        to_store = ssl.drop('subset', axis=1)
+                    else:
+                        to_store = ssl
                     try:
-                        store.put(path, ssl.drop('subset',axis=1), format='table', data_columns=True, **kwargs)
+                        store.put(path, to_store, format='table', data_columns=True, **kwargs)
                     except Exception as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, ssl.drop('subset',axis=1), format='table', **kwargs)
+                        store.put(path, to_store, format='table', **kwargs)
 
 
 def store_data_stacks(filename, stacks, flat=True, shots=None, base_path='/entry/data/%', **kwargs):
@@ -803,6 +747,8 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta/%', labels=None):
         fn2 = make_master_h5(filename, fn2)
         lists = get_meta_lists(fn2, flat, base_path, labels)
         os.remove(fn2)
+        # TODO: consider more mangling here
+
         return lists
 
     identifiers = base_path.rsplit('%', 1)
@@ -822,7 +768,7 @@ def get_meta_lists(filename, flat=True, base_path='/entry/meta/%', labels=None):
         if isinstance(grp, h5py.Group):
             lists.update({subset: {}})
             for tname, tgrp in grp.items():
-                if ((labels is None) or (tname in labels)) and ('pandas_type' in tgrp.attrs):
+                if ((labels is None) or (tname in labels)) and ('table' in list(tgrp.keys())):
                     fieldname = identifiers[0] + subset + identifiers[1] + '/' + tname
                     lists[subset].update({tname: pd.read_hdf(filename, fieldname)})
                     lists[subset][tname]['subset'] = subset
@@ -844,17 +790,30 @@ def get_nxs_list(filename, what='shots'):
     if what == 'shots':
         return get_meta_lists(filename, True, '/%/data', ['shots'])['shots']
     if what in ['crystals', 'features']:
-        return get_meta_lists(filename, True, '/%/map', ['features'])['features']
+        return get_meta_lists(filename, True, '/%/map', [what])[what]
+    if what in ['peaks', 'predict']:
+        return get_meta_lists(filename, True, '/%/results', ['peaks'])['predict']
     # for later: if none of the usual ones, just crawl the file for something matching
     return None
 
 
 def store_nxs_list(filename, list, what='shots'):
+    """
+    Store a pandas frame into a nxs-compliant file following the SerialED convention, which is practically defined
+    in this function...
+    :param filename:
+    :param list: pandas data frame
+    :param what: possible values at the moment: shots, crystals, features, peaks, predict
+    :return:
+    """
     if what == 'shots':
         store_meta_lists(filename, {'shots': list}, True, '/%/data')
-    if what in ['crystals', 'features']:
-        return store_meta_lists(filename, {'features': list}, True, '/%/map')
-    # for later: if none of the usual ones, just crawl the file for something matching
+    elif what in ['crystals', 'features']:
+        store_meta_lists(filename, {'features': list}, True, '/%/map')
+    elif what in ['peaks', 'predict']:
+        store_meta_lists(filename, {'features': list}, True, '/%/results')
+    else:
+        raise ValueError('Unknown list type')
 
 
 def get_data_stacks(filename, flat=True, base_path='/entry/data/%', labels=None):
@@ -876,7 +835,7 @@ def get_data_stacks(filename, flat=True, base_path='/entry/data/%', labels=None)
         return stacks
 
     identifiers = base_path.rsplit('%', 1)
-    fh = h5py.File(filename, 'r')
+    fh = h5py.File(filename)
     base_grp = fh[identifiers[0]]
 
     stacks = {}

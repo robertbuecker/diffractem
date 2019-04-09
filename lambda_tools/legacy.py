@@ -1,9 +1,12 @@
 import json
+import re
 from glob import glob
+from io import StringIO
 from warnings import warn
 
 import h5py
 import numpy as np
+import pandas as pd
 import tifffile
 from dask import array as da
 
@@ -249,3 +252,98 @@ def save_lambda_img(img, base_fname='lambda_image', formats=('nxs',),
                             compression=compression, make_average=False, **kwargs)
 
 
+def read_nxds_spots(filename='SPOT.nXDS', merge_into=None):
+    event = -1
+    skipnext = True
+    linedat = []
+    pattern = re.compile('(\d+)\s+')
+    for ln, l in enumerate(open(filename,'r')):
+        if skipnext:
+            skipnext = False
+            continue
+
+        nr = pattern.match(l)
+        if nr is not None:
+            event = int(nr.group(0)) - 1 #nXDS is 1-based
+            skipnext = True
+            continue
+
+        linedat.append('{} {}'.format(l.strip(), event))
+
+    nxds_peaks = pd.read_csv(StringIO('\n'.join(linedat)), delim_whitespace=True, header=None,
+                       names=['Panel','fs/px', 'ss/px', 'Intensity', 'h', 'k', 'l', 'Event']
+                       )
+
+    nxds_peaks['Indexer'] = 'nXDS'
+
+    if merge_into is not None:
+
+        merge_into = merge_into.drop(merge_into.columns.intersection(['h', 'k', 'l']), axis=1)
+
+        merge_into['Pos'] = merge_into.groupby('Event').cumcount()
+        nxds_peaks['Pos'] = nxds_peaks.groupby('Event').cumcount()
+        nxds_peaks = merge_into.merge(nxds_peaks.loc[:, ['Event', 'Pos', 'h', 'k', 'l']],
+                                      on=['Event', 'Pos'], how='left', suffixes=('_nXDS', '')).\
+                                    drop('Pos', axis=1)
+
+        nxds_peaks[['h', 'k', 'l']] = nxds_peaks[['h', 'k', 'l']].fillna(0).apply(lambda x: x.astype(int))
+
+    return nxds_peaks
+
+
+def make_eiger_h5(filename, master_name='master.h5', pxmask=None,
+                   wavelength=0.025, distance=1.588, beam_center=(778, 308),
+                   data_path='/entry/data', stack='centered', legacy=False):
+    """
+    Mostly intended for nXDS
+    :param filename:
+    :param master_name:
+    :param pxmask:
+    :param wavelength:
+    :param distance:
+    :param beam_center:
+    :param data_path:
+    :param stack:
+    :param legacy:
+    :return:
+    """
+
+    if pxmask is None:
+        pass
+    elif isinstance(pxmask, str):
+        with tifffile.TiffFile(pxmask) as tif:
+            pxmask = tif.asarray().astype(np.uint32)
+    elif isinstance(pxmask, np.ndarray):
+        pxmask = pxmask.astype(np.uint32)
+
+    with h5py.File(master_name, 'w') as fh, h5py.File(filename, 'r') as img:
+
+        detector = fh.create_group('/entry/instrument/detector')
+        detectorSpecific = detector.create_group('detectorSpecific')
+        data = fh.create_group('/entry/data')
+
+        if pxmask is not None:
+            pxmask[pxmask != 0] = 1
+            detectorSpecific['pixel_mask'] = pxmask
+
+        nimg = 0
+
+        for ii, (_, it) in enumerate(img[data_path].items()):
+            target = it.name + '/' + stack
+            data['data_{:06d}'.format(ii + 1)] = h5py.ExternalLink(filename, target)
+            nimg += img[target].shape[0]
+            if (pxmask is None) and (ii == 0):
+                pxmask = np.zeros(img[target].shape[1:3], dtype=np.uint32)
+
+        fh['/entry/instrument/beam/incident_wavelength'] = wavelength
+
+        detectorSpecific['nimages'] = nimg
+        detectorSpecific['ntrigger'] = nimg
+        detectorSpecific['pixel_mask'] = pxmask
+        detector['detector_distance'] = distance
+        detector['x_pixel_size'] = 55e-6
+        detector['y_pixel_size'] = 55e-6
+
+    print('Wrote master file {}'.format(master_name))
+
+    return nimg

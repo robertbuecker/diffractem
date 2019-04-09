@@ -8,18 +8,18 @@ import matplotlib as mpl
 import pandas as pd
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from astropy.convolution import Gaussian2DKernel, convolve
+import os
 
 from . import gap_pixels
-from .io import get_meta_lists, get_data_stacks, get_meta_array
+from .io import get_meta_lists, get_data_stacks, get_meta_array, make_master_h5
 from lambda_tools.legacy import save_lambda_img
 from .proc2d import correct_dead_pixels
 
 
-
-
 def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
               rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, peaks=True, figsize=(15, 10),
-              meta=None, stacks=None, width=616, xoff=0, yoff=0, ellipticity = 0, **kwargs):
+              meta=None, stacks=None, width=616, xoff=0, yoff=0, ellipticity = 0, base_path='/entry/data/%',
+              stem_path=None, **kwargs):
     """
     Makes a single or multiple nice plots of a diffraction pattern and associated STEM image.
     :param file_name:
@@ -37,10 +37,21 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
     :return: list of figure handles
     """
 
+    if file_name.endswith('.lst'):
+        # this only works with new-style nxs files...
+        fn2 = file_name.rsplit('.', 1)[0] + '_temp.h5'
+        fn2 = make_master_h5(file_name, fn2)
+        diff_plot(fn2, idcs, setname, ovname, radii, beamdiam,
+              rings, scanpx, clen, stem, peaks, figsize,
+              meta, stacks, width, xoff, yoff, ellipticity, base_path='/%/data',
+              stem_path='/%/instrument_map/STEM_Image/data', **kwargs)
+        os.remove(fn2)
+        return
+
     if meta is None:
-        meta = get_meta_lists(file_name, flat=True)
+        meta = get_meta_lists(file_name, base_path=base_path, flat=True)
     if stacks is None:
-        imgset = get_data_stacks(file_name, flat=True, labels=[setname,])[setname]
+        imgset = get_data_stacks(file_name, flat=True, labels=[setname,], base_path=base_path)[setname]
     else:
         imgset = stacks[setname]
     shots = meta['shots'].loc[idcs, :]
@@ -97,7 +108,12 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
 
         ax2 = plt.axes([0.6, 0.5, 0.45, 0.45])
         ax3 = plt.axes((0.6, 0, 0.45, 0.45))
-        stemimg = get_meta_array(file_name, ovname, shot)
+        if stem_path is None:
+            stemimg = get_meta_array(file_name, ovname, shot)
+        else:
+            with h5py.File(file_name) as f:
+                stemimg = f[stem_path.replace('%', shot['subset'])][...]
+
 
         if 'acqdata' in meta.keys():
             pxs = float(meta['acqdata'].query('region=={} & run=={} & subset==\'{}\''.format(shot['region'], shot['run'], shot['subset']))['Scanning_Pixel_size_x'])

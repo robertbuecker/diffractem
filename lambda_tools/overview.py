@@ -295,7 +295,7 @@ class OverviewImg:
         else:
             raise ValueError('Only ecc is allowed as method (for now)')
 
-        self.features = reference.crystals.copy()
+        self.features = reference.features.copy()
         self.features.loc[:, ['crystal_y', 'crystal_x']] = coords
 
         # invalidate mask and labels
