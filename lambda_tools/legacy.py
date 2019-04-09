@@ -13,7 +13,7 @@ from dask import array as da
 from pandas.io.json import json_normalize
 from tifffile import imread
 
-from lambda_tools.io import store_meta_array, store_meta_lists, copy_meta
+from lambda_tools.io import store_meta_array, store_meta_lists
 
 
 def parse_acquisition_meta(shot_list, filename=None, include_meta=True, include_stem=True, include_mask=True,
@@ -347,3 +347,56 @@ def make_eiger_h5(filename, master_name='master.h5', pxmask=None,
     print('Wrote master file {}'.format(master_name))
 
     return nimg
+
+
+def load_lambda_img(file_or_ds, range=None, use_dask=False, grp_name='entry/instrument/detector', ds_name='data'):
+    """Load a Lambda image stack from raw .nxs HDF5 file. The file can be supplied as either file name, or h5py file
+    handle, or h5py data set. Use load_meta to get the metadata."""
+
+    if isinstance(file_or_ds, str):
+        ds = h5py.File(file_or_ds, 'r')[grp_name + '/' + ds_name]
+
+    elif isinstance(file_or_ds, h5py.File):
+        ds = file_or_ds[grp_name + '/' + ds_name]
+
+    elif isinstance(file_or_ds, h5py.Dataset):
+        ds = file_or_ds
+
+    else:
+        raise ValueError('file_or_ds must be a file name, a h5py.File, or a h5py.Dataset')
+
+    if use_dask:
+        imgs = da.from_array(ds, ds.chunks)
+        if range:
+            warn('Range parameter is ignored when using Dask!')
+    else:
+        if range is None:
+            imgs = ds[:]
+        else:
+            imgs = ds[range[0]:range[1],:,:]
+
+    return imgs
+
+
+def copy_meta(fn_from, fn_to, base_group='/entry/instrument/detector', exclude=('data',), shallow=False):
+    """
+    Copy sub-tree of h5/nxs file to another one. Typically pretty useful to copy over detector data from nxs files.
+    Data in the new file are not overwritten.
+    :param fn_from: source file name
+    :param fn_to: target file name
+    :param base_group: HDF5 path of group to be copied
+    :param exclude: list of data fields to exclude. Note: the exclusion only applies to the first level
+    of objects below base_group
+    :param shallow: only use one level of contents
+    """
+    print('copy_meta is deprecated. Use copy_h5 instead!')
+    fh_to = h5py.File(fn_to)
+    fh_from = h5py.File(fn_from, mode='r')
+    for k in fh_from[base_group].keys():
+        if (k not in exclude) and (k not in fh_to[base_group]) :
+            #try:
+            fh_from.copy(base_group + '/' + k, fh_to[base_group], shallow=shallow)
+            #except ValueError as err:
+            #print('Key {} exists'.format(k))
+    fh_to.close()
+    fh_from.close()

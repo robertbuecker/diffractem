@@ -1,6 +1,5 @@
 import re
 from glob import glob
-from warnings import warn
 import h5py
 import numpy as np
 import pandas as pd
@@ -58,8 +57,20 @@ def h5_to_dict(grp, exclude=('data', 'image'), max_len=100):
 
 def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/instrument',
                 data_grp='/entry/data', data_field='data', data_location='/entry/instrument/detector/data'):
+    """
+    Merges a dict containing metadata information for a serial data acquisition into an existing detector nxs file.
+    Additionally, it adds a soft link to the actual data for easier retrieval later (typically into /entry/data)
+    :param nxs_file:
+    :param meta:
+    :param exclude:
+    :param meta_grp:
+    :param data_grp:
+    :param data_field:
+    :param data_location:
+    :return:
+    """
 
-    f = h5py.File(nxs_file,'r+')
+    f = h5py.File(nxs_file, 'r+')
 
     if meta is None:
         meta = nxs_file.rsplit('.', 1)[0] + '.json'
@@ -81,8 +92,8 @@ def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/ins
 
     if data_grp is not None:
         dgrp = f.require_group(data_grp)
-        dgrp.attrs['NX_class'] = 'NXdata'
-        dgrp.attrs['signal'] = data_field
+        dgrp.attrs['NX_class'] = np.array('NXdata')
+        dgrp.attrs['signal'] = np.array(data_field)
 
         if data_field in dgrp.keys():
             del dgrp[data_field]
@@ -94,8 +105,7 @@ def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/ins
 def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
             print_skipped=False, h5_folder=None, h5_suffix='.h5'):
     """
-    Copies datasets h5/nxs files or lists of them to new ones, with exclusion of datasets
-    BUG: currently not copying group attributes and soft links. Both in the works...
+    Copies datasets h5/nxs files or lists of them to new ones, with exclusion of datasets.
     :param fn_from: single h5/nxs file or list file
     :param fn_to: new file name, or new list file. If the latter, specify with h5_folder and h5_suffix how the new names
         are supposed to be constructed
@@ -276,10 +286,6 @@ def read_crystfel_stream(filename, serial_offset=-1):
                                   'cstar_y', 'cstar_z']
                            ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
 
-    # Added 'sort=False' as a suggestion from a warning message...not sure if appropriate
-    #df = df_peak.append(df_index, ignore_index=True,
-    #                    sort=False)  # , pd.concat([df_peak,df_index], keys=['peak', 'indexer']) to add hierarchical indexes, but here all the 'peak' have the Indexer column displaying NaN
-
     return df_peak, df_index
 
 
@@ -304,59 +310,6 @@ def write_nxds_spots(peaks, filename='SPOT.nXDS', prefix='diffdat_?????', thresh
     peaks.drop('nXDS_panel', axis=1, inplace=True)
 
 
-def copy_meta(fn_from, fn_to, base_group='/entry/instrument/detector', exclude=('data',), shallow=False):
-    """
-    Copy sub-tree of h5/nxs file to another one. Typically pretty useful to copy over detector data from nxs files.
-    Data in the new file are not overwritten.
-    :param fn_from: source file name
-    :param fn_to: target file name
-    :param base_group: HDF5 path of group to be copied
-    :param exclude: list of data fields to exclude. Note: the exclusion only applies to the first level
-    of objects below base_group
-    :param shallow: only use one level of contents
-    """
-    print('copy_meta is deprecated. Use copy_h5 instead!')
-    fh_to = h5py.File(fn_to)
-    fh_from = h5py.File(fn_from, mode='r')    
-    for k in fh_from[base_group].keys():
-        if (k not in exclude) and (k not in fh_to[base_group]) :
-            #try:
-            fh_from.copy(base_group + '/' + k, fh_to[base_group], shallow=shallow)
-            #except ValueError as err:
-            #print('Key {} exists'.format(k))
-    fh_to.close()
-    fh_from.close()
-
-
-def load_lambda_img(file_or_ds, range=None, use_dask=False, grp_name='entry/instrument/detector', ds_name='data'):
-    """Load a Lambda image stack from raw .nxs HDF5 file. The file can be supplied as either file name, or h5py file
-    handle, or h5py data set. Use load_meta to get the metadata."""
-
-    if isinstance(file_or_ds, str):
-        ds = h5py.File(file_or_ds, 'r')[grp_name + '/' + ds_name]
-
-    elif isinstance(file_or_ds, h5py.File):
-        ds = file_or_ds[grp_name + '/' + ds_name]
-
-    elif isinstance(file_or_ds, h5py.Dataset):
-        ds = file_or_ds
-
-    else:
-        raise ValueError('file_or_ds must be a file name, a h5py.File, or a h5py.Dataset')
-
-    if use_dask:
-        imgs = da.from_array(ds, ds.chunks)
-        if range:
-            warn('Range parameter is ignored when using Dask!')
-    else:
-        if range is None:
-            imgs = ds[:]
-        else:
-            imgs = ds[range[0]:range[1],:,:]
-
-    return imgs
-
-
 def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_id', 'frame'),
                    drop_invalid=True, aggregate=None, agg_by=('subset', 'region', 'run', 'crystal_id'),
                   max_chunk=16384, min_chunk=None,
@@ -378,7 +331,7 @@ def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_i
 
     if drop_invalid:
         valid = (shot_list[['region', 'crystal_id', 'run', 'frame', 'shot']] >= 0).all(axis=1)
-        shot_list_final = shot_list.loc[valid,:].copy()
+        shot_list_final = shot_list.loc[valid, :].copy()
     else:
         shot_list_final = shot_list.copy()
 
