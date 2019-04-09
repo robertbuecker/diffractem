@@ -16,16 +16,23 @@ from tifffile import imread
 def get_files(file_list):
 
     if isinstance(file_list, list) or isinstance(file_list, tuple):
-        return file_list
+        fl = file_list
 
     elif isinstance(file_list, str) and file_list.endswith('.lst'):
-        return [s.strip() for s in open(file_list, 'r').readlines()]
+        fl = [s.strip() for s in open(file_list, 'r').readlines()]
 
     elif isinstance(file_list, str) and (file_list.endswith('.h5') or file_list.endswith('.nxs')):
-        return [file_list, ]
+        fl = [file_list, ]
 
     else:
         raise TypeError('file_list must be a list file, single h5/nxs file, or a list of filenames')
+
+    id = [fn.rsplit('.', 1)[0].rsplit('/', 1)[-1] for fn in fl]   # this defines the identifiers in the meta data.
+
+    if not len(id) == len(set(id)):
+        raise ValueError('File identifiers are not unique, most likely because the file names are not.')
+
+    return fl, id
 
 def dict_to_h5(grp, data, exclude=()):
     """
@@ -485,7 +492,7 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
 def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
                    remote_group='/entry', verbose=False):
 
-    fns = get_files(file_list)
+    fns, ids = get_files(file_list)
 
     if isinstance(file_list, str) and file_list.endswith('.lst'):
         if file_name is None:
@@ -500,9 +507,9 @@ def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
 
         subsets = []
 
-        for fn in fns:
+        for fn, id in zip(fns, ids):
 
-            subset = fn.rsplit('.', 1)[0].rsplit('/', 1)[-1]
+            subset = id
 
             if subset in subsets:
                 raise KeyError('File names are not unique!')
@@ -534,78 +541,61 @@ def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
     return file_name
 
 
-def store_meta_lists(filename, lists, flat=True, base_path='/entry/meta/%', **kwargs):
-    """
-    Store pandas DataFrames into HDF file, using the standard structure.
-    :param filename: Name of HDF file to store lists into
-    :param lists: dict of lists. Either nested dict with top-level keys corresponding to subsets and list names
-    in sub-level keys, or flat dict with lists containing a "subset" column
-    :param flat: if True, flat dict structure (see above) is assumed
-    :param kwargs: forwarded to pandas.DataFrame.to_hdf
-    :return: nothing
-    """
+def store_meta_lists(filename, lists, base_path='/%/data', **kwargs):
 
-    if filename.rsplit('.', 1)[-1] == 'lst':
-        fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
-        # unfortunately, the usual master-h5 trick does not work because pandas' to_hdf does not handle
-        # external links properly. still using a similar mechanism, to enforce consistency.
-        try:
-            with h5py.File(make_master_h5(filename, fn2)) as f:
-                subsets = {}
-                for k in f.keys():
-                    link = f.get(k, getlink=True)
-                    subsets[k] = {'path': link.path, 'filename': link.filename}
-                    del link
-        finally:
-            os.remove(fn2)
-        # now store to files one-by-one
-        for ssn, lnk in subsets.items():
-            print(ssn)
-            fh = h5py.File(lnk['filename']) # otherwise file-open-trouble between pandas and h5py.
-            fh.close()
-            with pd.HDFStore(lnk['filename']) as store:
-                for ln, l in lists.items():
-                    ssl = l.loc[l['subset'] == ssn, :]
-                    path = base_path.replace('/%', lnk['path']) + '/' + ln
-                    try:
-                        store.put(path, ssl.drop('subset', axis=1), format='table', data_columns=True, **kwargs)
-                    except ValueError as err:
-                        # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, ssl.drop('subset', axis=1), format='table', **kwargs)
+    fns, ids = get_files(filename)
 
-        return
+    for fn, id in zip(fns, ids):
+        fh = h5py.File(fn)  # otherwise file-open-trouble between pandas and h5py.
+        fh.close()
 
-    with pd.HDFStore(filename) as store:
-
-        if flat:
+        with pd.HDFStore(fn) as store:
             for ln, l in lists.items():
-                for ssn, ssl in l.groupby('subset'):
-                    path = (base_path.replace('%', '{}') + '/{}').format(ssn, ln)
-                    print(path)
-                    if 'subset' in ssl.columns:
-                        to_store = ssl.drop('subset', axis=1)
-                    else:
-                        to_store = ssl
+                for ssn, ssl in l.loc[l['file'] == id, :].groupby('subset'):
+                    path = base_path.replace('%', ssn) + '/' + ln
                     try:
-                        store.put(path, to_store, format='table', data_columns=True, **kwargs)
+                        # subset and file are auto-generated when reloading
+                        store.put(path, ssl.drop(['subset', 'file'], axis=1), format='table', data_columns=True, **kwargs)
                     except ValueError as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, to_store, format='table', **kwargs)
+                        store.put(path, ssl.drop(['subset', 'file'], axis=1), format='table', **kwargs)
 
-        else:
-            for ssn, ssls in lists.items():
-                for ln, ssl in ssls.items():
-                    path = (base_path.replace('%', '{}') + '/{}').format(ssn, ln)
-                    print(path)
-                    if 'subset' in ssl.keys():
-                        to_store = ssl.drop('subset', axis=1)
-                    else:
-                        to_store = ssl
-                    try:
-                        store.put(path, to_store, format='table', data_columns=True, **kwargs)
-                    except Exception as err:
-                        # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, to_store, format='table', **kwargs)
+
+def get_meta_lists(filename, base_path='/%/data', labels=None):
+
+    fns, ids = get_files(filename)
+    identifiers = base_path.rsplit('%', 1)
+    lists = defaultdict([])
+
+    for fn, id in zip(fns, ids):
+
+        fh = h5py.File(fn)
+
+        try:
+            base_grp = fh[identifiers[0]]
+
+            for subset, ssgrp in base_grp.items():
+
+                if identifiers[1]:
+                    grp = ssgrp[identifiers[1].strip('/')]
+                else:
+                    grp = ssgrp     # subset identifier is on last level
+
+                if isinstance(grp, h5py.Group):
+                    for tname, tgrp in grp.items():
+                        if ((labels is None) or (tname in labels)) and ('table_type' in tgrp.attrs):
+                            newlist = pd.read_hdf(fn, tgrp.name)
+                            newlist['subset'] = subset
+                            newlist['file'] = id
+                            lists[tname].append(newlist)
+
+            lists = {tn: pd.concat(t, axis=0, ignore_index=True) for tn, t in lists.items()}
+
+        finally:
+            fh.close()
+
+    return lists
+
 
 
 def store_data_stacks(filename, stacks, flat=True, shots=None, base_path='/entry/data/%', **kwargs):
@@ -732,63 +722,6 @@ def store_meta_array(filename, array_label, identifier, array, shots=None, listn
 
     return label_string, meta_path
 
-
-def get_meta_lists(filename, flat=True, base_path='/entry/meta/%', labels=None):
-    """
-    Reads all pandas metadata lists from a (processed) HDF file and returns them as a nested dictionary of DataFrames.
-    Typically the first function to call on a file, also useful to just get a quick idea what data is in it.
-    :param filename: Name of the HDF data file from serial acquisition.
-    :param flat: Return concatenated lists over all subsets, additionally containing a "subset" column identifying
-    where each entry came from
-    :return: dict of the structure {'subset1_name': {'shots': shot_table, 'acquisition_data': acq_table, ...},
-    'subset2_name": .....} etc. if flat=False.
-    """
-
-    if filename.rsplit('.', 1)[-1] == 'lst':
-        # this only works with new-style nxs files...
-        fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
-        try:
-            fn2 = make_master_h5(filename, fn2)
-            lists = get_meta_lists(fn2, flat, base_path, labels)
-        finally:
-            os.remove(fn2)
-        # TODO: consider more mangling here
-
-        return lists
-
-    identifiers = base_path.rsplit('%', 1)
-    fh = h5py.File(filename, 'r')
-    base_grp = fh[identifiers[0]]
-
-    lists = {}
-
-    for subset, ssgrp in base_grp.items():
-
-        if identifiers[1]:
-            grp = ssgrp[identifiers[1].strip('/')]
-        else:
-            # subset identifier is on last level
-            grp = ssgrp
-
-        if isinstance(grp, h5py.Group):
-            lists.update({subset: {}})
-            for tname, tgrp in grp.items():
-                if ((labels is None) or (tname in labels)) and ('table' in list(tgrp.keys())):
-                    fieldname = identifiers[0] + subset + identifiers[1] + '/' + tname
-                    lists[subset].update({tname: pd.read_hdf(filename, fieldname)})
-                    lists[subset][tname]['subset'] = subset
-
-    fh.close()
-
-    if flat:
-        tables = defaultdict(list)
-        for sn, sd in sorted(lists.items()):
-            for tn, td in sd.items():
-                td['subset'] = sn
-                tables[tn].append(td)
-        lists = {k: pd.concat(v, sort=False).reset_index(drop=True) for k, v in tables.items()}
-
-    return lists
 
 
 def get_nxs_list(filename, what='shots'):
