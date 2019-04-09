@@ -167,6 +167,20 @@ def lorentz_fit_simple(profile, bin_min=3, bin_max = 40, amp=500.0, scale=5.0, s
     return out.x
 
 
+def apply_virtual_detector(stack, r_inner, r_outer):
+    """
+    Apply a "virtual STEM detector" to stack, with given inner and outer radii. Returns the mean value of all pixels
+    that fall inside this annulus.
+    """
+    _, ysize, xsize = stack.shape
+    x = np.linspace(-xsize/2-0.5, xsize/2+0.5, xsize)
+    y = np.linspace(-ysize/2-0.5, ysize/2+0.5, ysize)
+    X, Y = np.meshgrid(x, y)
+    R = np.sqrt(X**2 + Y**2)[np.newaxis,:,:]
+    mask = ((R < r_outer) & (R >= r_inner)) | (stack >= 0)
+    return da.where(mask, stack, 0).mean(axis=(1,2))
+
+
 @loop_over_stack
 def lorentz_fit(img,amp = 1.0, x_0=0.0, y_0=0.0, scale=5.0,shape=2.0,
                 threshold=0):    
