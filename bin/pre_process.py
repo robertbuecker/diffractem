@@ -28,9 +28,9 @@ sr0['selected'] = True
 exclude = ['frame <= 0', 'frame >=3']
 for ex in exclude:
     sr0.loc[sr0.eval(ex), 'selected'] = False
-stack_raw, shots = io.get_raw_stack(sr0, drop_invalid=True,
-                                    max_chunk=100, aggregate='sum', min_chunk=60,
-                                    data_path='/entry/data/raw_counts')
+stack_raw, shots = io.modify_stack(sr0, drop_invalid=True,
+                                   max_chunk=100, aggregate='sum', min_chunk=60,
+                                   data_path='/entry/data/raw_counts')
 
 # gymnastics required for paranoid data sets
 crystals = io.get_nxs_list(raw_name, 'features')

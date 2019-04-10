@@ -11,9 +11,10 @@ from io import StringIO
 import os.path
 from lambda_tools import normalize_names
 from tifffile import imread
+import warnings
 
 
-def get_files(file_list):
+def get_files(file_list, make_id=False):
 
     if isinstance(file_list, list) or isinstance(file_list, tuple):
         fl = file_list
@@ -27,12 +28,16 @@ def get_files(file_list):
     else:
         raise TypeError('file_list must be a list file, single h5/nxs file, or a list of filenames')
 
-    id = [fn.rsplit('.', 1)[0].rsplit('/', 1)[-1] for fn in fl]   # this defines the identifiers in the meta data.
+    #id = [fn.rsplit('.', 1)[0].rsplit('/', 1)[-1] for fn in fl]   # this defines the identifiers in the meta data.
+    id = fl
 
     if not len(id) == len(set(id)):
         raise ValueError('File identifiers are not unique, most likely because the file names are not.')
 
-    return fl, id
+    if make_id:
+        return fl, id
+    else:
+        return fl
 
 def dict_to_h5(grp, data, exclude=()):
     """
@@ -113,8 +118,8 @@ def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/ins
 
     if data_grp is not None:
         dgrp = f.require_group(data_grp)
-        dgrp.attrs['NX_class'] = np.array('NXdata')
-        dgrp.attrs['signal'] = np.array(data_field)
+        dgrp.attrs['NX_class'] = np.string_('NXdata')
+        dgrp.attrs['signal'] = np.string_(data_field)
 
         if data_field in dgrp.keys():
             del dgrp[data_field]
@@ -160,6 +165,10 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
         return
 
     try:
+
+        if len(exclude) == 0:
+            from shutil import copyfile
+            copyfile(fn_from, fn_to)
 
         f = h5py.File(fn_from)
         f2 = h5py.File(fn_to, mode)
@@ -298,10 +307,10 @@ def read_crystfel_stream(filename, serial_offset=-1):
             continue
 
     df_peak = pd.read_csv(StringIO('\n'.join(linedat_peak)), delim_whitespace=True, header=None,
-                          names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'File', 'Event', 'serial', 'subset', 'shot_in_subset']
+                          names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'file', 'Event', 'serial', 'subset', 'shot_in_subset']
                           ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
     df_index = pd.read_csv(StringIO('\n'.join(linedat_index)), delim_whitespace=True, header=None,
-                           names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel', 'File',
+                           names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel', 'file',
                                   'Event', 'serial', 'subset', 'shot_in_subset', 'Indexer', 'a', 'b', 'c', 'Alpha', 'Beta', 'Gamma',
                                   'astar_x', 'astar_y', 'astar_z', 'bstar_x', 'bstar_y', 'bstar_z', 'cstar_x',
                                   'cstar_y', 'cstar_z']
@@ -331,24 +340,15 @@ def write_nxds_spots(peaks, filename='SPOT.nXDS', prefix='diffdat_?????', thresh
     peaks.drop('nXDS_panel', axis=1, inplace=True)
 
 
-def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_id', 'frame'),
-                   drop_invalid=True, aggregate=None, agg_by=('subset', 'region', 'run', 'crystal_id'),
-                  max_chunk=16384, min_chunk=None,
-                   data_path='/entry/instrument/detector/data',**kwargs):
+def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_counts', sort_by=None,
+                 drop_invalid=True, aggregate=None, agg_by=('subset', 'region', 'run', 'crystal_id'),
+                 newchunk=None):
 
     # TODO: documentation
     # TODO: check nxs file for dropped frames and other anomalies
 
-    sort_by = list(sort_by)
-    agg_by = list(agg_by)
-
-    if isinstance(shots_or_files, str) \
-            or isinstance(shots_or_files, list) \
-            or isinstance(shots_or_files, tuple):
-        shot_list = build_shot_list(shots_or_files, **kwargs)
-    else:
-        assert isinstance(shots_or_files, pd.DataFrame)
-        shot_list = shots_or_files
+    if shot_list is None:
+        shot_list = get_meta_lists(filename, base_path, 'shots')['shots']
 
     if drop_invalid:
         valid = (shot_list[['region', 'crystal_id', 'run', 'frame', 'shot']] >= 0).all(axis=1)
@@ -360,76 +360,36 @@ def get_raw_stack(shots_or_files, sort_by=('subset', 'region', 'run', 'crystal_i
         shot_list_final = shot_list_final.loc[shot_list_final['selected'],:]
 
     if sort_by is not None:
-        shot_list_final.sort_values(sort_by, inplace=True)
+        shot_list_final.sort_values(list(sort_by), inplace=True)
 
-    # In the following, some magic is done to get the optimal chunking for all following operations.
-    # file_block in each of the dataframes is an ID of continuous blocks that will remain together
-    # when applying the sorting and selection of images to the data stack. file_block is montonically
-    # increasing, and does not necessarily identify the same block in shot_list and shot_list_final
-    block_change = (shot_list_final['file'] != shot_list_final['file'].shift(1)) | \
-        (shot_list_final['shot'].diff() != 1)
-    shot_list_final['file_block'] = block_change.astype(int).cumsum() - 1
+    stacks = get_data_stacks(filename, base_path, labels)
 
-    shot_list = shot_list.merge(shot_list_final[['file_block', ]], left_index=True, right_index=True, how='outer').fillna(-1)
-    block_change2 = shot_list['file_block'] != shot_list['file_block'].shift(1)
-    shot_list['file_block'] = block_change2.astype(int).cumsum() - 1
+    # now aggregate the shots if desired, by summing or averaging
+    if aggregate is not None:
+        agg_stacks = {k: [] for k in stacks.keys()}
+        agg_shots = []
+        for _, grp in shot_list_final.groupby(list(agg_by)):
+            for sn, s in stacks.items():
+                if aggregate in 'sum':
+                    newstack = s[grp.index.values, ...].sum(axis=0, keepdims=True)
+                elif aggregate in ['mean', 'average', 'avg']:
+                    newstack = s[grp.index.values, ...].mean(axis=0, keepdims=True)
+                else:
+                    raise ValueError('aggregate must be sum or mean')
+                if newchunk is not None:
+                    newstack = newstack.rechunk({0: newchunk})
+                agg_stacks[sn].append(newstack)
+                agg_shots.append(grp.iloc[0, :])  # at this point, they all should be the same
+
+        shot_list_final = pd.DataFrame(agg_shots)
+        stacks_final = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
+
+    else:
+        stacks_final = {sn: s[shot_list_final.index.values,...] for sn, s in stacks.items()}
 
     shot_list_final.reset_index(drop=True, inplace=True)
 
-    stacks = {}
-
-    # read the image stacks from all nxs files as dask arrays, chunking them according to file_block
-    for _, fn in shot_list_final['file'].drop_duplicates().items():
-        print(f'Reading raw file {fn}')
-        fh = h5py.File(fn + '.nxs')
-        ds = fh[data_path]
-        cs0 = shot_list.groupby(['file','file_block']).size().loc[fn].values
-        for ii in np.where(cs0 > max_chunk)[0][::-1]:
-            # limit the chunk size
-            dm = divmod(cs0[ii], max_chunk)
-            cs0 = np.insert(np.delete(cs0, ii), ii, np.append(np.repeat(max_chunk, dm[0]), dm[1]))
-        stacks[fn] = da.from_array(ds, chunks=(tuple(cs0), ds.chunks[1], ds.chunks[2]))
-
-    imgs = []
-
-    # now go file_block-wise through the final shot list and append the corresponding ranges of images.
-    # as we have done the chunking according to the same file_block structure, this operation does not
-    # change any chunks (which would be expensive)
-    for _, shdat in shot_list_final.groupby('file_block'):
-        img_block = stacks[shdat['file'].iloc[0]][shdat['shot'].values,...]
-        imgs.append(img_block)
-    stack = da.concatenate(imgs)
-
-    # now aggregate the shots if desired by summing or averaging
-    if aggregate is not None:
-        agg_stack = []
-        agg_shots = []
-        for nm, grp in shot_list_final.groupby(agg_by):
-            if aggregate in 'sum':
-                agg_stack.append(stack[grp.index.values, ...].sum(axis=0, keepdims=True))
-            if aggregate in ['mean', 'average', 'avg']:
-                agg_stack.append(stack[grp.index.values, ...].mean(axis=0, keepdims=True))
-            agg_shots.append(grp.iloc[0, :])  # at this point, they all should be the same
-
-        shot_list_final = pd.DataFrame(agg_shots).reset_index(drop=True)
-        stack = da.concatenate(agg_stack)
-
-    # Finally, optionally re-chunk the stack such that all chunks are at least min_chunk large,
-    # respecting the chunk boundaries as they are
-    if min_chunk is not None:
-        nchk = 0
-        fchks = []
-        for ii, chk in enumerate(stack.chunks[0]):
-            nchk += chk
-            if nchk >= min_chunk:
-                fchks.append(nchk)
-                nchk = 0
-            elif ii == len(stack.chunks[0])-1:
-                fchks[-1] += nchk
-
-        stack = stack.rechunk({0: tuple(fchks)})
-
-    return stack, shot_list_final
+    return stacks_final, shot_list_final
 
 
 def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
@@ -492,7 +452,7 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
 def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
                    remote_group='/entry', verbose=False):
 
-    fns, ids = get_files(file_list)
+    fns, ids = get_files(file_list, True)
 
     if isinstance(file_list, str) and file_list.endswith('.lst'):
         if file_name is None:
@@ -543,132 +503,82 @@ def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
 
 def store_meta_lists(filename, lists, base_path='/%/data', **kwargs):
 
-    fns, ids = get_files(filename)
+    if filename is not None:
+        fns = get_files(filename)
+    else:
+        fns = pd.concat([l['file'] for l in lists.values()], ignore_index=True).unique()
 
-    for fn, id in zip(fns, ids):
+    #print(fns)
+    counters = {ln: 0 for ln in lists.keys()}
+
+    for fn in fns:
         fh = h5py.File(fn)  # otherwise file-open-trouble between pandas and h5py.
         fh.close()
 
         with pd.HDFStore(fn) as store:
             for ln, l in lists.items():
-                for ssn, ssl in l.loc[l['file'] == id, :].groupby('subset'):
+                for ssn, ssl in l.loc[l['file'] == fn, :].groupby('subset'):
                     path = base_path.replace('%', ssn) + '/' + ln
                     try:
                         # subset and file are auto-generated when reloading
-                        store.put(path, ssl.drop(['subset', 'file'], axis=1), format='table', data_columns=True, **kwargs)
+                        store.put(path, ssl.drop(['subset', 'file'], axis=1).reset_index(drop=True),
+                                  format='table', data_columns=True, **kwargs)
                     except ValueError as err:
                         # most likely, the column titles contain something not compatible with h5 data columns
-                        store.put(path, ssl.drop(['subset', 'file'], axis=1), format='table', **kwargs)
+                        store.put(path, ssl.drop(['subset', 'file'], axis=1).reset_index(drop=True),
+                                  format='table', **kwargs)
+                    counters[ln] += ssl.shape[0]
+
+    for k, v in lists.items():
+        if v.shape[0] != counters[k]:
+            print(f'Warning: {counters[k]} out of {v.shape[0]} entries in list {k} were stored.')
 
 
 def get_meta_lists(filename, base_path='/%/data', labels=None):
 
-    fns, ids = get_files(filename)
+    fns = get_files(filename)
     identifiers = base_path.rsplit('%', 1)
-    lists = defaultdict([])
+    lists = defaultdict(list)
+    #print(fns)
 
-    for fn, id in zip(fns, ids):
-
+    for fn in fns:
+        #print(fn)
         fh = h5py.File(fn)
 
         try:
-            base_grp = fh[identifiers[0]]
-
+            if len(identifiers) == 1:
+                base_grp = {'': fh[identifiers[0]]}
+            else:
+                base_grp = fh[identifiers[0]]
+            #print(base_grp)
             for subset, ssgrp in base_grp.items():
-
-                if identifiers[1]:
-                    grp = ssgrp[identifiers[1].strip('/')]
+                #print(list(ssgrp.keys()))
+                if (len(identifiers) > 1) and identifiers[1]:
+                    if identifiers[1].strip('/') in ssgrp.keys():
+                        grp = ssgrp[identifiers[1].strip('/')]
                 else:
                     grp = ssgrp     # subset identifier is on last level
 
                 if isinstance(grp, h5py.Group):
+                    #print(grp)
                     for tname, tgrp in grp.items():
+                        #print(tname, tgrp)
+                        if tgrp is None:
+                            # can happen for dangling soft links
+                            continue
                         if ((labels is None) or (tname in labels)) and ('table_type' in tgrp.attrs):
                             newlist = pd.read_hdf(fn, tgrp.name)
                             newlist['subset'] = subset
-                            newlist['file'] = id
-                            lists[tname].append(newlist)
+                            newlist['file'] = fn
 
-            lists = {tn: pd.concat(t, axis=0, ignore_index=True) for tn, t in lists.items()}
+                            lists[tname].append(newlist)
+                            print(f'Appended {len(newlist)} items from {fn}: {subset} -> list {tname}')
 
         finally:
             fh.close()
 
+    lists = {tn: pd.concat(t, axis=0, ignore_index=True) for tn, t in lists.items()}
     return lists
-
-
-
-def store_data_stacks(filename, stacks, flat=True, shots=None, base_path='/entry/data/%', **kwargs):
-    """
-    Compute and store dask arrays into HDF file, using the standard structure
-    :param filename: Name of HDF file to store arrays into
-    :param stacks: dict of dask arrays. Either nested dict with top-level keys corresponding to subsets and list names
-    in sub-level keys, or flat dict with subset names separately supplied through shots list
-    :param flat: if True, flat dict structure (see above) is assumed. shots must be set then.
-    :param shots: shot list corresponding to the stacks, containing "subset" column
-    :param kwargs: forwarded to dask.array.to_hdf5
-    :return: nothing
-    """
-
-    if filename.rsplit('.', 1)[-1] == 'lst':
-        fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
-        # unfortunately, the usual master-h5 trick does not work because dask's to_hdf5 does not handle
-        # external links properly. still using a similar mechanism, to enforce consistency.
-        try:
-            with h5py.File(make_master_h5(filename, fn2)) as f:
-                subsets = list(f.keys())
-                links = [f.get(k, getlink=True) for k in subsets]
-                ssadd = {s: l for s, l in zip(subsets, links)}
-        finally:
-            os.remove(fn2)
-
-        datasets = []
-        arrays = []
-        files =[]
-        for subset, idcs in shots.groupby('subset').indices.items():
-            lnk = ssadd[subset]
-            f = h5py.File(lnk.filename)
-            files.append(f)
-
-            for sn, s in stacks.items():
-                arr = s[idcs,...]
-                path = base_path.replace('/%', lnk.path) + '/' + sn
-                ds = f.require_dataset(path, shape=arr.shape, dtype=arr.dtype, **kwargs)
-                arrays.append(arr)
-                datasets.append(ds)
-
-                print(f'Storing stack {sn} for subset {subset} into {lnk.filename} -> {path}')
-
-        with dask.diagnostics.ProgressBar():
-            da.store(arrays, datasets)
-
-        [f.close() for f in files]
-
-        return
-
-    allstacks = {}
-
-    if flat:
-        for sn, s in stacks.items():
-            if shots is None:
-                raise ValueError('When using a flat dict, you have to supply a shot list with subset column')
-            for subset, idcs in shots.groupby('subset').indices.items():
-                allstacks.update({
-                    base_path.replace('%', '{}').format(subset) + '/' + sn: s[idcs, ...]})
-
-    else:
-        for subset, ssss in stacks.items():
-            for sn, sss in ssss.items():
-                allstacks.update({
-                    base_path.replace('%', '{}').format(subset) + '/' + sn: sss})
-
-    print('Computing and storing the following stacks: ')
-    for k, v in allstacks.items():
-        print(k, '\t', v)
-
-    with dask.diagnostics.ProgressBar():
-        #print(kwargs)
-        da.to_hdf5(filename, allstacks, **kwargs)
 
 
 def store_meta_array(filename, array_label, identifier, array, shots=None, listname=None,
@@ -723,14 +633,13 @@ def store_meta_array(filename, array_label, identifier, array, shots=None, listn
     return label_string, meta_path
 
 
-
 def get_nxs_list(filename, what='shots'):
     if what == 'shots':
-        return get_meta_lists(filename, True, '/%/data', ['shots'])['shots']
+        return get_meta_lists(filename, '/%/data', ['shots'])['shots']
     if what in ['crystals', 'features']:
-        return get_meta_lists(filename, True, '/%/map', [what])[what]
+        return get_meta_lists(filename, '/%/map', [what])[what]
     if what in ['peaks', 'predict']:
-        return get_meta_lists(filename, True, '/%/results', ['peaks'])['predict']
+        return get_meta_lists(filename, '/%/results', ['peaks'])['predict']
     # for later: if none of the usual ones, just crawl the file for something matching
     return None
 
@@ -745,65 +654,107 @@ def store_nxs_list(filename, list, what='shots'):
     :return:
     """
     if what == 'shots':
-        store_meta_lists(filename, {'shots': list}, True, '/%/data')
+        store_meta_lists(filename, {'shots': list}, '/%/data')
     elif what in ['crystals', 'features']:
-        store_meta_lists(filename, {'features': list}, True, '/%/map')
+        store_meta_lists(filename, {'features': list}, '/%/map')
     elif what in ['peaks', 'predict']:
-        store_meta_lists(filename, {'features': list}, True, '/%/results')
+        store_meta_lists(filename, {what: list}, '/%/results')
     else:
         raise ValueError('Unknown list type')
 
 
-def get_data_stacks(filename, flat=True, base_path='/entry/data/%', labels=None):
-    """
-    Reads all data arrays from a (processed) HDF file as dask dataframes and returns them as a nested dictionary.
-    :param filename: Name of the HDF data file from serial acquisition.
-    :param flat: if True, all subset data is concatenated for each stack. Order is alphabetical according to the
-    subset names.
-    :return: dict of the structure {'subset1_name': {'raw': raw_data, 'bgcorr': bg_corrected, ...},
-    'subset2_name": .....} etc. if flat=False.
-    """
+def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_shots=True, **kwargs):
 
-    if filename.rsplit('.', 1)[-1] == 'lst':
-        # this only works with new-style nxs files...
-        try:
-            fn2 = filename.rsplit('.', 1)[0] + '_temp.h5'
-            fn2 = make_master_h5(filename, fn2)
-            stacks = get_data_stacks(fn2, flat, base_path, labels)
-        finally:
-            os.remove(fn2)
-        return stacks
+    if shots is None:
+        print('No shot list provided; getting shots from data file(s).')
+        shots = get_meta_lists(filename, base_path, 'shots')['shots']
 
+    if filename is not None:
+        fns = get_files(filename)
+    else:
+        fns = shots['file'].unique()
+
+    counters = {ln: 0 for ln in stacks.keys()}
+
+    datasets = []
+    arrays = []
+    files =[]
+
+    try:
+        for fn in fns:
+
+            f = h5py.File(fn)
+            files.append(f)
+            fshots = shots.loc[shots['file'] == fn, :]
+
+            for sn, stack in stacks.items():
+                for subset, idcs in fshots.groupby('subset').indices.items():
+                    arr = stack[idcs,...]
+                    path = base_path.replace('%', subset) + '/' + sn
+                    ds = f.require_dataset(path, shape=arr.shape, dtype=arr.dtype,
+                                           chunks=tuple([c[0] for c in arr.chunks]), **kwargs)
+
+                    arrays.append(arr)
+                    datasets.append(ds)
+                    counters[sn] += arr.shape[0]
+                    print(f'Storing stack {sn} for subset {subset} into {fn} -> {path}')
+
+        for k, v in stacks.items():
+            if v.shape[0] != counters[k]:
+                print(f'Warning: {counters[k]} out of {v.shape[0]} entries in stack {k} will be stored.')
+
+        with warnings.catch_warnings():
+            with dask.diagnostics.ProgressBar():
+                da.store(arrays, datasets)
+
+    except Exception as err:
+        [f.close() for f in files]
+        raise err
+
+    if store_shots and shots is None:
+        store_meta_lists(filename, {'shots': shots}, base_path=base_path)
+        print('Stored shot list.')
+
+
+def get_data_stacks(filename, base_path='/%/data', labels=None):
+
+    # Internally, this function is structured 99% as get_meta_lists, just operating on dask
+    # arrays, not pandas frames
+    fns = get_files(filename)
     identifiers = base_path.rsplit('%', 1)
-    fh = h5py.File(filename)
-    base_grp = fh[identifiers[0]]
+    stacks = defaultdict(list)  
 
-    stacks = {}
+    for fn in fns:
+        fh = h5py.File(fn)
+        
+        try:
+            if len(identifiers) == 1:
+                base_grp = {'': fh[identifiers[0]]}
+            else:
+                base_grp = fh[identifiers[0]]
+            for subset, ssgrp in base_grp.items():
+        
+                if (len(identifiers) > 1) and identifiers[1]:
+                    if identifiers[1].strip('/') in ssgrp.keys():
+                        grp = ssgrp[identifiers[1].strip('/')]
+                else:
+                    grp = ssgrp     # subset identifier is on last level
+        
+                if isinstance(grp, h5py.Group):
+                    for dsname, ds in grp.items():
+                        if ds is None:
+                            # can happen for dangling soft links
+                            continue
+                        if ((labels is None) or (dsname in labels)) \
+                                and isinstance(ds, h5py.Dataset) \
+                                and ('pandas_type' not in ds.attrs):
+                            stacks[dsname].append(da.from_array(ds, ds.chunks))
 
-    for subset, ssgrp in base_grp.items():
+        except Exception as err:
+            fh.close()
+            raise err
 
-        if identifiers[1]:
-            grp = ssgrp[identifiers[1].strip('/')]
-        else:
-            # subset identifier is on last level
-            grp = ssgrp
-
-        if isinstance(grp, h5py.Group):
-            stacks.update({subset: {}})
-            for dslabel, ds in grp.items():
-                if ((labels is None) or (dslabel in labels)) \
-                        and isinstance(ds, h5py.Dataset) and ('pandas_type' not in ds.attrs):
-                    stacks[subset].update({dslabel: da.from_array(ds, ds.chunks)})
-
-    fh.close()
-
-    if flat:
-        stks = defaultdict(list)
-        for sn, sd in sorted(stacks.items()):
-            for tn, td in sd.items():
-                stks[tn].append(td)
-        stacks = {k: da.concatenate(v) for k, v in stks.items()}
-
+    stacks = {sn: da.concatenate(s, axis=0) for sn, s in stacks.items()}
     return stacks
 
 

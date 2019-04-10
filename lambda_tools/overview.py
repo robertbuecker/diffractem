@@ -512,19 +512,20 @@ class OverviewImg:
         :return: an OverviewImg object
         """
 
-        meta = io.get_meta_lists(filename, flat=False)
+        meta = io.get_meta_lists(filename, '/entry/meta/%')
 
-        if subset is None:
-            if len(meta) > 1:
-                print(meta.keys())
-                raise ValueError('File contains more than one subset. You have to specify which one to read.')
-            else:
-                subset = list(meta.keys())[0]
+        #if subset is None:
+        #    if len(meta) > 1:
+        #        print(meta.keys())
+        #        raise ValueError('File contains more than one subset. You have to specify which one to read.')
+        #    else:
+        #        subset = list(meta.keys())[0]
 
-        meta = meta[subset]
+        #meta = meta[subset]
 
         if (region_id is None) or (run_id is None):
             regrun = []
+            #print(meta)
             for k, v in meta.items():
                 if ('run' in v.columns) and ('region' in v.columns):
                     regrun.append(v[['region', 'run']])
