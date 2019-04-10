@@ -51,9 +51,9 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
         return
 
     if meta is None:
-        meta = get_meta_lists(file_name, base_path=base_path, flat=True)
+        meta = get_meta_lists(file_name, base_path=base_path)
     if stacks is None:
-        imgset = get_data_stacks(file_name, flat=True, labels=[setname,], base_path=base_path)[setname]
+        imgset = get_data_stacks(file_name, labels=[setname,], base_path=base_path)[setname]
     else:
         imgset = stacks[setname]
     shots = meta['shots'].loc[idcs, :]

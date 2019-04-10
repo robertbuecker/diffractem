@@ -144,11 +144,12 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
     :return:
     """
 
-    if fn_from.rsplit('.', 1)[-1] == 'lst':
-        old_files = [f.strip() for f in open(fn_from).readlines()]
+    if (isinstance(fn_from,str) and fn_from.endswith('.lst')) or isinstance(fn_from, list):
+        old_files = get_files(fn_from)
         new_files = []
 
         for ofn in old_files:
+            #print(ofn)
             # this loop could beautifully be parallelized. For later...
             if h5_folder is None:
                 h5_folder = ofn.rsplit('/', 1)[0]
@@ -639,7 +640,7 @@ def get_nxs_list(filename, what='shots'):
     if what in ['crystals', 'features']:
         return get_meta_lists(filename, '/%/map', [what])[what]
     if what in ['peaks', 'predict']:
-        return get_meta_lists(filename, '/%/results', ['peaks'])['predict']
+        return get_meta_lists(filename, '/%/results', [what])[what]
     # for later: if none of the usual ones, just crawl the file for something matching
     return None
 
