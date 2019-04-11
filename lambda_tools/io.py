@@ -359,7 +359,7 @@ def read_crystfel_stream(filename, serial_offset=-1):
 
 
 def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_counts', sort_by=None,
-                 drop_invalid=True, aggregate=None, agg_by=('subset', 'region', 'run', 'crystal_id'),
+                 drop_invalid=True, aggregate=None, agg_by=('file', 'subset', 'region', 'run', 'crystal_id'),
                  newchunk=None):
 
     # TODO: documentation
@@ -395,11 +395,14 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
                 else:
                     raise ValueError('aggregate must be sum or mean')
                 if newchunk is not None:
-                    newstack = newstack.rechunk({0: newchunk})
+                    # TODO this does not seem to do anything? Why?!
+                    newstack = da.rechunk(newstack, (newchunk, -1, -1))
+
                 agg_stacks[sn].append(newstack)
                 agg_shots.append(grp.iloc[0, :])  # at this point, they all should be the same
 
         shot_list_final = pd.DataFrame(agg_shots)
+
         stacks_final = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
 
     else:
