@@ -7,7 +7,6 @@ from dask import array as da
 import json
 from collections import defaultdict
 import dask.diagnostics
-from io import StringIO
 import os.path
 from lambda_tools import normalize_names
 from tifffile import imread
@@ -81,51 +80,90 @@ def h5_to_dict(grp, exclude=('data', 'image'), max_len=100):
     return d
 
 
-def meta_to_nxs(nxs_file, meta=None, exclude=('Detector',), meta_grp='/entry/instrument',
-                data_grp='/entry/data', data_field='data', data_location='/entry/instrument/detector/data'):
+def meta_from_nxs(filename, datasets):
     """
-    Merges a dict containing metadata information for a serial data acquisition into an existing detector nxs file.
-    Additionally, it adds a soft link to the actual data for easier retrieval later (typically into /entry/data)
-    :param nxs_file:
-    :param meta:
-    :param exclude:
-    :param meta_grp:
-    :param data_grp:
-    :param data_field:
-    :param data_location:
+    Get arbitrary meta data from files. So far does _not_ handle % placeholder for subsets because I'm lazy.
+    :param filename:
+    :param datasets: list of dataset paths, or dict of structure {dataset: default value}
     :return:
     """
 
-    f = h5py.File(nxs_file, 'r+')
+    if isinstance(datasets, str):
+        datasets = [datasets]
 
-    if meta is None:
-        meta = nxs_file.rsplit('.', 1)[0] + '.json'
+    if isinstance(datasets, list) or isinstance(datasets, tuple):
+        datasets = {f: None for f in datasets}
 
-    if isinstance(meta, str):
-        try:
-            meta = json.load(open(meta))
-        except FileNotFoundError:
-            print('No metafile found.')
-            meta = {}
+    datasets = {k.replace('%', 'entry'): v for k, v in datasets.items()}
 
-    elif isinstance(meta, dict):
-        pass
+    values = defaultdict(dict)
+    fns = get_files(filename)
+    for fn in fns:
+        with h5py.File(fn) as f:
+            for field, default in datasets.items():
+                try:
+                    #print(f[field])
+                    values[field][fn] = f[field][...]
+                except KeyError:
+                    values[field][fn] = default
 
-    elif isinstance(meta, pd.DataFrame):
-        meta = next(iter(meta.to_dict('index').values()))
+    return dict(values)
 
-    dict_to_h5(f.require_group(meta_grp), meta, exclude=exclude)
 
-    if data_grp is not None:
-        dgrp = f.require_group(data_grp)
-        dgrp.attrs['NX_class'] = np.string_('NXdata')
-        dgrp.attrs['signal'] = np.string_(data_field)
 
-        if data_field in dgrp.keys():
-            del dgrp[data_field]
-        dgrp[data_field] = h5py.SoftLink(data_location)
+def meta_to_nxs(filename, meta=None, exclude=('Detector',), meta_grp='/entry/instrument',
+                data_grp='/entry/data', data_field='raw_counts', data_location='/entry/instrument/detector/data'):
+    """
+    Merges a dict containing metadata information for a serial data acquisition into an existing detector nxs file.
+    Additionally, it adds a soft link to the actual data for easier retrieval later (typically into /entry/data)
+    :param filename: NeXus file or lists
+    :param meta: can be set to {} -> no meta action performed. Or a JSON file name. If None, a JSON file name will be
+        derived from nxs_file by replacing .nxs by .json (useful in loops)
+    :param exclude: names of meta groups or fields to exclude
+    :param meta_grp: location in the NeXus, where the metadata should go to
+    :param data_grp: location of softlink to the data stack. No softlink action if None.
+    :param data_field: name of the softlink to the data stack
+    :param data_location: location of the data stack
+    :return:
+    """
 
-    f.close()
+    # TODO: add functions to include flat field and pixel mask
+
+    if (not isinstance(filename, str)) or filename.endswith('.lst'):
+        fns = get_files(filename)
+        for fn in fns:
+            meta_to_nxs(fn, meta=meta, exclude=exclude, meta_grp=meta_grp,
+                        data_grp=data_grp, data_field=data_field, data_location=data_location)
+        return
+
+    with h5py.File(filename, 'r+') as f:
+
+        if meta is None:
+            meta = filename.rsplit('.', 1)[0] + '.json'
+
+        if isinstance(meta, str):
+            try:
+                meta = json.load(open(meta))
+            except FileNotFoundError:
+                print('No metafile found.')
+                meta = {}
+
+        elif isinstance(meta, dict):
+            pass
+
+        elif isinstance(meta, pd.DataFrame):
+            meta = next(iter(meta.to_dict('index').values()))
+
+        dict_to_h5(f.require_group(meta_grp), meta, exclude=exclude)
+
+        if data_grp is not None:
+            dgrp = f.require_group(data_grp)
+            dgrp.attrs['NX_class'] = np.string_('NXdata')
+            dgrp.attrs['signal'] = np.string_(data_field)
+
+            if data_field in dgrp.keys():
+                del dgrp[data_field]
+            dgrp[data_field] = h5py.SoftLink(data_location)
 
 
 def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
@@ -318,27 +356,6 @@ def read_crystfel_stream(filename, serial_offset=-1):
                            ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
 
     return df_peak, df_index
-
-
-def write_nxds_spots(peaks, filename='SPOT.nXDS', prefix='diffdat_?????', threshold=0,
-                     pixels=958496, min_pixels=3):
-
-    fstr = StringIO()
-    fstr.write(prefix + '.h5\n')
-
-    peaks['nXDS_panel'] = 1
-    jj = 0
-    for ii, grp in peaks.groupby('Event'):
-        if len(grp) < threshold:
-            continue
-        fstr.write('{}\n'.format(ii + 1)) # nXDS is one-based!
-        fstr.write('{} {} {}\n'.format(pixels - min_pixels * len(grp), min_pixels * len(grp), len(grp)))
-        grp.loc[:, ['nXDS_panel', 'fs/px', 'ss/px', 'Intensity']].to_csv(fstr, header=False, sep=' ', index=False)
-        jj += 1
-    with open(filename, 'w') as fh:
-        fh.write(fstr.getvalue())
-
-    peaks.drop('nXDS_panel', axis=1, inplace=True)
 
 
 def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_counts', sort_by=None,
@@ -544,9 +561,8 @@ def get_meta_lists(filename, base_path='/%/data', labels=None):
 
     for fn in fns:
         #print(fn)
-        fh = h5py.File(fn)
+        with h5py.File(fn) as fh:
 
-        try:
             if len(identifiers) == 1:
                 base_grp = {'': fh[identifiers[0]]}
             else:
@@ -574,9 +590,6 @@ def get_meta_lists(filename, base_path='/%/data', labels=None):
 
                             lists[tname].append(newlist)
                             print(f'Appended {len(newlist)} items from {fn}: {subset} -> list {tname}')
-
-        finally:
-            fh.close()
 
     lists = {tn: pd.concat(t, axis=0, ignore_index=True) for tn, t in lists.items()}
     return lists
@@ -749,7 +762,7 @@ def get_data_stacks(filename, base_path='/%/data', labels=None):
                         if ((labels is None) or (dsname in labels)) \
                                 and isinstance(ds, h5py.Dataset) \
                                 and ('pandas_type' not in ds.attrs):
-                            stacks[dsname].append(da.from_array(ds, ds.chunks))
+                            stacks[dsname].append(da.from_array(ds, chunks=ds.chunks))
 
         except Exception as err:
             fh.close()

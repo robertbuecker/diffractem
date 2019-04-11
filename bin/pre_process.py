@@ -119,7 +119,7 @@ if make_figures:
 
     get_ipython().system('mkdir -r {folder}')
     for ii, dat in shots.query('peak_count > 25').iterrows():
-        tools.diff_plot(list_name, [ii, ], scanpx=17e-9, meta={'shots': shots, 'peaks': peaks},
+        tools.diff_plot(list_name, [ii, ], map_px=17e-9, meta={'shots': shots, 'peaks': peaks},
                         clen=0.515, rings=(9, 4.5, 3.6, 2.25, 1.8))
         plt.savefig('{}/{:04d}_{:04d}'.format(folder, dat['region'], dat['shot']))
         plt.close(plt.gcf())

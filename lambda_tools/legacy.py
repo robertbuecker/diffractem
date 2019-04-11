@@ -400,3 +400,24 @@ def copy_meta(fn_from, fn_to, base_group='/entry/instrument/detector', exclude=(
             #print('Key {} exists'.format(k))
     fh_to.close()
     fh_from.close()
+
+
+def write_nxds_spots(peaks, filename='SPOT.nXDS', prefix='diffdat_?????', threshold=0,
+                     pixels=958496, min_pixels=3):
+
+    fstr = StringIO()
+    fstr.write(prefix + '.h5\n')
+
+    peaks['nXDS_panel'] = 1
+    jj = 0
+    for ii, grp in peaks.groupby('Event'):
+        if len(grp) < threshold:
+            continue
+        fstr.write('{}\n'.format(ii + 1)) # nXDS is one-based!
+        fstr.write('{} {} {}\n'.format(pixels - min_pixels * len(grp), min_pixels * len(grp), len(grp)))
+        grp.loc[:, ['nXDS_panel', 'fs/px', 'ss/px', 'Intensity']].to_csv(fstr, header=False, sep=' ', index=False)
+        jj += 1
+    with open(filename, 'w') as fh:
+        fh.write(fstr.getvalue())
+
+    peaks.drop('nXDS_panel', axis=1, inplace=True)

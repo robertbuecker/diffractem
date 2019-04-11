@@ -11,75 +11,76 @@ from astropy.convolution import Gaussian2DKernel, convolve
 import os
 
 from . import gap_pixels
-from .io import get_meta_lists, get_data_stacks, get_meta_array, make_master_h5
+from .io import *
 from lambda_tools.legacy import save_lambda_img
 from .proc2d import correct_dead_pixels
 
 
-def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6), beamdiam=100e-9,
-              rings=(10, 5, 2.5), scanpx=20e-9, clen=1.59, stem=True, peaks=True, figsize=(15, 10),
-              meta=None, stacks=None, width=616, xoff=0, yoff=0, ellipticity = 0, base_path='/entry/data/%',
-              stem_path=None, **kwargs):
-    """
-    Makes a single or multiple nice plots of a diffraction pattern and associated STEM image.
-    :param file_name:
-    :param idcs: can be a single index, or a range (or anything compatible with a DataFrame .loc)
-    :param setname: name of the image set
-    :param ovname: name of the overview set
-    :param radii: radii of points at the found diffraction peaks
-    :param beamdiam: beam diameter (in m) shown in zoomed crystal image
-    :param rings: radii of shown reference diffraction rings
-    :param clen: camera length the data has been taken with
-    :param scanpx: pixel size of overview image. Only used if no acquisition data is stored inside the file.
-    :param figsize: figure size
-    :param meta: give meta lists explicitly, instead of loading them from the data file. Might be faster.
-    :param kwargs: other keyword arguments passed to figure command
-    :return: list of figure handles
+def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
+              rings=(10, 5, 2.5), radii=(3, 4, 6), show_map=True, show_peaks=True, show_predict=False,
+              figsize=(15, 10), dpi=300, cutoff=99.5,
+              width=616, xoff=0, yoff=0, ellipticity=0,
+              map_px=None, clen=None, det_px=None, wavelength=None,
+              stacks=None, shots=None, peaks=None, predict=None,
+              base_path='/%/data', map_path='/%/map/image', results_path='/%/results',
+              pre_compute=True, store_to=None, **kwargs):
     """
 
-    if file_name.endswith('.lst'):
-        # this only works with new-style nxs files...
-        try:
-            fn2 = file_name.rsplit('.', 1)[0] + '_temp.h5'
-            fn2 = make_master_h5(file_name, fn2)
-            diff_plot(fn2, idcs, setname, ovname, radii, beamdiam,
-                  rings, scanpx, clen, stem, peaks, figsize,
-                  meta, stacks, width, xoff, yoff, ellipticity, base_path='/%/data',
-                  stem_path='/%/instrument_map/STEM_Image/data', **kwargs)
-        finally:
-            os.remove(fn2)
-        return
+    """
 
-    if meta is None:
-        meta = get_meta_lists(file_name, base_path=base_path)
+    if shots is None:
+        shots = get_meta_lists(filename, base_path, ['shots'])['shots']
+    if show_peaks and peaks is None:
+        shots = get_meta_lists(filename, results_path, ['peaks'])['peaks']
+    if show_predict and predict is None:
+        shots = get_meta_lists(filename, results_path, ['predict'])['predict']
     if stacks is None:
-        imgset = get_data_stacks(file_name, labels=[setname,], base_path=base_path)[setname]
-    else:
-        imgset = stacks[setname]
-    shots = meta['shots'].loc[idcs, :]
-    recpx = 0.025 / (55e-6 / clen)
+        stacks = get_data_stacks(filename, base_path, [setname])
 
-    if isinstance(shots, pd.Series):
-        shots = pd.DataFrame(shots).T
+    # TODO: replace all the following defaults by proper reading from NeXus and assigning to shots
+    shotsel = shots.loc[idcs, :]
 
-    fh = []
+    if map_px is None: map_px = shotsel['map_px'] = 17e-9
+    if clen is None: shotsel['clen'] = 1.57
+    if det_px is None: shotsel['det_px'] = 55e-6
+    if wavelength is None: shotsel['wavelength'] = 2.5e-12
 
-    for idx, shot in shots.iterrows():
+    shotsel['recpx'] = shotsel['wavelength'] / (shotsel['det_px'] / shotsel['clen']) * 1e10
 
-        fhs = plt.figure(figsize=figsize, **kwargs)
-        fh.append(fhs)
-        ax = plt.axes([0, 0, 0.66, 0.95])
+    imgs = stacks[setname][shotsel.index.values, ...]
+    if pre_compute:
+        imgs = imgs.compute()
 
-        dat = imgset[idx, ...].compute()
-        ax.imshow(dat, vmin=0, vmax=np.quantile(dat, 0.995), cmap='gray', label='diff')
+    if show_map:
+        map_path = map_path.replace('%', 'entry')
+        map_imgs = meta_from_nxs(list(shotsel['file'].unique()), map_path)[map_path]
 
-        if ('peaks' in meta.keys()) and peaks:
-            coords = meta['peaks'].loc[meta['peaks']['serial'] == idx, :]
+    figs = []
+
+    for ii, ((idx, shot), img) in enumerate(zip(shotsel.iterrows(), imgs)):
+
+        if not pre_compute:
+            img = img.compute()
+
+        figh = plt.figure(figsize=figsize, dpi=dpi, **kwargs)
+        figs.append(figh)
+        #figh = figs[ii]
+
+        img_ax = figh.add_axes([0, 0, 0.66, 0.95])
+        img_ax.imshow(img, vmin=0, vmax=np.quantile(img, cutoff/100), cmap='gray', label='diff')
+
+        if show_peaks:
+            coords = peaks.loc[peaks['serial'] == idx, :]
         else:
             coords = pd.DataFrame()
 
-        ax.set_xlim((778 - width/2, 778 + width/2))
-        ax.set_title(
+        if show_predict:
+            pred_coords = peaks.loc[predict['serial'] == idx, :]
+        else:
+            pred_coords = pd.DataFrame()
+
+        img_ax.set_xlim((778 - width/2, 778 + width/2))
+        img_ax.set_title(
             'Set: {}, Shot: {}, Region: {}, Run: {}, Frame: {} \n (#{} in file: {}) PEAKS: {}'.format(shot['subset'],
                                                                                                       idx,
                                                                                                       shot['region'],
@@ -89,56 +90,57 @@ def diff_plot(file_name, idcs, setname='centered', ovname='stem', radii=(3, 4, 6
                                                                                                       shot['file'],
                                                                                                       len(coords), 3))
 
+        #print(shot['recpx'])
         for res in rings:
-            ax.add_artist(mpl.patches.Ellipse((dat.shape[1] / 2 + xoff, dat.shape[0] / 2 + yoff),
-                                             width=2*(recpx / res), height=2*(recpx / res * (1+ellipticity)), edgecolor='y', fill=False))
-            ax.text(dat.shape[1] / 2 + recpx / res / 1.4, dat.shape[0] / 2 - recpx / res / 1.4, '{} A'.format(res),
+            img_ax.add_artist(mpl.patches.Ellipse((img.shape[1] / 2 + xoff, img.shape[0] / 2 + yoff),
+                                             width=2*(shot['recpx'] / res), height=2*(shot['recpx'] / res * (1+ellipticity)), edgecolor='y', fill=False))
+            img_ax.text(img.shape[1] / 2 + shot['recpx'] / res / 1.4, img.shape[0] / 2 - shot['recpx'] / res / 1.4, '{} A'.format(res),
                     color='y')
 
         for _, c in coords.iterrows():
-            ax.add_artist(mpl.patches.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
+            img_ax.add_artist(plt.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
                                              radius=radii[0], fill=True, color='r', alpha=0.15))
-            ax.add_artist(mpl.patches.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
+            img_ax.add_artist(plt.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
                                              radius=radii[1], fill=False, color='y', alpha=0.2))
-            ax.add_artist(mpl.patches.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
+            img_ax.add_artist(plt.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
                                              radius=radii[2], fill=False, color='y', alpha=0.3))
 
-        ax.axis('off')
+        for _, c in pred_coords.iterrows():
+            img_ax.add_artist(plt.Rectangle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
+                                             width=radii[-1], height=radii[-1], fill=False, color='b'))
 
-        if not stem:
+        img_ax.axis('off')
+
+        if not show_map:
             continue
 
-        ax2 = plt.axes([0.6, 0.5, 0.45, 0.45])
-        ax3 = plt.axes((0.6, 0, 0.45, 0.45))
-        if stem_path is None:
-            stemimg = get_meta_array(file_name, ovname, shot)
-        else:
-            with h5py.File(file_name) as f:
-                stemimg = f[stem_path.replace('%', shot['subset'])][...]
+        #map_px = shotsel['map_px']
+        #print(map_px)
 
+        map_ax = figh.add_axes([0.6, 0.5, 0.45, 0.45])
+        feat_ax = figh.add_axes([0.6, 0, 0.45, 0.45])
 
-        if 'acqdata' in meta.keys():
-            pxs = float(meta['acqdata'].query('region=={} & run=={} & subset==\'{}\''.format(shot['region'], shot['run'], shot['subset']))['Scanning_Pixel_size_x'])
-        else:
-            pxs = scanpx * 1e9
+        map_ax.imshow(map_imgs[shot['file']], cmap='gray')
+        map_ax.add_artist(plt.Circle((shot['crystal_x'], shot['crystal_y']), facecolor='r'))
+        map_ax.add_artist(AnchoredSizeBar(map_ax.transData, 5e-6 / map_px, '5 um', 'lower right'))
+        map_ax.axis('off')
 
-        ax2.imshow(stemimg, cmap='gray')
-        ax2.add_artist(plt.Circle((shot['crystal_x'], shot['crystal_y']), facecolor='r'))
-        ax2.add_artist(AnchoredSizeBar(ax2.transData, 5000 / pxs, '5 um', 'lower right'))
-        ax2.axis('off')
-
-        ax3.imshow(stemimg, cmap='gray')
+        feat_ax.imshow(map_imgs[shot['file']], cmap='gray')
+        #feat_ax.add_artist(AnchoredSizeBar(feat_ax.transData, 0.1e-6 / map_px, '100 nm', 'lower right'))
+        feat_ax.add_artist(plt.Circle((shot['crystal_x'], shot['crystal_y']), radius=beamdiam/2/map_px, color='r', fill=False))
         if not np.isnan(shot['crystal_x']):
-            ax3.set_xlim(shot['crystal_x'] + np.array([-20, 20]))
-            ax3.set_ylim(shot['crystal_y'] + np.array([-20, 20]))
+            feat_ax.set_xlim(shot['crystal_x'] + np.array([-20, 20]))
+            feat_ax.set_ylim(shot['crystal_y'] + np.array([-20, 20]))
         else:
-            ax3.set_xlim(shot['pos_x'] + np.array([-20, 20]))
-            ax3.set_ylim(shot['pos_y'] + np.array([-20, 20]))
-        ax3.add_artist(AnchoredSizeBar(ax3.transData, 100 / pxs, '100 nm', 'lower right'))
-        ax3.add_artist(plt.Circle((shot['crystal_x'], shot['crystal_y']), radius=beamdiam*1e9/2/pxs, facecolor='r', alpha=0.2))
-        ax3.axis('off')
+            feat_ax.set_xlim(shot['pos_x'] + np.array([-20, 20]))
+            feat_ax.set_ylim(shot['pos_y'] + np.array([-20, 20]))
+        feat_ax.axis('off')
 
-    return fh
+        if store_to is not None:
+            plt.savefig('{}/{}_{:04d}'.format(store_to, filename.rsplit('.', 1)[0].rsplit('/', 1)[-1], idx))
+            plt.close(plt.gcf())
+
+    return figs
 
 
 def region_plot(file_name, regions=None, crystal_pos=True, peak_ct=True, beamdiam=100e-9, scanpx=2e-8, figsize=(10, 10),
