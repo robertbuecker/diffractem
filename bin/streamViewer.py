@@ -1,3 +1,4 @@
+import hdf5plugin
 import h5py
 import numpy as np
 import time
@@ -52,7 +53,7 @@ visualization_offset = namedtuple(  # pylint: disable=C0103
 visualization_offset.x = pixel_maps_for_visualization.x[0][0] - pixel_maps.x[0][0]
 visualization_offset.y = pixel_maps_for_visualization.y[0][0] - pixel_maps.y[0][0]
 
-dataPathInFile = geometry['panels'][first_panel]['data']
+dataPathInFile = geometry['panels'][first_panel]['data']    # This will fundamentally not support placeholders
 if dataPathInFile is None:
     print("data location has to be written in geometry file!")
     exit

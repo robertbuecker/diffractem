@@ -104,6 +104,8 @@ def _set_dim_structure_entry(key, value, panel):
     else:
         raise RuntimeError("Invalid dim entry: {}.".format(value))
 
+    panel['dim_structure'] = dim    # RB: changed (to have any effect at all)
+
 
 def _parse_field_for_panel(key, value, panel):
     # Reimplementation of parse_field_for_panel from
@@ -547,7 +549,7 @@ def load_crystfel_geometry(filename):
     num_placeholders_in_panels = None
     for panel in detector['panels'].values():
         if panel['dim_structure'] is not None:
-            curr_num_placeholders = panel['dim_structure'].values().count('%')
+            curr_num_placeholders = ','.join(panel['dim_structure']).count('%') # RB: dim structure is a list, no dict
         else:
             curr_num_placeholders = 0
 
