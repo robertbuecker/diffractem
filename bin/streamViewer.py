@@ -182,7 +182,7 @@ def updateImage():
         rawImage = np.array(dataFile[dataPathInFile.replace('%', subset)][...], dtype=np.float32)
 
     print("image with serial number", imageSerialNumber, "loaded")
-    print("file name", dataFilename, "event", event)
+    print("file name", dataFilename, "subset", subset, "event", event)
     imageWidget.setWindowTitle(dataFilename)
 
 
