@@ -31,19 +31,31 @@ def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
     if shots is None:
         shots = get_meta_lists(filename, base_path, ['shots'])['shots']
     if show_peaks and peaks is None:
-        shots = get_meta_lists(filename, results_path, ['peaks'])['peaks']
+        peaks = get_meta_lists(filename, results_path, ['peaks'])['peaks']
     if show_predict and predict is None:
-        shots = get_meta_lists(filename, results_path, ['predict'])['predict']
+        predict = get_meta_lists(filename, results_path, ['predict'])['predict']
     if stacks is None:
         stacks = get_data_stacks(filename, base_path, [setname])
 
     # TODO: replace all the following defaults by proper reading from NeXus and assigning to shots
     shotsel = shots.loc[idcs, :]
 
-    if map_px is None: map_px = shotsel['map_px'] = 17e-9
-    if clen is None: shotsel['clen'] = 1.57
-    if det_px is None: shotsel['det_px'] = 55e-6
-    if wavelength is None: shotsel['wavelength'] = 2.5e-12
+    if map_px is None:
+        map_px = shotsel['map_px'] = 17e-9
+    else:
+        shotsel['map_px'] = map_px
+    if clen is None:
+        shotsel['clen'] = 1.57
+    else:
+        shotsel['clen'] = clen
+    if det_px is None:
+        shotsel['det_px'] = 55e-6
+    else:
+        shotsel['det_px'] = det_px
+    if wavelength is None:
+        shotsel['wavelength'] = 2.5e-12
+    else:
+        shotsel['wavelength'] = wavelength
 
     shotsel['recpx'] = shotsel['wavelength'] / (shotsel['det_px'] / shotsel['clen']) * 1e10
 
@@ -80,8 +92,9 @@ def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
             pred_coords = pd.DataFrame()
 
         img_ax.set_xlim((778 - width/2, 778 + width/2))
-        img_ax.set_title(
-            'Set: {}, Shot: {}, Region: {}, Run: {}, Frame: {} \n (#{} in file: {}) PEAKS: {}'.format(shot['subset'],
+        try:
+            img_ax.set_title(
+                'Set: {}, Shot: {}, Region: {}, Run: {}, Frame: {} \n (#{} in file: {}) PEAKS: {}'.format(shot['subset'],
                                                                                                       idx,
                                                                                                       shot['region'],
                                                                                                       shot['run'],
@@ -89,6 +102,8 @@ def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
                                                                                                       shot['shot'],
                                                                                                       shot['file'],
                                                                                                       len(coords), 3))
+        except:
+            'Shot {}: (file: {}) PEAKS: {}'.format(shot['subset'], shot['file'], len(coords), 3)
 
         #print(shot['recpx'])
         for res in rings:
