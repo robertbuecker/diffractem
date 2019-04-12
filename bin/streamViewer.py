@@ -174,11 +174,12 @@ def updateImage():
 
     dataFilename = streamFileParser.streamFileChunks[imageSerialNumber - 1].filename
     event = streamFileParser.streamFileChunks[imageSerialNumber - 1].Event
+    subset = streamFileParser.streamFileChunks[imageSerialNumber - 1].subset
     dataFile = h5py.File(dataFilename, "r")
     if event is not None:
-        rawImage = np.array(dataFile[dataPathInFile][event, ...], dtype=np.float32)
+        rawImage = np.array(dataFile[dataPathInFile.replace('%', subset)][event, ...], dtype=np.float32)
     else:
-        rawImage = np.array(dataFile[dataPathInFile][...], dtype=np.float32)
+        rawImage = np.array(dataFile[dataPathInFile.replace('%', subset)][...], dtype=np.float32)
 
     print("image with serial number", imageSerialNumber, "loaded")
     print("file name", dataFilename, "event", event)

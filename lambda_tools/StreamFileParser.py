@@ -7,7 +7,7 @@ import numpy as np
 
 streamFileChunk_t = namedtuple(
     typename='streamFileChunk',
-    field_names=['filename', 'Event', "Image_serial_number", 'foundPeaks', 'crystals']
+    field_names=['filename', 'subset', 'Event', "Image_serial_number", 'foundPeaks', 'crystals']
 )
 
 foundPeaks_t = namedtuple(
@@ -57,9 +57,11 @@ class StreamFileParser:
 
             if "Event" in streamFileLines[currentLine]:
                 Event = int(streamFileLines[currentLine].split()[1].split('//')[1])
+                subset = streamFileLines[currentLine].split()[1].split('//')[0]
                 currentLine += 1
             else:
                 Event = None
+                subset = None
 
             Image_serial_number = int(streamFileLines[currentLine].split()[3])
             currentLine += 1
@@ -126,7 +128,7 @@ class StreamFileParser:
 
                 crystals.append(crystal)
 
-            self.streamFileChunks.append(streamFileChunk_t(filename, Event, Image_serial_number, foundPeaks, crystals))
+            self.streamFileChunks.append(streamFileChunk_t(filename, subset, Event, Image_serial_number, foundPeaks, crystals))
 
         self.streamFileChunks.sort(key=getImageSerialNumber)
 
