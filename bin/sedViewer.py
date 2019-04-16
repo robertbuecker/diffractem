@@ -21,8 +21,9 @@ from lambda_tools.StreamFileParser import *
 
 pg.setConfigOptions(imageAxisOrder='row-major')
 
+# all the stuff that should go to an option parser:
 data_path = '/%/data'
-img_array = 'centered'
+img_array = 'raw_counts'
 map_path = '/%/map'
 result_path = '/%/results'
 beam_diam = 5
@@ -31,7 +32,7 @@ show_peaks = True
 show_predict = True
 show_markers = True
 map_zoomed = True
-query = 'frame == 1'
+query = 'frame == 0'
 
 # operation modes:
 # (1) only list and NeXus files
@@ -43,6 +44,10 @@ def read_files(filename):
     global shots, features, peaks, predict
 
     shots = get_meta_lists(filename, data_path, 'shots')['shots']
+    nshots0 = shots.shape[0]
+    shots = shots.loc[shots['frame'] >= 0, :].query(query).reset_index()
+    nshots = shots.shape[0]
+    print(f'{nshots} shots from {nshots0} selected')
 
     try:
         features = get_meta_lists(filename, map_path, 'features')['features']
@@ -69,7 +74,7 @@ def read_files(filename):
 def switch_shot(serial):
     global imageSerialNumber, shot
     imageSerialNumber = max(0, serial % shots.shape[0])
-    shot = shots.loc[imageSerialNumber, :]
+    shot = shots.iloc[imageSerialNumber, :]
     update()
 
 
@@ -96,21 +101,32 @@ def toggleFoundCrystalButton_clicked():
     update()
 
 
+def zoomOnCrystalButton_clicked():
+    global map_zoomed
+    map_zoomed = not map_zoomed
+    update()
+
+
 def updateImage():
-    global imageSerialNumber, rawImage, currentImageSerialNumber, mapImage, shot
+    global imageSerialNumber, rawImage, mapImage, shot
 
-    with h5py.File(shot['file']) as f:
-        rawImage = f[data_path.replace('%', shot['subset']) + '/' + img_array][int(shot['shot_in_subset']),...]
-        if show_map:
-            mapImage = f[map_path.replace('%', shot['subset']) + '/image'][...]
+    path = data_path.replace('%', shot['subset']) + '/' + img_array
+    print('Loading {}:{} from {}'.format(path, shot['shot_in_subset'], shot['file']))
 
-    print("image with serial number", imageSerialNumber, "loaded")
-    print("file name", shot['file'], "subset", shot['subset'], "event", shot['shot_in_subset'])
+    try:
+        with h5py.File(shot['file']) as f:
+            rawImage = f[path][int(shot['shot_in_subset']),...]
+            if show_map:
+                mapImage = f[map_path.replace('%', shot['subset']) + '/image'][...]
+    except Exception as err:
+        print('Could not load image data due to {}'.format(err))
+        rawImage = rawImage * 0
+
+
 
 
 def updatePlot():
-    global img, mapimg, hist, runPeakFinder9_flag, alignedImage, pixel_maps_for_visualization, imageSerialNumber, streamFileParser, \
-        rawImage, showMarker_flag, showFoundPeaks_flag, showFoundCrystal_flag, crystalNumber, mapImage, shot
+    global img, mapimg, hist, imageSerialNumber, rawImage, mapImage, shot, map_zoomed
 
     if show_peaks and (peaks is not None) and show_markers:
         ring_pen = pg.mkPen('g', width=2)
@@ -140,7 +156,7 @@ def updatePlot():
         if shot['crystal_id'] != -1:
             single_feat = region_feat.loc[region_feat['crystal_id'] == shot['crystal_id'], :]
             found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
-                                          symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
+                                          symbol='+', size=7, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
         #found_features_canvas.setData([shot['crystal_x'],], [shot['crystal_y'],],
         #                              symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
 
@@ -153,6 +169,7 @@ def updatePlot():
             else:
                 single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
                                               symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=True)
+                p2.setRange(xRange=(0, mapImage.shape[1]), yRange=(0, mapImage.shape[0]))
 
         else:
             single_feature_canvas.setData([],[])
@@ -174,6 +191,12 @@ def update():
     updateImage()
     updatePlot()
 
+    topWidget.setWindowTitle('{} Region {} Run {} Feature {} ({}//{} in file {})'.format(shot['sample'],
+                                                                                         shot['region'], shot['run'],
+                                                                                         shot['crystal_id'],
+                                                                                         shot['subset'],
+                                                                                         shot['shot_in_subset'],
+                                                                                         shot['file']))
 
 ########################################################## gui
 
@@ -230,22 +253,28 @@ mapWidget.addItem(hist2)
 # Control Buttons
 
 topWidget = QtGui.QWidget()
-nextImageButton = QtGui.QPushButton('next')
-previousImageButton = QtGui.QPushButton('previous')
-randomImageButton = QtGui.QPushButton('random')
-plus10ImageButton = QtGui.QPushButton('plus 10')
-minus10ImageButton = QtGui.QPushButton('minus 10')
-toggleMarkerButton = QtGui.QPushButton('toggle marker')
-toggleFoundPeaksButton = QtGui.QPushButton('toggle found \npeaks markers')
-toggleFoundCrystalButton = QtGui.QPushButton('toggle found \ncrystal markers mode')
+nextImageButton = QtGui.QPushButton('+1')
+previousImageButton = QtGui.QPushButton('-1')
+randomImageButton = QtGui.QPushButton('rnd')
+plus10ImageButton = QtGui.QPushButton('+10')
+minus10ImageButton = QtGui.QPushButton('-10')
+lastImageButton = QtGui.QPushButton('last')
+toggleMarkerButton = QtGui.QPushButton('markers')
+toggleFoundPeaksButton = QtGui.QPushButton('peaks')
+toggleFoundCrystalButton = QtGui.QPushButton('crystal')
+zoomOnCrystalButton = QtGui.QPushButton('zoom')
+reloadButton = QtGui.QPushButton('reload')
 nextImageButton.clicked.connect(lambda: switch_shot_rel(1))
 previousImageButton.clicked.connect(lambda: switch_shot_rel(-1))
-randomImageButton.clicked.connect(lambda: switch_shot(np.random.randint(1, shots.shape[0])))
+randomImageButton.clicked.connect(lambda: switch_shot(np.random.randint(0, shots.shape[0]-1)))
 plus10ImageButton.clicked.connect(lambda: switch_shot_rel(+10))
 minus10ImageButton.clicked.connect(lambda: switch_shot_rel(-10))
+lastImageButton.clicked.connect(lambda: switch_shot(shots.index.max()))
 toggleMarkerButton.clicked.connect(toggleMrkerButton_clicked)
 toggleFoundPeaksButton.clicked.connect(toggleFoundPeaksButton_clicked)
 toggleFoundCrystalButton.clicked.connect(toggleFoundCrystalButton_clicked)
+zoomOnCrystalButton.clicked.connect(zoomOnCrystalButton_clicked)
+reloadButton.clicked.connect(lambda: read_files(filename))
 #imageWidget.resize(800, 800)
 
 layout = QtGui.QGridLayout()
@@ -256,9 +285,12 @@ layoutButtons.addWidget(previousImageButton, 0, 1)
 layoutButtons.addWidget(plus10ImageButton, 0, 2)
 layoutButtons.addWidget(minus10ImageButton, 0, 3)
 layoutButtons.addWidget(randomImageButton, 0, 4)
-layoutButtons.addWidget(toggleMarkerButton, 0, 5)
-layoutButtons.addWidget(toggleFoundPeaksButton, 0, 6)
-layoutButtons.addWidget(toggleFoundCrystalButton, 0, 7)
+layoutButtons.addWidget(lastImageButton, 0, 5)
+layoutButtons.addWidget(reloadButton, 0, 10)
+layoutButtons.addWidget(toggleMarkerButton, 0, 20)
+layoutButtons.addWidget(toggleFoundPeaksButton, 0, 21)
+layoutButtons.addWidget(toggleFoundCrystalButton, 0, 22)
+layoutButtons.addWidget(zoomOnCrystalButton, 0, 23)
 layout.addWidget(imageWidget, 0, 0)
 layout.addLayout(layoutButtons, 1, 0, 1, 2)
 layout.addWidget(mapWidget, 0, 1)
@@ -271,7 +303,9 @@ if __name__ == '__main__':
         print("need a list file or NeXus-compliant HDF5")
         exit
 
-    read_files(sys.argv[1])
+    filename = sys.argv[1]
+
+    read_files(filename)
 
     switch_shot(0)
     update()
