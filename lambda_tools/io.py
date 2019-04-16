@@ -166,7 +166,7 @@ def meta_to_nxs(filename, meta=None, exclude=('Detector',), meta_grp='/entry/ins
             dgrp[data_field] = h5py.SoftLink(data_location)
 
 
-def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
+def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results/%'), mode='w-',
             print_skipped=False, h5_folder=None, h5_suffix='.h5'):
     """
     Copies datasets h5/nxs files or lists of them to new ones, with exclusion of datasets.
@@ -233,12 +233,17 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%'), mode='w-',
             elif isinstance(ds, h5py.Group):
                 #print(f'Creating group {key}')
                 new_grp = to.require_group(key)
-                for k, v in ds.attrs.items():
-                    #if
-                    try:
-                        new_grp.attrs.create(k, v)
-                    except TypeError as err:
-                        new_grp.attrs.create(k, np.string_(v))
+                # attribute copying is nasty. Lots of error catching required.
+                try:
+                    for k, v in ds.attrs.items():
+                        try:
+                            new_grp.attrs.create(k, v)
+                        except TypeError as err:
+                            new_grp.attrs.create(k, np.string_(v))
+                except OSError:
+                    # some newer HDF5 attribute types (used by pytables) will crash h5py even just listing them
+                    # print(f'Could not copy attributes of group {ds.name}')
+                    pass
 
                 for k, v in ds.items():
                     lnk = ds.get(k, getlink=True)
@@ -592,7 +597,7 @@ def get_meta_lists(filename, base_path='/%/data', labels=None):
                             newlist['file'] = fn
 
                             lists[tname].append(newlist)
-                            print(f'Appended {len(newlist)} items from {fn}: {subset} -> list {tname}')
+                            #print(f'Appended {len(newlist)} items from {fn}: {subset} -> list {tname}')
 
     lists = {tn: pd.concat(t, axis=0, ignore_index=True) for tn, t in lists.items()}
     return lists
@@ -728,7 +733,7 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
         [f.close() for f in files]
         raise err
 
-    if store_shots and shots is None:
+    if store_shots and shots is not None:
         store_meta_lists(filename, {'shots': shots}, base_path=base_path)
         print('Stored shot list.')
 
