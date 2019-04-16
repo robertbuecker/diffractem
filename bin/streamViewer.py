@@ -53,7 +53,9 @@ visualization_offset = namedtuple(  # pylint: disable=C0103
 visualization_offset.x = pixel_maps_for_visualization.x[0][0] - pixel_maps.x[0][0]
 visualization_offset.y = pixel_maps_for_visualization.y[0][0] - pixel_maps.y[0][0]
 
-dataPathInFile = geometry['panels'][first_panel]['data']    # This will fundamentally not support placeholders
+dataPathInFile = geometry['panels'][first_panel]['data']
+mapPathInFile = '/%/map/image'
+
 if dataPathInFile is None:
     print("data location has to be written in geometry file!")
     exit
@@ -166,7 +168,7 @@ currentImageSerialNumber = 1e100
 
 
 def updateImage():
-    global imageSerialNumber, streamFileParser, dataPathInFile, rawImage, currentImageSerialNumber
+    global imageSerialNumber, streamFileParser, dataPathInFile, rawImage, currentImageSerialNumber, mapImage
 
     if currentImageSerialNumber == imageSerialNumber:
         return
@@ -181,14 +183,17 @@ def updateImage():
     else:
         rawImage = np.array(dataFile[dataPathInFile.replace('%', subset)][...], dtype=np.float32)
 
+    if map is not None:
+        mapImage = np.array(dataFile[mapPathInFile.replace('%', subset)][...], dtype=np.float32)
+
     print("image with serial number", imageSerialNumber, "loaded")
     print("file name", dataFilename, "subset", subset, "event", event)
     imageWidget.setWindowTitle(dataFilename)
 
 
 def updatePlot():
-    global img, hist, runPeakFinder9_flag, alignedImage, pixel_maps_for_visualization, imageSerialNumber, streamFileParser, \
-        rawImage, showMarker_flag, showFoundPeaks_flag, showFoundCrystal_flag, crystalNumber
+    global img, mapimg, hist, runPeakFinder9_flag, alignedImage, pixel_maps_for_visualization, imageSerialNumber, streamFileParser, \
+        rawImage, showMarker_flag, showFoundPeaks_flag, showFoundCrystal_flag, crystalNumber, mapImage
 
     if showFoundPeaks_flag and showMarker_flag:
         ring_pen = pg.mkPen('g', width=2)
@@ -239,6 +244,7 @@ def updatePlot():
     alignedImage = geometry_utils.apply_pixel_maps(rawImage, pixel_maps_for_visualization, output_array=alignedImage)
     img.setImage(alignedImage, autoRange=False)
     img.setLevels(levels)
+    mapimg.setImage(mapImage)
     hist.setLevels(levels[0], levels[1])
 
     # debug!!!!!!
@@ -304,6 +310,26 @@ hist = pg.HistogramLUTItem()
 hist.setImageItem(img)
 imageWidget.addItem(hist)
 
+mapWidget = pg.GraphicsLayoutWidget()
+mapWidget.setWindowTitle('region map')
+
+# Map image control
+p2 = mapWidget.addViewBox()
+p2.setAspectLocked()
+
+mapimg = pg.ImageItem()
+mapimg.setZValue(0)
+p2.addItem(mapimg)
+
+found_features = pg.ScatterPlotItem()
+p2.addItem(found_features)
+found_peak_canvas.setZValue(2)
+
+# Contrast/color control
+hist2 = pg.HistogramLUTItem()
+hist2.setImageItem(mapimg)
+mapWidget.addItem(hist2)
+
 nextImageButton.clicked.connect(nextImageButton_clicked)
 previousImageButton.clicked.connect(previousImageButton_clicked)
 randomImageButton.clicked.connect(randomImageButton_clicked)
@@ -315,23 +341,24 @@ toggleFoundCrystalButton.clicked.connect(toggleFoundCrystalButton_clicked)
 previousCrystakButton.clicked.connect(previousCrystakButton_clicked)
 nextCrystalButton.clicked.connect(nextCrystalButton_clicked)
 
-imageWidget.resize(800, 800)
+#imageWidget.resize(800, 800)
 
 layout = QtGui.QGridLayout()
 layoutButtons = QtGui.QGridLayout()
 topWidget.setLayout(layout)
 layoutButtons.addWidget(nextImageButton, 0, 0)
-layoutButtons.addWidget(previousImageButton, 1, 0)
-layoutButtons.addWidget(plus10ImageButton, 2, 0)
-layoutButtons.addWidget(minus10ImageButton, 3, 0)
-layoutButtons.addWidget(randomImageButton, 4, 0)
-layoutButtons.addWidget(toggleMarkerButton, 5, 0)
-layoutButtons.addWidget(toggleFoundPeaksButton, 6, 0)
-layoutButtons.addWidget(toggleFoundCrystalButton, 7, 0)
-layoutButtons.addWidget(nextCrystalButton, 8, 0)
-layoutButtons.addWidget(previousCrystakButton, 9, 0)
+layoutButtons.addWidget(previousImageButton, 0x`x, 1)
+layoutButtons.addWidget(plus10ImageButton, 0, 2)
+layoutButtons.addWidget(minus10ImageButton, 0, 3)
+layoutButtons.addWidget(randomImageButton, 0, 4)
+layoutButtons.addWidget(toggleMarkerButton, 0, 5)
+layoutButtons.addWidget(toggleFoundPeaksButton, 0, 6)
+layoutButtons.addWidget(toggleFoundCrystalButton, 0, 7)
+layoutButtons.addWidget(nextCrystalButton, 0, 8)
+layoutButtons.addWidget(previousCrystakButton, 0, 9)
 layout.addWidget(imageWidget, 0, 0)
-layout.addLayout(layoutButtons, 0, 1)
+layout.addLayout(layoutButtons, 1, 0, 1, 2)
+layout.addWidget(mapWidget, 0, 1)
 
 topWidget.show()
 

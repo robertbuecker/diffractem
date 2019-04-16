@@ -24,12 +24,13 @@ def getImageSerialNumber(streamFileChunk):
     return streamFileChunk.Image_serial_number
 
 class StreamFileParser:
-    def __init__(self, filename, maxChunksToParse=1e6):
+    def __init__(self, filename, maxChunksToParse=1e6, scratchdir='.'):
         self.streamFileChunks = []
         with open(filename, "r") as myfile:
             streamFileLines = myfile.readlines()
 
-        geometryFileName = "geometry.tmp___61321572672345677543624725625672"
+        geometryFileName = scratchdir + "/geometry.tmp___61321572672345677543624725625672"
+
         with open(geometryFileName, "w") as geometryFile:
             currentLine = 0
             while streamFileLines[currentLine] != "----- Begin geometry file -----\n":
