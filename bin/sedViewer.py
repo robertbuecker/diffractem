@@ -22,7 +22,7 @@ from lambda_tools.StreamFileParser import *
 pg.setConfigOptions(imageAxisOrder='row-major')
 
 data_path = '/%/data'
-img_array = 'centered'
+img_array = 'raw_counts'
 map_path = '/%/map'
 result_path = '/%/results'
 beam_diam = 5
@@ -31,12 +31,16 @@ show_peaks = True
 show_predict = True
 show_markers = True
 map_zoomed = True
+query = 'frame == 1'
 
 if len(sys.argv) < 2:
     print("need a list file or NeXus-compliant HDF5")
     exit
 
 filename = sys.argv[1]
+
+shots = get_meta_lists(filename, data_path, 'shots')['shots']
+#shots = shots.loc[shots['crystal_id'] >= 1, :].query(query)
 
 if filename.endswith('.stream'):
     read_crystfel_stream(filename, serial_offset=0)
@@ -47,7 +51,6 @@ if filename.endswith('.stream'):
 # (3) stream plus plain HDF5
 # Yaroslav's version does (3), ours (1), for now.
 
-shots = get_meta_lists(filename, data_path, 'shots')['shots']
 
 try:
     features = get_meta_lists(filename, map_path, 'features')['features']
@@ -141,19 +144,23 @@ def updatePlot():
 
         region_feat = features.loc[(features['subset'] == shot['subset']) &
                                    (features['file'] == shot['file']), :]
-        single_feat = region_feat.loc[region_feat['crystal_id'] == shot['crystal_id'], :]
 
-        found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
-                                      symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
+        if shot['crystal_id'] != -1:
+            single_feat = region_feat.loc[region_feat['crystal_id'] == shot['crystal_id'], :]
+            found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
+                                          symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
 
-        if map_zoomed:
-            p2.setRange(xRange=(single_feat['crystal_x'].values - 5*beam_diam, single_feat['crystal_x'].values + 5*beam_diam),
-                               yRange=(single_feat['crystal_y'].values - 5*beam_diam, single_feat['crystal_y'].values + 5*beam_diam))
-            single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
-                                          symbol='o', size=beam_diam, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=False)
+            if map_zoomed:
+                p2.setRange(xRange=(single_feat['crystal_x'].values - 5*beam_diam, single_feat['crystal_x'].values + 5*beam_diam),
+                                   yRange=(single_feat['crystal_y'].values - 5*beam_diam, single_feat['crystal_y'].values + 5*beam_diam))
+                single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
+                                              symbol='o', size=beam_diam, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=False)
+            else:
+                single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
+                                              symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=True)
+
         else:
-            single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
-                                          symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=True)
+            single_feature_canvas.setData([],[])
 
     levels = hist.getLevels()
     img.setImage(rawImage, autoRange=False)

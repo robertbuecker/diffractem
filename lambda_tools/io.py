@@ -581,6 +581,8 @@ def get_meta_lists(filename, base_path='/%/data', labels=None):
                 if (len(identifiers) > 1) and identifiers[1]:
                     if identifiers[1].strip('/') in ssgrp.keys():
                         grp = ssgrp[identifiers[1].strip('/')]
+                    else:
+                        continue
                 else:
                     grp = ssgrp     # subset identifier is on last level
 
@@ -595,6 +597,7 @@ def get_meta_lists(filename, base_path='/%/data', labels=None):
                             newlist = pd.read_hdf(fn, tgrp.name)
                             newlist['subset'] = subset
                             newlist['file'] = fn
+                            newlist['shot_in_subset'] = range(newlist.shape[0])
 
                             lists[tname].append(newlist)
                             #print(f'Appended {len(newlist)} items from {fn}: {subset} -> list {tname}')
