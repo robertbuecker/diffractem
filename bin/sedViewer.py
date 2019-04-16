@@ -22,7 +22,7 @@ from lambda_tools.StreamFileParser import *
 pg.setConfigOptions(imageAxisOrder='row-major')
 
 data_path = '/%/data'
-img_array = 'raw_counts'
+img_array = 'centered'
 map_path = '/%/map'
 result_path = '/%/results'
 beam_diam = 5
@@ -33,43 +33,35 @@ show_markers = True
 map_zoomed = True
 query = 'frame == 1'
 
-if len(sys.argv) < 2:
-    print("need a list file or NeXus-compliant HDF5")
-    exit
-
-filename = sys.argv[1]
-
-shots = get_meta_lists(filename, data_path, 'shots')['shots']
-#shots = shots.loc[shots['crystal_id'] >= 1, :].query(query)
-
-if filename.endswith('.stream'):
-    read_crystfel_stream(filename, serial_offset=0)
-
 # operation modes:
 # (1) only list and NeXus files
 # (2) stream file plus NeXus
 # (3) stream plus plain HDF5
 # Yaroslav's version does (3), ours (1), for now.
 
+def read_files(filename):
+    global shots, features, peaks, predict
 
-try:
-    features = get_meta_lists(filename, map_path, 'features')['features']
-except KeyError:
-    print(f'No mapping features found in file {filename}')
-    features = None
-try:
-    peaks = get_meta_lists(filename, result_path, 'peaks')['peaks']
-except KeyError:
-    print(f'No peaks found in file {filename}')
-    peaks = None
-try:
-    predict = get_meta_lists(filename, result_path, 'predict')['predict']
-except KeyError:
-    print(f'No prediction spots found in file {filename}')
-    predict = None
+    shots = get_meta_lists(filename, data_path, 'shots')['shots']
 
-if ('shot_in_subset' not in shots.columns) and 'Event' in shots.columns:
-    shots[['shot_in_subset', 'subset']] = shots['Event'].str.split('//')
+    try:
+        features = get_meta_lists(filename, map_path, 'features')['features']
+    except KeyError:
+        print(f'No mapping features found in file {filename}')
+        features = None
+    try:
+        peaks = get_meta_lists(filename, result_path, 'peaks')['peaks']
+    except KeyError:
+        print(f'No peaks found in file {filename}')
+        peaks = None
+    try:
+        predict = get_meta_lists(filename, result_path, 'predict')['predict']
+    except KeyError:
+        print(f'No prediction spots found in file {filename}')
+        predict = None
+
+    if ('shot_in_subset' not in shots.columns) and 'Event' in shots.columns:
+        shots[['shot_in_subset', 'subset']] = shots['Event'].str.split('//')
 
 
 # CALLBACK FUNCTIONS
@@ -149,8 +141,11 @@ def updatePlot():
             single_feat = region_feat.loc[region_feat['crystal_id'] == shot['crystal_id'], :]
             found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
                                           symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
+        #found_features_canvas.setData([shot['crystal_x'],], [shot['crystal_y'],],
+        #                              symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
 
             if map_zoomed:
+
                 p2.setRange(xRange=(single_feat['crystal_x'].values - 5*beam_diam, single_feat['crystal_x'].values + 5*beam_diam),
                                    yRange=(single_feat['crystal_y'].values - 5*beam_diam, single_feat['crystal_y'].values + 5*beam_diam))
                 single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
@@ -271,6 +266,13 @@ layout.addWidget(mapWidget, 0, 1)
 topWidget.show()
 
 if __name__ == '__main__':
+
+    if len(sys.argv) < 2:
+        print("need a list file or NeXus-compliant HDF5")
+        exit
+
+    read_files(sys.argv[1])
+
     switch_shot(0)
     update()
     tmp = rawImage.copy().ravel()
