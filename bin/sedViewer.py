@@ -32,7 +32,7 @@ show_peaks = True
 show_predict = True
 show_markers = True
 map_zoomed = True
-query = 'frame == 0'
+query = 'frame == 1'
 
 # operation modes:
 # (1) only list and NeXus files
@@ -120,7 +120,7 @@ def updateImage():
                 mapImage = f[map_path.replace('%', shot['subset']) + '/image'][...]
     except Exception as err:
         print('Could not load image data due to {}'.format(err))
-        rawImage = rawImage * 0
+        rawImage = rawImage
 
 
 
