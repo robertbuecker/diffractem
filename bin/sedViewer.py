@@ -23,7 +23,8 @@ pg.setConfigOptions(imageAxisOrder='row-major')
 
 # all the stuff that should go to an option parser:
 data_path = '/%/data'
-img_array = 'raw_counts'
+img_array_list = ['centered_fr', 'centered', 'raw_counts']
+#img_array_list = ['centered', 'raw_counts']
 map_path = '/%/map'
 result_path = '/%/results'
 beam_diam = 5
@@ -110,20 +111,24 @@ def zoomOnCrystalButton_clicked():
 def updateImage():
     global imageSerialNumber, rawImage, mapImage, shot
 
-    path = data_path.replace('%', shot['subset']) + '/' + img_array
-    print('Loading {}:{} from {}'.format(path, shot['shot_in_subset'], shot['file']))
-
     try:
         with h5py.File(shot['file']) as f:
-            rawImage = f[path][int(shot['shot_in_subset']),...]
+            for img_array in img_array_list:
+                try:
+                    path = data_path.replace('%', shot['subset']) + '/' + img_array
+                    rawImage = f[path][int(shot['shot_in_subset']), ...]
+                    print('Loading {}:{} from {}'.format(path, shot['shot_in_subset'], shot['file']))
+                    break
+                except KeyError:
+                    continue
+            else:
+                raise KeyError('None of the stack names {} found'.format(img_array_list))
+
             if show_map:
                 mapImage = f[map_path.replace('%', shot['subset']) + '/image'][...]
     except Exception as err:
         print('Could not load image data due to {}'.format(err))
         rawImage = rawImage
-
-
-
 
 def updatePlot():
     global img, mapimg, hist, imageSerialNumber, rawImage, mapImage, shot, map_zoomed
@@ -191,12 +196,14 @@ def update():
     updateImage()
     updatePlot()
 
-    topWidget.setWindowTitle('{} Region {} Run {} Feature {} ({}//{} in file {})'.format(shot['sample'],
+    topWidget.setWindowTitle('{} Reg {} Run {} Feat {} Frame {} ({}//{} in {}, {} out of {}) '.format(shot['sample'],
                                                                                          shot['region'], shot['run'],
                                                                                          shot['crystal_id'],
+                                                                                         shot['frame'],
                                                                                          shot['subset'],
                                                                                          shot['shot_in_subset'],
-                                                                                         shot['file']))
+                                                                                         shot['file'],
+                                                                                                      shot.name, shots.shape[0]))
 
 ########################################################## gui
 
@@ -304,6 +311,12 @@ if __name__ == '__main__':
         exit
 
     filename = sys.argv[1]
+
+    if len(sys.argv) > 2:
+        query = sys.argv[2]
+
+    if len(sys.argv) > 3:
+        img_array_list = [sys.argv[3]]
 
     read_files(filename)
 

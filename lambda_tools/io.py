@@ -385,7 +385,10 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
     if sort_by is not None:
         shot_list_final.sort_values(list(sort_by), inplace=True)
 
+    print(f'Initial: {shot_list.shape[0]} shots, Selection: {shot_list_final.shape[0]} shots')
+
     stacks = get_data_stacks(filename, base_path, labels)
+    print(f'Loaded raw stacks: \n{stacks}.')
 
     # now aggregate the shots if desired, by summing or averaging
     if aggregate is not None:
@@ -407,6 +410,7 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
                 agg_shots.append(grp.iloc[0, :])  # at this point, they all should be the same
 
         shot_list_final = pd.DataFrame(agg_shots)
+        print(f'Aggregated: {shot_list_final.shape[0]} shots')
 
         stacks_final = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
 
