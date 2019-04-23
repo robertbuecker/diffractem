@@ -407,17 +407,18 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
                     newstack = da.rechunk(newstack, (newchunk, -1, -1))
 
                 agg_stacks[sn].append(newstack)
-                agg_shots.append(grp.iloc[0, :])  # at this point, they all should be the same
+                agg_shots.append(grp.iloc[[0], :])  # at this point, they all should be the same
 
-        shot_list_final = pd.DataFrame(agg_shots)
+        shot_list_final = pd.concat(agg_shots, ignore_index=True)
         print(f'Aggregated: {shot_list_final.shape[0]} shots')
 
         stacks_final = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
 
     else:
         stacks_final = {sn: s[shot_list_final.index.values,...] for sn, s in stacks.items()}
+        shot_list_final.reset_index(drop=True, inplace=True)
 
-    shot_list_final.reset_index(drop=True, inplace=True)
+    shot_list_final['shot_in_subset'] = shot_list_final.groupby(['file', 'subset']).cumcount()
 
     return stacks_final, shot_list_final
 

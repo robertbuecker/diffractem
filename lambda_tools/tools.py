@@ -38,7 +38,7 @@ def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
         stacks = get_data_stacks(filename, base_path, [setname])
 
     # TODO: replace all the following defaults by proper reading from NeXus and assigning to shots
-    shotsel = shots.loc[idcs, :]
+    shotsel = shots.loc[idcs, :].copy()
 
     if map_px is None:
         map_px = shotsel['map_px'] = 17e-9
