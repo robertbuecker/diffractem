@@ -8,6 +8,8 @@ class StreamParser:
         self.geometry = {}
         self.cell = {}
         self.merge_shot = {}
+        self.options = {}
+        self.command = ''
 
         linedat_peak = []
         linedat_index = []
@@ -15,14 +17,26 @@ class StreamParser:
         init_peak = False
         init_index = False
         init_geom = False
+        init_cell = False
 
         with open(filename, 'r') as fh:
             fstr = StringIO(fh.read())
 
         for ln, l in enumerate(fstr):
 
+            # Call string
+            if 'indexamajig' in l:
+                self.command = l
+                for opt in l.split('--')[1:]:
+                    if '=' in opt:
+                        k, v = opt.split('=', 1)
+                        try:
+                            self.options[k.strip()] = float(v)
+                        except ValueError:
+                            self.options[k.strip()] = v.strip()
+
             # Geometry file
-            if 'End geometry file' in l:
+            elif 'End geometry file' in l:
                 init_geom = False
             elif init_geom and ('=' in l):
                 k, v = l.split('=', 1)
@@ -34,16 +48,16 @@ class StreamParser:
                 init_geom = True
 
             # Cell file
-            if 'End unit cell' in l:
-                init_geom = False
-            elif init_geom and ('=' in l):
+            elif 'End unit cell' in l:
+                init_cell = False
+            elif init_cell and ('=' in l):
                 k, v = l.split('=', 1)
                 try:
                     self.cell[k.strip()] = float(v)
                 except ValueError:
                     self.cell[k.strip()] = v.strip()
             elif 'Begin unit cell' in l:
-                init_geom = True
+                init_cell = True
 
             # Event chunks
             elif 'Begin chunk' in l:
@@ -76,25 +90,26 @@ class StreamParser:
             elif 'Begin crystal' in l:
                 crystal_info = {}
             elif 'End crystal' in l:
-                crystal_info.pop('dummy')
                 shotdat.update(crystal_info)
             elif 'Cell parameters' in l:
-                crystal_info.update(
-                    {k: v for k, v in zip(['a', 'b', 'c', 'dummy', 'al', 'be', 'ga'], l.split(' ')[2:9])})
+                for k, v in zip(['a', 'b', 'c', 'dummy', 'al', 'be', 'ga'], l.split(' ')[2:9]):
+                    if k == 'dummy':
+                        continue
+                    crystal_info[k] = float(v)
             elif 'astar' in l:
-                crystal_info.update({k: v for k, v in zip(['astar_x', 'astar_y', 'astar_z'], l.split(' ')[2:5])})
+                crystal_info.update({k: float(v) for k, v in zip(['astar_x', 'astar_y', 'astar_z'], l.split(' ')[2:5])})
             elif 'bstar' in l:
-                crystal_info.update({k: v for k, v in zip(['bstar_x', 'bstar_y', 'bstar_z'], l.split(' ')[2:5])})
+                crystal_info.update({k: float(v) for k, v in zip(['bstar_x', 'bstar_y', 'bstar_z'], l.split(' ')[2:5])})
             elif 'cstar' in l:
-                crystal_info.update({k: v for k, v in zip(['cstar_x', 'cstar_y', 'cstar_z'], l.split(' ')[2:5])})
+                crystal_info.update({k: float(v) for k, v in zip(['cstar_x', 'cstar_y', 'cstar_z'], l.split(' ')[2:5])})
             elif 'diffraction_resolution_limit' in l:
-                crystal_info['diff_limit'] = l.rsplit(' nm', 1)[0].rsplit('= ', 1)[-1]
+                crystal_info['diff_limit'] = float(l.rsplit(' nm', 1)[0].rsplit('= ', 1)[-1])
             elif 'predict_refine/det_shift' in l:
-                crystal_info['xshift'] = l.split(' ')[3]
-                crystal_info['yshift'] = l.split(' ')[6]
+                crystal_info['xshift'] = float(l.split(' ')[3])
+                crystal_info['yshift'] = float(l.split(' ')[6])
                 continue
             elif 'num_implausible_reflections' in l:
-                crystal_info['implausible'] = l.rsplit(' ')[-1]
+                crystal_info['implausible'] = int(l.rsplit(' ')[-1])
 
             # Actual parsing (indexed peaks)
             elif 'End of reflections' in l:
