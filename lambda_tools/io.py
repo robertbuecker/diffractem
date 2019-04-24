@@ -8,18 +8,37 @@ import json
 from collections import defaultdict
 import dask.diagnostics
 import os.path
-from lambda_tools import normalize_names
+from lambda_tools import normalize_names, stream_parse
 from tifffile import imread
 import warnings
 
 
-def get_files(file_list, make_id=False):
+def read_crystfel_stream(filename, serial_start=-1):
+    # emulates old behavior
+    sfp = stream_parse.StreamParser(filename, serial_start)
+    pk = sfp._peaks.merge(sfp._shots[['file', 'Event', 'subset', 'shot_in_subset']], on=['file', 'Event'], how='left')
+    pred = sfp._indexed.merge(sfp._shots, on=['file', 'Event', 'serial'], how='left')
+    return pk, pred
 
+
+def get_files(file_list, scan_shots=False):
     if isinstance(file_list, list) or isinstance(file_list, tuple):
         fl = file_list
 
     elif isinstance(file_list, str) and file_list.endswith('.lst'):
-        fl = [s.strip() for s in open(file_list, 'r').readlines()]
+        if scan_shots:
+            fl = pd.read_csv(file_list, sep=' |//', header=None, engine='python',
+                             names=['file', 'subset', 'shot_in_subset'])
+            if fl.subset.isna().all():
+                fl.drop('subset', axis=1, inplace=True)
+            if fl.shot_in_subset.isna().all():
+                fl.drop('shot_in_subset', axis=1, inplace=True)
+        else:
+            fl = []
+            for s in open(file_list, 'r').readlines():
+                if '//' in s:
+                    raise RuntimeError('Shot identifier found in list file. You may want to set scan_shots=True')
+                fl.append(s.split(' ', 1)[0].strip())
 
     elif isinstance(file_list, str) and (file_list.endswith('.h5') or file_list.endswith('.nxs')):
         fl = [file_list, ]
@@ -27,16 +46,12 @@ def get_files(file_list, make_id=False):
     else:
         raise TypeError('file_list must be a list file, single h5/nxs file, or a list of filenames')
 
-    #id = [fn.rsplit('.', 1)[0].rsplit('/', 1)[-1] for fn in fl]   # this defines the identifiers in the meta data.
-    id = fl
-
-    if not len(id) == len(set(id)):
+    if (not scan_shots) and (not len(fl) == len(set(fl))):
         raise ValueError('File identifiers are not unique, most likely because the file names are not.')
 
-    if make_id:
-        return fl, id
     else:
         return fl
+
 
 def dict_to_h5(grp, data, exclude=()):
     """
@@ -102,13 +117,12 @@ def meta_from_nxs(filename, datasets):
         with h5py.File(fn) as f:
             for field, default in datasets.items():
                 try:
-                    #print(f[field])
+                    # print(f[field])
                     values[field][fn] = f[field][...]
                 except KeyError:
                     values[field][fn] = default
 
     return dict(values)
-
 
 
 def meta_to_nxs(filename, meta=None, exclude=('Detector',), meta_grp='/entry/instrument',
@@ -182,12 +196,12 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results
     :return:
     """
 
-    if (isinstance(fn_from,str) and fn_from.endswith('.lst')) or isinstance(fn_from, list):
+    if (isinstance(fn_from, str) and fn_from.endswith('.lst')) or isinstance(fn_from, list):
         old_files = get_files(fn_from)
         new_files = []
 
         for ofn in old_files:
-            #print(ofn)
+            # print(ofn)
             # this loop could beautifully be parallelized. For later...
             if h5_folder is None:
                 h5_folder = ofn.rsplit('/', 1)[0]
@@ -227,11 +241,11 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results
 
             elif isinstance(ds, h5py.Group) and 'table_type' in ds.attrs.keys():
                 # pandas table is a group. Do NOT traverse into it or pain
-                #print(f'Copying table {key}')
+                # print(f'Copying table {key}')
                 to.copy(ds, key)
 
             elif isinstance(ds, h5py.Group):
-                #print(f'Creating group {key}')
+                # print(f'Creating group {key}')
                 new_grp = to.require_group(key)
                 # attribute copying is nasty. Lots of error catching required.
                 try:
@@ -264,109 +278,9 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results
     f2.close()
 
 
-def read_crystfel_stream(filename, serial_offset=-1):
-    """
-    Reads a crystfel stream file and returns the contained peaks and predictions
-    :param filename: obvious, right?
-    :param serial_offset: offset to be applied to the event serial numbers in the crystfel file. By default -1,
-        as the crystfel serials are 1-based by default.
-    :return: peak list, prediction list
-    """
-    import pandas as pd
-    from io import StringIO
-    with open(filename, 'r') as fh:
-        fstr = StringIO(fh.read())
-    event = -1
-    shotnr = -1
-    subset = ''
-    serial = -1
-    init_peak = False
-    init_index = False
-    linedat_peak = []
-    linedat_index = []
-    for ln, l in enumerate(fstr):
-
-        # Event id and indexing scheme
-        if 'Event:' in l:
-            event = l.split(': ')[-1].strip()
-            shotnr = int(event.split('//')[-1])
-            subset = event.split('//')[0].strip()
-            if not subset:
-                subset = '(none)'
-            #print(event, ':', shotnr, ':', subset)
-            continue
-        if 'Image filename:' in l:
-            filename = l.split(':')[-1].strip()
-        if 'Image serial number:' in l:
-            serial = int(l.split(': ')[1]) + serial_offset
-            continue
-        if 'indexed_by' in l:
-            indexer = l.split(' ')[2].replace("\n", "")
-            continue
-
-        # Information from the peak search
-        if 'End of peak list' in l:
-            init_peak = False
-            continue
-
-        if init_peak:
-            #print(filename, event, serial, subset, shotnr)
-            linedat_peak.append('{} {} {} {} {} {}'.format(l.strip(), filename, event, serial, subset, shotnr))
-
-        if 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in l:  # 'Peaks from peak search' in l: #Placed after the writing, so that line are written from the next
-            init_peak = True
-            continue
-
-        # Information from the indexing
-        if 'Cell parameters' in l:
-            a, b, c, dummy, al, be, ga = l.split(' ')[2:9]
-            continue
-        if 'astar' in l:
-            astar_x, astar_y, astar_z = l.split(' ')[2:5]
-            continue
-        if 'bstar' in l:
-            bstar_x, bstar_y, bstar_z = l.split(' ')[2:5]
-            continue
-        if 'cstar' in l:
-            cstar_x, cstar_y, cstar_z = l.split(' ')[2:5]
-            continue
-        if 'predict_refine/det_shift' in l:
-            xshift = l.split(' ')[3]
-            yshift = l.split(' ')[6]
-            continue
-
-        if 'End of reflections' in l:
-            init_index = False
-            continue
-
-        if init_index:
-            recurrent_info = [filename, event, serial, subset, shotnr, indexer, a, b, c, al, be, ga, astar_x, astar_y, astar_z, bstar_x, bstar_y,
-                              bstar_z, cstar_x, cstar_y, cstar_z]  # List with recurrent info
-            recurrent_info = ' '.join(
-                map(str, recurrent_info))  # Transform list of several element in a list of a single string
-            linedat_index.append('{} {}'.format(l.strip(), recurrent_info))
-
-        if 'h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in l:  # Placed after the writing, so that line are written from the next
-            init_index = True
-            continue
-
-    df_peak = pd.read_csv(StringIO('\n'.join(linedat_peak)), delim_whitespace=True, header=None,
-                          names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'file', 'Event', 'serial', 'subset', 'shot_in_subset']
-                          ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
-    df_index = pd.read_csv(StringIO('\n'.join(linedat_index)), delim_whitespace=True, header=None,
-                           names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel', 'file',
-                                  'Event', 'serial', 'subset', 'shot_in_subset', 'Indexer', 'a', 'b', 'c', 'Alpha', 'Beta', 'Gamma',
-                                  'astar_x', 'astar_y', 'astar_z', 'bstar_x', 'bstar_y', 'bstar_z', 'cstar_x',
-                                  'cstar_y', 'cstar_z']
-                           ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(drop=True).drop('index',axis=1)
-
-    return df_peak, df_index
-
-
 def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_counts', sort_by=None,
                  drop_invalid=True, aggregate=None, agg_by=('file', 'subset', 'region', 'run', 'crystal_id'),
                  newchunk=None):
-
     # TODO: documentation
     # TODO: check nxs file for dropped frames and other anomalies
 
@@ -380,7 +294,7 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
         shot_list_final = shot_list.copy()
 
     if 'selected' in shot_list_final.columns:
-        shot_list_final = shot_list_final.loc[shot_list_final['selected'],:]
+        shot_list_final = shot_list_final.loc[shot_list_final['selected'], :]
 
     if sort_by is not None:
         shot_list_final.sort_values(list(sort_by), inplace=True)
@@ -415,7 +329,7 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
         stacks_final = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
 
     else:
-        stacks_final = {sn: s[shot_list_final.index.values,...] for sn, s in stacks.items()}
+        stacks_final = {sn: s[shot_list_final.index.values, ...] for sn, s in stacks.items()}
         shot_list_final.reset_index(drop=True, inplace=True)
 
     shot_list_final['shot_in_subset'] = shot_list_final.groupby(['file', 'subset']).cumcount()
@@ -433,11 +347,11 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     :param reset_index: if True, the returned shot list has its index reset, with correspondingly updated serial numbers in peak list. Recommended.
     :return new_lists, new_stacks: subselected lists and stacks
     """
-#n
+    # n
     shots = lists['shots']  # just a shortcut
     new_lists = lists.copy()
     new_lists['shots'] = lists['shots'].query('selected').copy()
-    print('Keeping {} shots out of {}'.format(len(new_lists['shots']),len(shots)))
+    print('Keeping {} shots out of {}'.format(len(new_lists['shots']), len(shots)))
     if 'peaks' in lists.keys():
         # remove rejected shots from the peak list
         # TODO: why is this not simply done with a right merge?
@@ -482,7 +396,6 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
 
 def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
                    remote_group='/entry', verbose=False):
-
     fns, ids = get_files(file_list, True)
 
     if isinstance(file_list, str) and file_list.endswith('.lst'):
@@ -533,13 +446,12 @@ def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
 
 
 def store_meta_lists(filename, lists, base_path='/%/data', **kwargs):
-
     if filename is not None:
         fns = get_files(filename)
     else:
         fns = pd.concat([l['file'] for l in lists.values()], ignore_index=True).unique()
 
-    #print(fns)
+    # print(fns)
     counters = {ln: 0 for ln in lists.keys()}
 
     for fn in fns:
@@ -566,35 +478,34 @@ def store_meta_lists(filename, lists, base_path='/%/data', **kwargs):
 
 
 def get_meta_lists(filename, base_path='/%/data', labels=None):
-
     fns = get_files(filename)
     identifiers = base_path.rsplit('%', 1)
     lists = defaultdict(list)
-    #print(fns)
+    # print(fns)
 
     for fn in fns:
-        #print(fn)
+        # print(fn)
         with h5py.File(fn) as fh:
 
             if len(identifiers) == 1:
                 base_grp = {'': fh[identifiers[0]]}
             else:
                 base_grp = fh[identifiers[0]]
-            #print(base_grp)
+            # print(base_grp)
             for subset, ssgrp in base_grp.items():
-                #print(list(ssgrp.keys()))
+                # print(list(ssgrp.keys()))
                 if (len(identifiers) > 1) and identifiers[1]:
                     if identifiers[1].strip('/') in ssgrp.keys():
                         grp = ssgrp[identifiers[1].strip('/')]
                     else:
                         continue
                 else:
-                    grp = ssgrp     # subset identifier is on last level
+                    grp = ssgrp  # subset identifier is on last level
 
                 if isinstance(grp, h5py.Group):
-                    #print(grp)
+                    # print(grp)
                     for tname, tgrp in grp.items():
-                        #print(tname, tgrp)
+                        # print(tname, tgrp)
                         if tgrp is None:
                             # can happen for dangling soft links
                             continue
@@ -602,19 +513,18 @@ def get_meta_lists(filename, base_path='/%/data', labels=None):
                             newlist = pd.read_hdf(fn, tgrp.name)
                             newlist['subset'] = subset
                             newlist['file'] = fn
-                            #newlist['shot_in_subset'] = range(newlist.shape[0])
+                            # newlist['shot_in_subset'] = range(newlist.shape[0])
 
                             lists[tname].append(newlist)
-                            #print(f'Appended {len(newlist)} items from {fn}: {subset} -> list {tname}')
+                            # print(f'Appended {len(newlist)} items from {fn}: {subset} -> list {tname}')
 
     lists = {tn: pd.concat(t, axis=0, ignore_index=True) for tn, t in lists.items()}
     return lists
 
 
 def store_meta_array(filename, array_label, identifier, array, shots=None, listname=None,
-                    subset_label=None, base_path='entry/meta', chunks=None, 
-                    simulate=False, **kwargs):
-
+                     subset_label=None, base_path='entry/meta', chunks=None,
+                     simulate=False, **kwargs):
     if listname is None:
         listname = 'shots'
 
@@ -653,7 +563,7 @@ def store_meta_array(filename, array_label, identifier, array, shots=None, listn
         if chunks is None:
             chunks = array.shape
         darr = da.from_array(array, chunks)
-        #print('Writing array to: ' + meta_path)
+        # print('Writing array to: ' + meta_path)
         da.to_hdf5(filename, {meta_path: darr}, **kwargs)
         if 'subset' in shots.columns:
             store_meta_lists(filename, {listname: shots}, flat=True)
@@ -694,7 +604,6 @@ def store_nxs_list(filename, list, what='shots'):
 
 
 def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_shots=True, **kwargs):
-
     if shots is None:
         print('No shot list provided; getting shots from data file(s).')
         shots = get_meta_lists(filename, base_path, 'shots')['shots']
@@ -708,7 +617,7 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
 
     datasets = []
     arrays = []
-    files =[]
+    files = []
 
     try:
         for fn in fns:
@@ -719,7 +628,7 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
 
             for sn, stack in stacks.items():
                 for subset, idcs in fshots.groupby('subset').indices.items():
-                    arr = stack[idcs,...]
+                    arr = stack[idcs, ...]
                     path = base_path.replace('%', subset) + '/' + sn
                     ds = f.require_dataset(path, shape=arr.shape, dtype=arr.dtype,
                                            chunks=tuple([c[0] for c in arr.chunks]), **kwargs)
@@ -747,29 +656,28 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
 
 
 def get_data_stacks(filename, base_path='/%/data', labels=None):
-
     # Internally, this function is structured 99% as get_meta_lists, just operating on dask
     # arrays, not pandas frames
     fns = get_files(filename)
     identifiers = base_path.rsplit('%', 1)
-    stacks = defaultdict(list)  
+    stacks = defaultdict(list)
 
     for fn in fns:
         fh = h5py.File(fn)
-        
+
         try:
             if len(identifiers) == 1:
                 base_grp = {'': fh[identifiers[0]]}
             else:
                 base_grp = fh[identifiers[0]]
             for subset, ssgrp in base_grp.items():
-        
+
                 if (len(identifiers) > 1) and identifiers[1]:
                     if identifiers[1].strip('/') in ssgrp.keys():
                         grp = ssgrp[identifiers[1].strip('/')]
                 else:
-                    grp = ssgrp     # subset identifier is on last level
-        
+                    grp = ssgrp  # subset identifier is on last level
+
                 if isinstance(grp, h5py.Group):
                     for dsname, ds in grp.items():
                         if ds is None:
@@ -820,7 +728,7 @@ def get_meta_array(filename, array_label, shot, subset=None, base_path='/entry/m
 def copy_meta_array(fn_from, fn_to, shots, array_name='stem', prefix='/entry/meta'):
     with h5py.File(fn_from) as fh1, h5py.File(fn_to) as fh2:
         for _, path in shots[['subset', array_name]].drop_duplicates().iterrows():
-            fullpath = '{}/{}/{}/{}'.format(prefix,path['subset'],array_name,path[array_name])
+            fullpath = '{}/{}/{}/{}'.format(prefix, path['subset'], array_name, path[array_name])
             print('Copying ' + fullpath)
             fh2[fullpath] = fh1[fullpath][:]
 
@@ -889,7 +797,7 @@ def build_shot_list(filenames, use_region_id=True, use_mask=True, use_coords=Tru
     :return:
     """
 
-    if not (isinstance(filenames, list) or isinstance (filenames, tuple)):
+    if not (isinstance(filenames, list) or isinstance(filenames, tuple)):
         filenames = glob(filenames)
         filenames = filenames.sort()
 
@@ -906,13 +814,13 @@ def build_shot_list(filenames, use_region_id=True, use_mask=True, use_coords=Tru
         ny = meta['Scanning']['Parameters']['Frame (Y)']['ROI len']
         sx = meta['Scanning']['Parameters']['Line (X)']['ROI st']
         sy = meta['Scanning']['Parameters']['Frame (Y)']['ROI st']
-        #px = meta['Scanning']['Pixel size']['x']
-        #py = meta['Scanning']['Pixel size']['y']
+        # px = meta['Scanning']['Pixel size']['x']
+        # py = meta['Scanning']['Pixel size']['y']
 
         if nshots != meta['Scanning']['Total Pts']:
             raise ValueError('Image stack size does not match scan.')
 
-        npos = int(nshots/frames)
+        npos = int(nshots / frames)
 
         if use_region_id:
             region = int(re.findall('\d+', fn)[region_id_pos])
@@ -925,11 +833,11 @@ def build_shot_list(filenames, use_region_id=True, use_mask=True, use_coords=Tru
             if len(crystal_id) != npos:
                 raise ValueError('Marked pixel number in mask does not match image stack.')
         else:
-            crystal_id = np.repeat(-1,npos)
+            crystal_id = np.repeat(-1, npos)
 
         if use_coords:
             coords = np.loadtxt(basename + coord_postfix)
-            coords = np.append(coords, [[np.nan, np.nan]], axis=0) # required to allow -1 coordinate
+            coords = np.append(coords, [[np.nan, np.nan]], axis=0)  # required to allow -1 coordinate
             crystal_x = coords[crystal_id, 1]
             crystal_y = coords[crystal_id, 0]
         else:
@@ -948,13 +856,13 @@ def build_shot_list(filenames, use_region_id=True, use_mask=True, use_coords=Tru
             pos_y = Y.ravel(order='F')
 
         alldat = {'region': np.repeat(region, len(crystal_id)),
-                    'run': np.repeat(run, len(crystal_id)),
-                    'file': np.repeat(basename, len(crystal_id)),
-                    'crystal_id': crystal_id,
-                    'crystal_x': crystal_x,
-                    'crystal_y': crystal_y,
-                    'pos_x': pos_x,
-                    'pos_y': pos_y}
+                  'run': np.repeat(run, len(crystal_id)),
+                  'file': np.repeat(basename, len(crystal_id)),
+                  'crystal_id': crystal_id,
+                  'crystal_x': crystal_x,
+                  'crystal_y': crystal_y,
+                  'pos_x': pos_x,
+                  'pos_y': pos_y}
 
         alldat = {k: np.repeat(v, frames, 0) for k, v in alldat.items()}
         alldat['shot'] = np.arange(nshots)
@@ -968,4 +876,4 @@ def build_shot_list(filenames, use_region_id=True, use_mask=True, use_coords=Tru
         shots['subset'] = subset_label
 
     return shots
-    #return pd.concat(shots).reset_index(drop=True)
+    # return pd.concat(shots).reset_index(drop=True)
