@@ -17,6 +17,9 @@ class StreamParser:
         init_index = False
         init_geom = False
         init_cell = False
+        shotdat = {'Event': None, 'shot_in_subset': None, 'subset': None,
+                   'file': None, 'serial': None}
+        idstr = None
 
         with open(filename, 'r') as fh:
             fstr = StringIO(fh.read())
@@ -27,12 +30,28 @@ class StreamParser:
 
             # EVENT CHUNKS
 
+            # Actual parsing (indexed peaks)
+            if init_index and 'End of reflections' in l:
+                init_index = False
+            elif init_index:
+                linedat_peak.write(
+                    ' '.join([l.strip(), idstr, '\n']))
+
+            # Actual parsing (found peaks)
+            elif init_peak and 'End of peak list' in l:
+                init_peak = False
+            elif init_peak:
+                linedat_peak.write(
+                    ' '.join([l.strip(), idstr, '\n']))
+
             # Required info
-            if 'Begin chunk' in l:
+            elif 'Begin chunk' in l:
                 shotdat = {'Event': -1, 'shot_in_subset': -1, 'subset': '',
                            'file': '', 'serial': -1, 'indexer': '(none)'}
             elif 'End chunk' in l:
                 shotlist.append(shotdat)
+                shotdat = {'Event': None, 'shot_in_subset': None, 'subset': None,
+                           'file': None, 'serial': None}
             elif 'Event:' in l:
                 shotdat['Event'] = l.split(': ')[-1].strip()
                 shotdat['shot_in_subset'] = int(shotdat['Event'].split('//')[-1])
@@ -44,23 +63,16 @@ class StreamParser:
             elif 'indexed_by' in l:
                 shotdat['indexer'] = l.split(' ')[2].replace("\n", "")
 
-            # Actual parsing (indexed peaks)
-            elif 'End of reflections' in l:
-                init_index = False
-            elif init_index:
-                linedat_index.write(
-                    '{} {} {} {}\n'.format(l.strip(), shotdat['file'], shotdat['Event'], shotdat['serial']))
-            elif 'h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in l:
+            # Parsing activation
+            elif (None not in shotdat.values()) and \
+                    ('h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in l):
                 init_index = True
+                idstr = ' '.join([shotdat['file'], shotdat['Event'], str(shotdat['serial'])])
 
-            # Actual parsing (found peaks)
-            elif 'End of peak list' in l:
-                init_peak = False
-            elif init_peak:
-                linedat_peak.write(
-                    '{} {} {} {}\n'.format(l.strip(), shotdat['file'], shotdat['Event'], shotdat['serial']))
-            elif 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in l:
+            elif (None not in shotdat.values()) and \
+                    ('fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in l):
                 init_peak = True
+                idstr = ' '.join([shotdat['file'], shotdat['Event'], str(shotdat['serial'])])
 
             # Additional information from indexing
             elif 'Begin crystal' in l:
