@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import hdf5plugin
 
-import lambda_tools.stream_parse
+import lambda_tools.stream_parser
 from lambda_tools import io, proc2d, tools, compute, overview
 import numpy as np
 from tifffile import TiffFile, imread, imsave
@@ -97,7 +97,7 @@ postfix = 'peaks'
 stream_name = list_name.rsplit('.', 1)[0] + '_peaks.stream'
 get_ipython().system(
     "{tools.call_indexamajig(list_name, 'parametric-sgl.geom', stream_name, im_params=crystfel_params)}")
-peaks, predict = lambda_tools.stream_parse.read_crystfel_stream(stream_name)
+peaks, predict = lambda_tools.stream_parser.read_crystfel_stream(stream_name)
 shots = io.get_nxs_list(list_name, 'shots')
 # hacks...
 peaks = peaks.drop('subset', axis=1).merge(shots[['subset']], left_on='serial', right_index=True)

@@ -8,14 +8,14 @@ import json
 from collections import defaultdict
 import dask.diagnostics
 import os.path
-from lambda_tools import normalize_names, stream_parse
+from lambda_tools import normalize_names, stream_parser
 from tifffile import imread
 import warnings
 
 
 def read_crystfel_stream(filename, serial_start=-1):
     # emulates old behavior
-    sfp = stream_parse.StreamParser(filename, serial_start)
+    sfp = stream_parser.StreamParser(filename, serial_start)
     pk = sfp._peaks.merge(sfp._shots[['file', 'Event', 'subset', 'shot_in_subset']], on=['file', 'Event'], how='left')
     pred = sfp._indexed.merge(sfp._shots, on=['file', 'Event', 'serial'], how='left')
     return pk, pred
