@@ -10,8 +10,8 @@ class StreamParser:
         self._cell_string = []
         self._geometry_string = []
 
-        linedat_peak = []
-        linedat_index = []
+        linedat_peak = StringIO()
+        linedat_index = StringIO()
         shotlist = []
         init_peak = False
         init_index = False
@@ -21,7 +21,7 @@ class StreamParser:
         with open(filename, 'r') as fh:
             fstr = StringIO(fh.read())
 
-        # lines are queried for their meaning. Lines belonging to tables are appended to their own lists,
+        # lines are queried for their meaning. Lines belonging to tables are appended to StringIO virtual files,
         # which are then read into pandas data frames at the very end.
         for ln, l in enumerate(fstr):
 
@@ -48,8 +48,8 @@ class StreamParser:
             elif 'End of reflections' in l:
                 init_index = False
             elif init_index:
-                linedat_index.append(
-                    '{} {} {} {}'.format(l.strip(), shotdat['file'], shotdat['Event'], shotdat['serial']))
+                linedat_index.write(
+                    '{} {} {} {}\n'.format(l.strip(), shotdat['file'], shotdat['Event'], shotdat['serial']))
             elif 'h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in l:
                 init_index = True
 
@@ -57,8 +57,8 @@ class StreamParser:
             elif 'End of peak list' in l:
                 init_peak = False
             elif init_peak:
-                linedat_peak.append(
-                    '{} {} {} {}'.format(l.strip(), shotdat['file'], shotdat['Event'], shotdat['serial']))
+                linedat_peak.write(
+                    '{} {} {} {}\n'.format(l.strip(), shotdat['file'], shotdat['Event'], shotdat['serial']))
             elif 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in l:
                 init_peak = True
 
@@ -115,12 +115,12 @@ class StreamParser:
                 self._cell_string.append(l.strip())
 
 
-        self._peaks = pd.read_csv(StringIO('\n'.join(linedat_peak)), delim_whitespace=True, header=None,
+        self._peaks = pd.read_csv(linedat_peak, delim_whitespace=True, header=None,
                               names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'file', 'Event', 'serial']
                               ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
             drop=True).drop('index', axis=1)
 
-        self._indexed = pd.read_csv(StringIO('\n'.join(linedat_index)), delim_whitespace=True, header=None,
+        self._indexed = pd.read_csv(linedat_index, delim_whitespace=True, header=None,
                                names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel',
                                       'file', 'Event', 'serial']
                                ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
