@@ -1,6 +1,6 @@
 import pandas as pd
 from io import StringIO
-
+import numpy as np
 
 class StreamParser:
 
@@ -19,6 +19,78 @@ class StreamParser:
 
         if parse_now:
             self.parse(serial_offset=serial_offset)
+
+    @property
+    def geometry(self):
+        """
+
+        :return: geometry section as dictionary
+        """
+
+        g = {}
+        for l in self._geometry_string:
+            if '=' not in l:
+                continue
+            k, v = l.split('=', 1)
+            try:
+                g[k.strip()] = float(v)
+            except ValueError:
+                g[k.strip()] = v.strip()
+
+        return g
+
+    @property
+    def cell(self):
+        """
+
+        :return: cell section as dictionary
+        """
+
+        c = {}
+        for l in self._cell_string:
+            if '=' not in l:
+                continue
+            k, v = l.split('=', 1)
+            try:
+                c[k.strip()] = float(v)
+            except ValueError:
+                c[k.strip()] = v.strip()
+
+        return c
+
+    @property
+    def options(self):
+        """
+
+        :return: crystfel call options (ONLY -- ones) as dict
+        """
+
+        o = {}
+        for opt in self.command.split('--')[1:]:
+            if '=' in opt:
+                k, v = opt.split('=', 1)
+                try:
+                    o[k.strip()] = float(v)
+                except ValueError:
+                    o[k.strip()] = v.strip()
+
+        return o
+
+    @property
+    def indexed(self):
+        return self._indexed
+
+    @property
+    def peaks(self):
+        return self._peaks
+
+    @property
+    def shots(self):
+        return self._shots
+
+    @property
+    def input_file(self):
+        return self.command.split('-i ')[1].split(' -')[0].strip()
 
     def parse(self, serial_offset):
 
@@ -150,87 +222,69 @@ class StreamParser:
                     self._parsed_lines -= 1
 
 
-            # Now convert to pandas data frames
+        # Now convert to pandas data frames
 
-            linedat_index.seek(0)
-            linedat_peak.seek(0)
-            self._peaks = pd.read_csv(linedat_peak, delim_whitespace=True, header=None,
-                                  names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'file', 'Event', 'serial']
-                                  ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
-                drop=True).drop('index', axis=1)
+        linedat_index.seek(0)
+        linedat_peak.seek(0)
+        self._peaks = pd.read_csv(linedat_peak, delim_whitespace=True, header=None,
+                              names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'file', 'Event', 'serial']
+                              ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
+            drop=True).drop('index', axis=1)
 
-            self._indexed = pd.read_csv(linedat_index, delim_whitespace=True, header=None,
-                                   names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel',
-                                          'file', 'Event', 'serial']
-                                   ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
-                drop=True).drop('index', axis=1)
+        self._indexed = pd.read_csv(linedat_index, delim_whitespace=True, header=None,
+                               names=['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel',
+                                      'file', 'Event', 'serial']
+                               ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
+            drop=True).drop('index', axis=1)
 
-            self._shots = pd.DataFrame(shotlist)
+        if shotlist:
+            self._shots = pd.DataFrame(shotlist).sort_values('serial').reset_index(drop=True)
 
-    @property
-    def geometry(self):
-        """
+    def get_cxi_format(self, what='peaks', shots=None, half_pixel_shift=False):
 
-        :return: geometry section as dictionary
-        """
+        if shots is None:
+            shots = self.shots
 
-        g = {}
-        for l in self._geometry_string:
-            if '=' not in l:
-                continue
-            k, v = l.split('=', 1)
-            try:
-                g[k.strip()] = float(v)
-            except ValueError:
-                g[k.strip()] = v.strip()
+        if half_pixel_shift:
+            off = -.5
+        else:
+            off = 0
 
-        return g
+        if what == 'peaks':
+            ifield = 'Intensity'
+            indexed = False
+        elif what in ['indexed', 'predict', 'prediction']:
+            ifield = 'I'
+            indexed = True
+        else:
+            raise ValueError('what must be peaks or indexed')
 
-    @property
-    def cell(self):
-        """
+        # some majig to get CXI arrays
+        if indexed:
+            self._indexed['pk_id'] = self._indexed.groupby(['file', 'Event']).cumcount()
+            pk2 = self._indexed.set_index(['file', 'Event', 'pk_id'])
+        else:
+            self._peaks['pk_id'] = self._peaks.groupby(['file', 'Event']).cumcount()
+            pk2 = self._peaks.set_index(['file', 'Event', 'pk_id'])
+        # joining step with shot list is required to make sure that shots without peaks/indexing stay in
+        s2 = shots[['file', 'Event']].set_index(['file', 'Event'])
+        s2.columns = pd.MultiIndex.from_arrays([[], []], names=('field', 'pk_id'))
+        pk2 = s2.join(pk2.unstack(-1), how='left')
+        if indexed:
+            self._indexed.drop('pk_id', axis=1)
+        else:
+            self._peaks.drop('pk_id', axis=1)
 
-        :return: cell section as dictionary
-        """
+        cxidat = {
+            'peakXPosRaw': pk2['fs/px'].fillna(0).values + off,
+            'peakYPosRaw': pk2['ss/px'].fillna(0).values + off,
+            'peakTotalIntensity': pk2[ifield].fillna(0).values,
+            'nPeaks': pk2['fs/px'].notna().sum(axis=1).values.reshape(-1, 1)}
 
-        c = {}
-        for l in self._cell_string:
-            if '=' not in l:
-                continue
-            k, v = l.split('=', 1)
-            try:
-                c[k.strip()] = float(v)
-            except ValueError:
-                c[k.strip()] = v.strip()
+        if indexed:
+            cxidat.update({'peakSNR': (pk2[ifield]/pk2['Sigma(I)']).fillna(0).values,
+                           'indexH': pk2['h'].fillna(0).values.astype(np.int),
+                           'indexK': pk2['k'].fillna(0).values.astype(np.int),
+                           'indexL': pk2['l'].fillna(0).values.astype(np.int)})
 
-        return c
-
-    @property
-    def options(self):
-        """
-
-        :return: crystfel call options (ONLY -- ones) as dict
-        """
-
-        o = {}
-        for opt in self.command.split('--')[1:]:
-            if '=' in opt:
-                k, v = opt.split('=', 1)
-                try:
-                    o[k.strip()] = float(v)
-                except ValueError:
-                    o[k.strip()] = v.strip()
-
-        return o
-
-    @property
-    def indexed(self):
-        return self._indexed
-
-    @property
-    def peaks(self):
-        return self._peaks
-
-    @property
-    def shots(self):
-        return self._shots
+        return cxidat

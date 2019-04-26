@@ -1,15 +1,13 @@
 import hdf5plugin
 import h5py
 import numpy as np
-import time
 from lambda_tools.io import *
-
-import matplotlib.pyplot as plt
-# for interactive pycharm: %matplotlib tk
+from lambda_tools.stream_parser import StreamParser
 import pyqtgraph as pg
-
 import importlib
 import sys
+import argparse
+import pandas as pd
 
 PyQt4_found = importlib.util.find_spec("PyQt4")
 if PyQt4_found is not None:
@@ -17,43 +15,80 @@ if PyQt4_found is not None:
 else:
     from PyQt5 import QtGui, QtCore
 
-from lambda_tools.StreamFileParser import *
-
 pg.setConfigOptions(imageAxisOrder='row-major')
 
-# operation modes:
-# (1) file list (+ geometry) + nxs: estimate geometry from nxs if geometry is absent
-# (2) expanded file list (+ geometry) + nxs: first match nxs shot lists vs expanded file list
-# (3) (expanded) file list + geometry + hdf5: omit map image automatically
-# (4) stream + nxs: as (2), peaks/predict in stream take precedence over nxs
-# (5) stream + hdf5: as (3)
+def read_files():
+    global args, shots, features, peaks, predict, data_path
 
-# Yaroslav's version does (3), ours (1), for now.
+    # Mandatory stuff: data path, shot list
 
-def read_files(filename):
-    global shots, features, peaks, predict
+    data_path = None
+    shots = None
+    files = []
+    file_type = args.filename.rsplit('.', 1)[-1]
 
-    shots = get_meta_lists(filename, data_path, 'shots')['shots']
-    nshots0 = shots.shape[0]
-    shots = shots.loc[shots['frame'] >= 0, :].query(query).reset_index()
-    nshots = shots.shape[0]
-    print(f'{nshots} shots from {nshots0} selected')
+    if file_type == 'stream':
+        print(f'Parsing stream file {args.filename}...')
+        stream = StreamParser(args.filename)
+        data_path = stream.geometry['data']
+        shots = stream.shots
+        predict = stream.indexed
+        peaks = stream.peaks
+        files = list(shots['file'].unique())
+        try:
+            shots_nxs = get_nxs_list(files, 'shots')
+            shots = shots.merge(shots_nxs, on=['file', 'subset', 'shot_in_subset'], how='left', suffixes=('', '_nxs'))
+            print('Merged stream and hdf5 shot lists')
+        except Exception as err:
+            print('Could not load shot lists from H5 files, but have that from the stream file.')
+            print(f'Reason: {err}')
+
+    if file_type in ['lst', 'h5', 'hdf', 'nxs']:
+        # here, you need a shot list. Long term: use Crystfel's shot list expansion tool.
+        files = get_files(args.filename) # always expand into list, to be compatible with stream file option
+        try:
+            shots = get_nxs_list(files)
+        except Exception as err:
+            raise NotImplementedError(f'Could not load shot data from lst or hdf5 file... unhandled yet: {err}')
+
+    if args.data_path is not None:
+        data_path = args.data_path
+
+    if data_path is None:
+        # data path neither set via stream file, nor explicitly. We have to guess.
+        data_path = ['/%/data/centered_fr', '/%/data/centered', '/%/data/raw_counts']
+
+    if args.g is not None:
+        raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')
+
+    if args.query:
+        nshots0 = shots.shape[0]
+        shots = shots.query(args.query).reset_index()
+        nshots = shots.shape[0]
+        print(f'{nshots} shots from {nshots0} selected by query f{args.query}')
 
     try:
-        features = get_meta_lists(filename, map_path, 'features')['features']
+        mp = args.map_path.rsplit('/', 1)
+        features = get_meta_lists(files, mp[0], mp[1])[mp[1]]
+        print('Found mapping features at {args.map_path}.')
     except KeyError:
-        print(f'No mapping features found in file {filename}')
+        print(f'No mapping features found at {args.map_path}.')
         features = None
-    try:
-        peaks = get_meta_lists(filename, result_path, 'peaks')['peaks']
-    except KeyError:
-        print(f'No peaks found in file {filename}')
-        peaks = None
-    try:
-        predict = get_meta_lists(filename, result_path, 'predict')['predict']
-    except KeyError:
-        print(f'No prediction spots found in file {filename}')
-        predict = None
+
+    if file_type != 'stream':
+        print('No stream file provided, trying to load peaks and predictions from pandas dataframes in HDF5 files.')
+        try:
+            mp = args.peaks_path.rsplit('/', 1)
+            peaks = get_meta_lists(files, mp[0], mp[1])[mp[1]]
+        except KeyError:
+            print(f'No peaks found at {args.peaks_path}.')
+            peaks = None
+        try:
+            mp = args.predict_path.rsplit('/', 1)
+            predict = get_meta_lists(files, mp[0], mp[1])[mp[1]]
+        except KeyError:
+            print(f'No prediction spots found at {args.predict_path}.')
+            predict = None
 
     if ('shot_in_subset' not in shots.columns) and 'Event' in shots.columns:
         shots[['shot_in_subset', 'subset']] = shots['Event'].str.split('//')
@@ -207,6 +242,7 @@ def mouseMoved(evt):
     info_text.setPos(x, y)
     info_text.setText('{}, {}: {}'.format(x, y, I))
 
+
 ########################################################## gui
 
 pg.mkQApp()
@@ -311,44 +347,46 @@ layout.addWidget(mapWidget, 0, 1)
 
 topWidget.show()
 
+show_map = True
+show_peaks = True
+show_predict = True
+show_markers = True
+map_zoomed = True
+
 if __name__ == '__main__':
 
-    # all the stuff that should go to an option parser:
-    data_path = '/%/data'
-    img_array_list = ['centered_fr', 'centered', 'raw_counts']
-    # img_array_list = ['centered', 'raw_counts']
-    map_path = '/%/map'
-    result_path = '/%/results'
-    beam_diam = 5
-    show_map = True
-    show_peaks = True
-    show_predict = True
-    show_markers = True
-    map_zoomed = True
-    query = 'frame == 1'
+    parser = argparse.ArgumentParser(description='Viewer for Serial Electron Diffraction data')
+    parser.add_argument('filename', type=str, help='Stream file, list file, or HDF5')
+    parser.add_argument('-g', '--geometry', type=str, help='CrystFEL geometry file, might be helpful')
+    parser.add_argument('-q', '--query', type=str, help='Query string to filter shots by column values')
+    parser.add_argument('-d', '--data_path', type=str, help='Data field in HDF5 file(s). Defaults to stream file or tries a few.')
+    parser.add_argument('--map_path', type=str, help='Path to map image', default='/%/map/image')
+    parser.add_argument('--feature_path', type=str, help='Path to map feature table', default='/%/map/features')
+    parser.add_argument('--peaks_path', type=str, help='Path to peaks table', default='/%/results/peaks')
+    parser.add_argument('--predict_path', type=str, help='Path to prediction table', default='/%/results/predict')
+    parser.add_argument('--no_map', help='Hide map, even if we had it', action='store_true')
+    parser.add_argument('--beam_size', type=int, help='Beam size displayed in real space, in pixels', default=5)
 
-    if len(sys.argv) < 2:
-        print("need a list file or NeXus-compliant HDF5")
-        exit
+    args = parser.parse_args()
 
-    filename = sys.argv[1]
+    # operation modes:
+    # (1) file list (+ geometry) + nxs: estimate geometry from nxs if geometry is absent
+    # (2) expanded file list (+ geometry) + nxs: first match nxs shot lists vs expanded file list
+    # (3) (expanded) file list + geometry + hdf5: omit map image automatically
+    # (4) stream + nxs: as (2), peaks/predict in stream take precedence over nxs
+    # (5) stream + hdf5: as (3)
 
-    if len(sys.argv) > 2:
-        query = sys.argv[2]
-
-    if len(sys.argv) > 3:
-        img_array_list = [sys.argv[3]]
-
-    read_files(filename)
+    # TODO next: work on read_file
+    read_files(args.filename)
 
     switch_shot(0)
-    update()
+
     tmp = rawImage.copy().ravel()
     tmp.sort()
     level_min = tmp[round(0.02 * tmp.size)]
     level_max = tmp[round(0.98 * tmp.size)] * 2
     hist.setLevels(level_min, level_max)
-    import sys
 
+    import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         QtGui.QApplication.instance().exec_()
