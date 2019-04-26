@@ -353,8 +353,44 @@ def insert_init(shots, predist=100, dxmax=200, xcol='pos_x', initpoints=1):
     return grps.apply(add_init).reset_index(drop=True)
 
 
+def make_command(program, arguments=None, params=None, opts=None, *args, **kwargs):
+
+    exc = program
+    if arguments is None:
+        arguments = []
+    if not isinstance(arguments, (list, tuple)):
+        arguments = [arguments, ]
+    arguments.extend(args)
+    if arguments is not None:
+        for a in arguments:
+            exc += f' {a}'
+
+    if params is not None:
+        for p, v in params.items():
+            exc += f' -{p} {v}'
+
+    if opts is None:
+        opts = {}
+    opts.update(kwargs)
+    for o, v in opts.items():
+        if (v is not None) and not isinstance(v, bool):
+            exc += f' --{o}={v}'
+        elif (v is None) or v:
+            exc += f' --{o}'
+
+    return exc
+
+
+def call_partialator(input, symmetry, output='im_out.stream', model='unity', iterations=1, opts=None,
+                     procs=40, exc='partialator'):
+
+    params = {'y': symmetry, 'i': input, 'o': output, 'j': procs, 'n': iterations, 'm': model}
+
+    return make_command(exc, None, params, opts=opts)
+
+
 def call_indexamajig(input, geometry, output='im_out.stream', cell=None, im_params=None, index_params=None,
-                     procs=40, exc='indexamajig', **kwargs):
+                     procs=40, exc='indexamajig'):
 
     '''Generates an indexamajig command from a dictionary of indexamajig parameters, a exc dictionary of files names and core number, and an indexer dictionary
 

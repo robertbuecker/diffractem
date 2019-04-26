@@ -5,11 +5,10 @@ class StreamParser:
 
     def __init__(self, filename, serial_offset=-1):
 
-        self.geometry = {}
-        self.cell = {}
         self.merge_shot = {}
-        self.options = {}
         self.command = ''
+        self._cell_string = []
+        self._geometry_string = []
 
         linedat_peak = []
         linedat_index = []
@@ -27,37 +26,26 @@ class StreamParser:
             # Call string
             if 'indexamajig' in l:
                 self.command = l
-                for opt in l.split('--')[1:]:
-                    if '=' in opt:
-                        k, v = opt.split('=', 1)
-                        try:
-                            self.options[k.strip()] = float(v)
-                        except ValueError:
-                            self.options[k.strip()] = v.strip()
 
             # Geometry file
             elif 'End geometry file' in l:
                 init_geom = False
+                self._geometry_string.append(l.strip())
             elif init_geom and ('=' in l):
-                k, v = l.split('=', 1)
-                try:
-                    self.geometry[k.strip()] = float(v)
-                except ValueError:
-                    self.geometry[k.strip()] = v.strip()
+                self._geometry_string.append(l.strip())
             elif 'Begin geometry file' in l:
                 init_geom = True
+                self._geometry_string.append(l.strip())
 
             # Cell file
             elif 'End unit cell' in l:
                 init_cell = False
+                self._cell_string.append(l.strip())
             elif init_cell and ('=' in l):
-                k, v = l.split('=', 1)
-                try:
-                    self.cell[k.strip()] = float(v)
-                except ValueError:
-                    self.cell[k.strip()] = v.strip()
+                self._cell_string.append(l.strip())
             elif 'Begin unit cell' in l:
                 init_cell = True
+                self._cell_string.append(l.strip())
 
             # Event chunks
             elif 'Begin chunk' in l:
@@ -132,6 +120,62 @@ class StreamParser:
             drop=True).drop('index', axis=1)
 
         self._shots = pd.DataFrame(shotlist)
+
+    @property
+    def geometry(self):
+        """
+
+        :return: geometry section as dictionary
+        """
+
+        g = {}
+        for l in self._geometry_string:
+            if '=' not in l:
+                continue
+            k, v = l.split('=', 1)
+            try:
+                g[k.strip()] = float(v)
+            except ValueError:
+                g[k.strip()] = v.strip()
+
+        return g
+
+    @property
+    def cell(self):
+        """
+
+        :return: cell section as dictionary
+        """
+
+        c = {}
+        for l in self._cell_string:
+            if '=' not in l:
+                continue
+            k, v = l.split('=', 1)
+            try:
+                c[k.strip()] = float(v)
+            except ValueError:
+                c[k.strip()] = v.strip()
+
+        return c
+
+    @property
+    def options(self):
+        """
+
+        :return: crystfel call options (ONLY -- ones) as dict
+        """
+
+        o = {}
+        for opt in self.command.split('--')[1:]:
+            if '=' in opt:
+                k, v = opt.split('=', 1)
+                try:
+                    o[k.strip()] = float(v)
+                except ValueError:
+                    o[k.strip()] = v.strip()
+
+        return o
 
     @property
     def indexed(self):
