@@ -21,39 +21,18 @@ class StreamParser:
         with open(filename, 'r') as fh:
             fstr = StringIO(fh.read())
 
+        # lines are queried for their meaning. Lines belonging to tables are appended to their own lists,
+        # which are then read into pandas data frames at the very end.
         for ln, l in enumerate(fstr):
 
-            # Call string
-            if 'indexamajig' in l:
-                self.command = l
+            # EVENT CHUNKS
 
-            # Geometry file
-            elif 'End geometry file' in l:
-                init_geom = False
-                self._geometry_string.append(l.strip())
-            elif init_geom and ('=' in l):
-                self._geometry_string.append(l.strip())
-            elif 'Begin geometry file' in l:
-                init_geom = True
-                self._geometry_string.append(l.strip())
-
-            # Cell file
-            elif 'End unit cell' in l:
-                init_cell = False
-                self._cell_string.append(l.strip())
-            elif init_cell and ('=' in l):
-                self._cell_string.append(l.strip())
-            elif 'Begin unit cell' in l:
-                init_cell = True
-                self._cell_string.append(l.strip())
-
-            # Event chunks
-            elif 'Begin chunk' in l:
+            # Required info
+            if 'Begin chunk' in l:
                 shotdat = {'Event': -1, 'shot_in_subset': -1, 'subset': '',
                            'file': '', 'serial': -1, 'indexer': '(none)'}
             elif 'End chunk' in l:
                 shotlist.append(shotdat)
-            # Event descriptors, indexing scheme
             elif 'Event:' in l:
                 shotdat['Event'] = l.split(': ')[-1].strip()
                 shotdat['shot_in_subset'] = int(shotdat['Event'].split('//')[-1])
@@ -65,6 +44,15 @@ class StreamParser:
             elif 'indexed_by' in l:
                 shotdat['indexer'] = l.split(' ')[2].replace("\n", "")
 
+            # Actual parsing (indexed peaks)
+            elif 'End of reflections' in l:
+                init_index = False
+            elif init_index:
+                linedat_index.append(
+                    '{} {} {} {}'.format(l.strip(), shotdat['file'], shotdat['Event'], shotdat['serial']))
+            elif 'h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in l:
+                init_index = True
+
             # Actual parsing (found peaks)
             elif 'End of peak list' in l:
                 init_peak = False
@@ -74,7 +62,7 @@ class StreamParser:
             elif 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in l:
                 init_peak = True
 
-            # Information from indexing
+            # Additional information from indexing
             elif 'Begin crystal' in l:
                 crystal_info = {}
             elif 'End crystal' in l:
@@ -99,14 +87,33 @@ class StreamParser:
             elif 'num_implausible_reflections' in l:
                 crystal_info['implausible'] = int(l.rsplit(' ')[-1])
 
-            # Actual parsing (indexed peaks)
-            elif 'End of reflections' in l:
-                init_index = False
-            elif init_index:
-                linedat_index.append(
-                    '{} {} {} {}'.format(l.strip(), shotdat['file'], shotdat['Event'], shotdat['serial']))
-            elif 'h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in l:
-                init_index = True
+            # CALL STRING
+
+            elif 'indexamajig' in l:
+                self.command = l
+
+            # GEOMETRY FILE
+
+            elif 'End geometry file' in l:
+                init_geom = False
+                self._geometry_string.append(l.strip())
+            elif init_geom and ('=' in l):
+                self._geometry_string.append(l.strip())
+            elif 'Begin geometry file' in l:
+                init_geom = True
+                self._geometry_string.append(l.strip())
+
+            # CELL FILE
+
+            elif 'End unit cell' in l:
+                init_cell = False
+                self._cell_string.append(l.strip())
+            elif init_cell and ('=' in l):
+                self._cell_string.append(l.strip())
+            elif 'Begin unit cell' in l:
+                init_cell = True
+                self._cell_string.append(l.strip())
+
 
         self._peaks = pd.read_csv(StringIO('\n'.join(linedat_peak)), delim_whitespace=True, header=None,
                               names=['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'file', 'Event', 'serial']
