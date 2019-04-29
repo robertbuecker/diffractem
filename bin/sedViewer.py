@@ -58,7 +58,7 @@ def read_files():
         # data path neither set via stream file, nor explicitly. We have to guess.
         data_path = ['/%/data/centered_fr', '/%/data/centered', '/%/data/raw_counts']
 
-    if args.g is not None:
+    if args.geometry is not None:
         raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')
 
     if args.query:
@@ -68,7 +68,7 @@ def read_files():
         print(f'{nshots} shots from {nshots0} selected by query f{args.query}')
 
     try:
-        mp = args.map_path.rsplit('/', 1)
+        mp = args.feature_path.rsplit('/', 1)
         features = get_meta_lists(files, mp[0], mp[1])[mp[1]]
         print('Found mapping features at {args.map_path}.')
     except KeyError:
@@ -133,23 +133,25 @@ def zoomOnCrystalButton_clicked():
 
 
 def updateImage():
-    global imageSerialNumber, rawImage, mapImage, shot
+    global imageSerialNumber, rawImage, mapImage, shot, data_path
 
     try:
+        if isinstance(data_path, str):
+            data_path = [data_path]
         with h5py.File(shot['file'], mode='r', swmr=True) as f:
-            for img_array in img_array_list:
+            for img_array in data_path:
                 try:
-                    path = data_path.replace('%', shot['subset']) + '/' + img_array
+                    path = img_array.replace('%', shot['subset'])
                     rawImage = f[path][int(shot['shot_in_subset']), ...]
                     print('Loading {}:{} from {}'.format(path, shot['shot_in_subset'], shot['file']))
                     break
                 except KeyError:
                     continue
             else:
-                raise KeyError('None of the stack names {} found'.format(img_array_list))
+                raise KeyError('None of the stack names {} found'.format(data_path))
 
             if show_map:
-                mapImage = f[map_path.replace('%', shot['subset']) + '/image'][...]
+                mapImage = f[args.map_path.replace('%', shot['subset'])][...]
     except Exception as err:
         print('Could not load image data due to {}'.format(err))
         rawImage = rawImage
@@ -158,24 +160,24 @@ def updatePlot():
     global img, mapimg, hist, imageSerialNumber, rawImage, mapImage, shot, map_zoomed
 
     if show_peaks and (peaks is not None) and show_markers:
-        ring_pen = pg.mkPen('g', width=2)
-        found_peak_canvas.setData(peaks.loc[peaks['serial'] == shot.name, 'fs/px'] + 0.5,
-                                  peaks.loc[peaks['serial'] == shot.name, 'ss/px'] + 0.5,
+        ring_pen = pg.mkPen('g', width=0.8)
+        found_peak_canvas.setData(peaks.loc[peaks['serial'] == shot['serial'], 'fs/px'] + 0.5,
+                                  peaks.loc[peaks['serial'] == shot['serial'], 'ss/px'] + 0.5,
                                   symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), antialias=True)
 
     else:
         found_peak_canvas.clear()
 
     if show_predict and (predict is not None) and show_markers:
-        ring_pen = pg.mkPen('g', width=2)
-        predicted_peak_canvas.setData(predict[peaks['serial'] == shot, 'fs/px'] + 0.5,
-                                      predict[peaks['serial'] == shot, 'ss/px'] + 0.5,
-                                      symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), antialias=True)
+        square_pen = pg.mkPen('r', width=0.8)
+        predicted_peak_canvas.setData(predict.loc[predict['serial'] == shot['serial'], 'fs/px'] + 0.5,
+                                      predict.loc[predict['serial'] == shot['serial'], 'ss/px'] + 0.5,
+                                      symbol='s', size=13, pen=square_pen, brush=(0, 0, 0, 0), antialias=True)
 
     else:
         predicted_peak_canvas.clear()
 
-    if features is not None and show_markers:
+    if features is not None:
         ring_pen = pg.mkPen('g', width=2)
         dot_pen = pg.mkPen('y', width=0.5)
 
@@ -190,15 +192,30 @@ def updatePlot():
         #                              symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
 
             if map_zoomed:
-
-                p2.setRange(xRange=(single_feat['crystal_x'].values - 5*beam_diam, single_feat['crystal_x'].values + 5*beam_diam),
-                                   yRange=(single_feat['crystal_y'].values - 5*beam_diam, single_feat['crystal_y'].values + 5*beam_diam))
-                single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
-                                              symbol='o', size=beam_diam, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=False)
+                x0 = single_feat['crystal_x'].values.squeeze()
+                y0 = single_feat['crystal_y'].values.squeeze()
+                p2.setRange(xRange=(x0 - 5*args.beam_diam, x0 + 5*args.beam_diam),
+                                   yRange=(y0 - 5*args.beam_diam, y0 + 5*args.beam_diam))
+                single_feature_canvas.setData([x0], [y0],
+                                              symbol='o', size=args.beam_diam, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=False)
+                c_real = np.cross([shot.astar_x, shot.astar_y, shot.astar_z],
+                                  [shot.bstar_x, shot.bstar_y, shot.bstar_z])
+                b_real = np.cross([shot.cstar_x, shot.cstar_y, shot.cstar_z],
+                                  [shot.astar_x, shot.astar_y, shot.astar_z])
+                a_real = np.cross([shot.bstar_x, shot.bstar_y, shot.bstar_z],
+                                  [shot.cstar_x, shot.cstar_y, shot.cstar_z])
+                a_real = 20*a_real/np.sum(a_real**2)**.5
+                b_real = 20*b_real / np.sum(b_real ** 2) ** .5
+                c_real = 20*c_real / np.sum(c_real ** 2) ** .5
+                a_dir.setData(x=x0 + np.array([0, a_real[0]]), y=y0 + np.array([0, a_real[1]]))
+                b_dir.setData(x=x0 + np.array([0, b_real[0]]), y=y0 + np.array([0, b_real[1]]))
+                c_dir.setData(x=x0 + np.array([0, c_real[0]]), y=y0 + np.array([0, c_real[1]]))
             else:
                 single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
                                               symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=True)
                 p2.setRange(xRange=(0, mapImage.shape[1]), yRange=(0, mapImage.shape[0]))
+
+
 
         else:
             single_feature_canvas.setData([],[])
@@ -295,6 +312,13 @@ single_feature_canvas = pg.ScatterPlotItem()
 p2.addItem(single_feature_canvas)
 single_feature_canvas.setZValue(2)
 
+a_dir = pg.PlotDataItem(pen=pg.mkPen('r', width=1))
+b_dir = pg.PlotDataItem(pen=pg.mkPen('g', width=1))
+c_dir = pg.PlotDataItem(pen=pg.mkPen('b', width=1))
+p2.addItem(a_dir)
+p2.addItem(b_dir)
+p2.addItem(c_dir)
+
 # Contrast/color control
 hist2 = pg.HistogramLUTItem()
 hist2.setImageItem(mapimg)
@@ -324,7 +348,7 @@ toggleMarkerButton.clicked.connect(toggleMrkerButton_clicked)
 toggleFoundPeaksButton.clicked.connect(toggleFoundPeaksButton_clicked)
 toggleFoundCrystalButton.clicked.connect(toggleFoundCrystalButton_clicked)
 zoomOnCrystalButton.clicked.connect(zoomOnCrystalButton_clicked)
-reloadButton.clicked.connect(lambda: read_files(filename))
+reloadButton.clicked.connect(lambda: read_files())
 #imageWidget.resize(800, 800)
 
 layout = QtGui.QGridLayout()
@@ -365,7 +389,7 @@ if __name__ == '__main__':
     parser.add_argument('--peaks_path', type=str, help='Path to peaks table', default='/%/results/peaks')
     parser.add_argument('--predict_path', type=str, help='Path to prediction table', default='/%/results/predict')
     parser.add_argument('--no_map', help='Hide map, even if we had it', action='store_true')
-    parser.add_argument('--beam_size', type=int, help='Beam size displayed in real space, in pixels', default=5)
+    parser.add_argument('--beam_diam', type=int, help='Beam size displayed in real space, in pixels', default=5)
 
     args = parser.parse_args()
 
@@ -377,7 +401,7 @@ if __name__ == '__main__':
     # (5) stream + hdf5: as (3)
 
     # TODO next: work on read_file
-    read_files(args.filename)
+    read_files()
 
     switch_shot(0)
 

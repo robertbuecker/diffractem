@@ -575,7 +575,10 @@ def store_meta_array(filename, array_label, identifier, array, shots=None, listn
 
 def get_nxs_list(filename, what='shots'):
     if what == 'shots':
-        return get_meta_lists(filename, '/%/data', ['shots'])['shots']
+        shots = get_meta_lists(filename, '/%/data', ['shots'])['shots']
+        if 'shot_in_subset' not in shots:
+            shots['shot_in_subset'] = shots.groupby(['file', 'subset']).cumcount()
+        return shots
     if what in ['crystals', 'features']:
         return get_meta_lists(filename, '/%/map', [what])[what]
     if what in ['peaks', 'predict']:
