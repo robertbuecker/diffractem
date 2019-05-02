@@ -57,7 +57,7 @@ def read_files():
 
     if data_path is None:
         # data path neither set via stream file, nor explicitly. We have to guess.
-        data_path = ['/%/data/centered_fr', '/%/data/centered', '/%/data/raw_counts']
+        data_path = ['/%/data/centered_fr', '/%/data/centered', '/%/data/masked', '/%/data/raw_counts']
 
     if args.geometry is not None:
         raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')

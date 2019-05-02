@@ -616,6 +616,15 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
     else:
         fns = shots['file'].unique()
 
+    if 'serial' in shots.columns:
+        serial = shots['serial'].values
+    else:
+        serial = shots.index.values
+
+    if (np.diff(serial) != 1).any():
+        raise RuntimeWarning('Serial numbers are not equally incrementing by one! Danger!')
+
+    stacks.update({'serial': da.from_array(serial.reshape(-1, 1), chunks=(1, -1))})
     counters = {ln: 0 for ln in stacks.keys()}
 
     datasets = []
@@ -630,8 +639,8 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
             fshots = shots.loc[shots['file'] == fn, :]
 
             for sn, stack in stacks.items():
-                for subset, idcs in fshots.groupby('subset').indices.items():
-                    arr = stack[idcs, ...]
+                for subset, ssshots in fshots.groupby('subset'):
+                    arr = stack[ssshots.index.values, ...]
                     path = base_path.replace('%', subset) + '/' + sn
                     ds = f.require_dataset(path, shape=arr.shape, dtype=arr.dtype,
                                            chunks=tuple([c[0] for c in arr.chunks]), **kwargs)
@@ -639,7 +648,7 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
                     arrays.append(arr)
                     datasets.append(ds)
                     counters[sn] += arr.shape[0]
-                    print(f'Storing stack {sn} for subset {subset} into {fn} -> {path}')
+                    print(f'{sn}: {subset}//{ssshots.index.values[0]}...{ssshots.index.values[-1]} -> {fn}:{path}')
 
         for k, v in stacks.items():
             if v.shape[0] != counters[k]:
