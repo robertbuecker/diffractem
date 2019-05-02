@@ -48,6 +48,7 @@ def read_files():
         files = get_files(args.filename) # always expand into list, to be compatible with stream file option
         try:
             shots = get_nxs_list(files)
+            shots['serial'] = shots.index.values
         except Exception as err:
             raise NotImplementedError(f'Could not load shot data from lst or hdf5 file... unhandled yet: {err}')
 
@@ -186,30 +187,35 @@ def updatePlot():
 
         if shot['crystal_id'] != -1:
             single_feat = region_feat.loc[region_feat['crystal_id'] == shot['crystal_id'], :]
+            #x0 = single_feat['crystal_x'].values.squeeze()
+            #y0 = single_feat['crystal_y'].values.squeeze()
+            x0 = shot['crystal_x'].squeeze()
+            y0 = shot['crystal_y'].squeeze()
             found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
                                           symbol='+', size=7, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
         #found_features_canvas.setData([shot['crystal_x'],], [shot['crystal_y'],],
         #                              symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
 
             if map_zoomed:
-                x0 = single_feat['crystal_x'].values.squeeze()
-                y0 = single_feat['crystal_y'].values.squeeze()
                 p2.setRange(xRange=(x0 - 5*args.beam_diam, x0 + 5*args.beam_diam),
                                    yRange=(y0 - 5*args.beam_diam, y0 + 5*args.beam_diam))
                 single_feature_canvas.setData([x0], [y0],
                                               symbol='o', size=args.beam_diam, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=False)
-                c_real = np.cross([shot.astar_x, shot.astar_y, shot.astar_z],
-                                  [shot.bstar_x, shot.bstar_y, shot.bstar_z])
-                b_real = np.cross([shot.cstar_x, shot.cstar_y, shot.cstar_z],
-                                  [shot.astar_x, shot.astar_y, shot.astar_z])
-                a_real = np.cross([shot.bstar_x, shot.bstar_y, shot.bstar_z],
-                                  [shot.cstar_x, shot.cstar_y, shot.cstar_z])
-                a_real = 20*a_real/np.sum(a_real**2)**.5
-                b_real = 20*b_real / np.sum(b_real ** 2) ** .5
-                c_real = 20*c_real / np.sum(c_real ** 2) ** .5
-                a_dir.setData(x=x0 + np.array([0, a_real[0]]), y=y0 + np.array([0, a_real[1]]))
-                b_dir.setData(x=x0 + np.array([0, b_real[0]]), y=y0 + np.array([0, b_real[1]]))
-                c_dir.setData(x=x0 + np.array([0, c_real[0]]), y=y0 + np.array([0, c_real[1]]))
+                try:
+                    c_real = np.cross([shot.astar_x, shot.astar_y, shot.astar_z],
+                                      [shot.bstar_x, shot.bstar_y, shot.bstar_z])
+                    b_real = np.cross([shot.cstar_x, shot.cstar_y, shot.cstar_z],
+                                      [shot.astar_x, shot.astar_y, shot.astar_z])
+                    a_real = np.cross([shot.bstar_x, shot.bstar_y, shot.bstar_z],
+                                      [shot.cstar_x, shot.cstar_y, shot.cstar_z])
+                    a_real = 20*a_real/np.sum(a_real**2)**.5
+                    b_real = 20*b_real / np.sum(b_real ** 2) ** .5
+                    c_real = 20*c_real / np.sum(c_real ** 2) ** .5
+                    a_dir.setData(x=x0 + np.array([0, a_real[0]]), y=y0 + np.array([0, a_real[1]]))
+                    b_dir.setData(x=x0 + np.array([0, b_real[0]]), y=y0 + np.array([0, b_real[1]]))
+                    c_dir.setData(x=x0 + np.array([0, c_real[0]]), y=y0 + np.array([0, c_real[1]]))
+                except:
+                    print('Could not read lattice vectors.')
             else:
                 single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
                                               symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=True)
