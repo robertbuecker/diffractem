@@ -276,8 +276,8 @@ class StreamParser:
             self._peaks.drop('pk_id', axis=1)
 
         cxidat = {
-            'peakXPosRaw': pk2['fs/px'].fillna(0).values + off,
-            'peakYPosRaw': pk2['ss/px'].fillna(0).values + off,
+            'peakXPosRaw': (pk2['fs/px'] + off).fillna(0).values,
+            'peakYPosRaw': (pk2['ss/px'] + off).fillna(0).values,
             'peakTotalIntensity': pk2[ifield].fillna(0).values,
             'nPeaks': pk2['fs/px'].notna().sum(axis=1).values.reshape(-1, 1)}
 

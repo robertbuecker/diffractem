@@ -11,6 +11,8 @@ import os.path
 from lambda_tools import normalize_names, stream_parser
 from tifffile import imread
 import warnings
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from itertools import repeat
 
 
 def read_crystfel_stream(filename, serial_start=-1):
@@ -445,6 +447,39 @@ def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
     return file_name
 
 
+def store_meta_list(filename, list, path='/%/data/shots', **kwargs):
+    # This one will one day store a single list only, but in parallel on all h5 files
+    raise NotImplementedError('Will be done some day.')
+
+
+def get_meta_list(filename, name, path='/%/data/shots'):
+    # This one will one day get a single list only, but in parallel on all h5 files
+    fns = get_files(filename)
+
+    if len(fns) == 1:
+        fn = fns[0]
+        identifiers = path.rsplit('%', 1)
+        lists = []
+        with h5py.File(fn) as fh:
+
+            if len(identifiers) == 1:
+                subsets = ['']
+            else:
+                subsets = fh[identifiers[0]].keys()
+
+            for subset in subsets:
+                newlist = pd.read_hdf(fn, path.replace('%', subset))
+                newlist['subset'] = subset
+                newlist['file'] = fn
+                lists.append(newlist)
+        return pd.concat(lists, axis=0, ignore_index=True)
+
+    with ProcessPoolExecutor() as p:
+        out = p.map(get_meta_list, fns, repeat(name), repeat(path))
+
+    return(pd.concat(out, ignore_index=True))
+
+
 def store_meta_lists(filename, lists, base_path='/%/data', **kwargs):
     if filename is not None:
         fns = get_files(filename)
@@ -478,6 +513,7 @@ def store_meta_lists(filename, lists, base_path='/%/data', **kwargs):
 
 
 def get_meta_lists(filename, base_path='/%/data', labels=None):
+    raise DeprecationWarning('Please use get_meta_list instead if you know what you\'re looking for. It is WAY faster.')
     fns = get_files(filename)
     identifiers = base_path.rsplit('%', 1)
     lists = defaultdict(list)
@@ -575,14 +611,14 @@ def store_meta_array(filename, array_label, identifier, array, shots=None, listn
 
 def get_nxs_list(filename, what='shots'):
     if what == 'shots':
-        shots = get_meta_lists(filename, '/%/data', ['shots'])['shots']
+        shots = get_meta_list(filename, '/%/data/shots')
         if 'shot_in_subset' not in shots:
             shots['shot_in_subset'] = shots.groupby(['file', 'subset']).cumcount()
         return shots
     if what in ['crystals', 'features']:
-        return get_meta_lists(filename, '/%/map', [what])[what]
+        return get_meta_lists(filename, '/%/map/' + what)
     if what in ['peaks', 'predict']:
-        return get_meta_lists(filename, '/%/results', [what])[what]
+        return get_meta_lists(filename, '/%/results/' + what)
     # for later: if none of the usual ones, just crawl the file for something matching
     return None
 
