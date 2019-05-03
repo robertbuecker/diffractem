@@ -624,7 +624,7 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
     if (np.diff(serial) != 1).any():
         raise RuntimeWarning('Serial numbers are not equally incrementing by one! Danger!')
 
-    stacks.update({'serial': da.from_array(serial.reshape(-1, 1), chunks=(1, -1))})
+    stacks.update({'serial': da.from_array(serial, chunks=(1,))})
     counters = {ln: 0 for ln in stacks.keys()}
 
     datasets = []
