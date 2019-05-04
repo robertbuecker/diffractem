@@ -1,13 +1,15 @@
 import hdf5plugin
 import h5py
 import numpy as np
+import time
 from lambda_tools.io import *
-from lambda_tools.stream_parser import StreamParser
+
+import matplotlib.pyplot as plt
+# for interactive pycharm: %matplotlib tk
 import pyqtgraph as pg
+
 import importlib
 import sys
-import argparse
-import pandas as pd
 
 PyQt4_found = importlib.util.find_spec("PyQt4")
 if PyQt4_found is not None:
@@ -15,79 +17,42 @@ if PyQt4_found is not None:
 else:
     from PyQt5 import QtGui, QtCore
 
+from lambda_tools.StreamFileParser import *
+
 pg.setConfigOptions(imageAxisOrder='row-major')
 
-def read_files():
-    global args, shots, features, peaks, predict, data_path
+# operation modes:
+# (1) only list and NeXus files
+# (2) stream file plus NeXus
+# (3) stream plus plain HDF5
+# Yaroslav's version does (3), ours (1), for now.
 
-    # Mandatory stuff: data path, shot list
+class
 
-    data_path = None
-    shots = None
-    files = []
-    file_type = args.filename.rsplit('.', 1)[-1]
+def read_files(filename):
+    global shots, features, peaks, predict
 
-    if file_type == 'stream':
-        print(f'Parsing stream file {args.filename}...')
-        stream = StreamParser(args.filename)
-        data_path = stream.geometry['data']
-        shots = stream.shots
-        predict = stream.indexed
-        peaks = stream.peaks
-        files = list(shots['file'].unique())
-        try:
-            shots_nxs = get_nxs_list(files, 'shots')
-            shots = shots.merge(shots_nxs, on=['file', 'subset', 'shot_in_subset'], how='left', suffixes=('', '_nxs'))
-            print('Merged stream and hdf5 shot lists')
-        except Exception as err:
-            print('Could not load shot lists from H5 files, but have that from the stream file.')
-            print(f'Reason: {err}')
-
-    if file_type in ['lst', 'h5', 'hdf', 'nxs']:
-        # here, you need a shot list. Long term: use Crystfel's shot list expansion tool.
-        files = get_files(args.filename) # always expand into list, to be compatible with stream file option
-        try:
-            shots = get_nxs_list(files)
-            shots['serial'] = shots.index.values
-        except Exception as err:
-            raise NotImplementedError(f'Could not load shot data from lst or hdf5 file... unhandled yet: {err}')
-
-    if args.data_path is not None:
-        data_path = args.data_path
-
-    if data_path is None:
-        # data path neither set via stream file, nor explicitly. We have to guess.
-        data_path = ['/%/data/centered_fr', '/%/data/centered', '/%/data/masked', '/%/data/raw_counts']
-
-    if args.geometry is not None:
-        raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')
-
-    if args.query:
-        nshots0 = shots.shape[0]
-        shots = shots.query(args.query).reset_index()
-        nshots = shots.shape[0]
-        print(f'{nshots} shots from {nshots0} selected by query f{args.query}')
+    shots = get_meta_lists(filename, data_path, 'shots')['shots']
+    nshots0 = shots.shape[0]
+    shots = shots.loc[shots['frame'] >= 0, :].query(query).reset_index()
+    nshots = shots.shape[0]
+    print(f'{nshots} shots from {nshots0} selected')
 
     try:
-        mp = args.feature_path.rsplit('/', 1)
-        features = get_meta_list(files, args.feature_path)
-        print('Found mapping features at {args.map_path}.')
+        features = get_meta_lists(filename, map_path, 'features')['features']
     except KeyError:
-        print(f'No mapping features found at {args.map_path}.')
+        print(f'No mapping features found in file {filename}')
         features = None
-
-    if file_type != 'stream':
-        print('No stream file provided, trying to load peaks and predictions from pandas dataframes in HDF5 files.')
-        try:
-            peaks = get_meta_list(files, args.peaks_path)
-        except KeyError:
-            print(f'No peaks found at {args.peaks_path}.')
-            peaks = None
-        try:
-            predict = get_meta_list(files, args.predict_path)
-        except KeyError:
-            print(f'No prediction spots found at {args.predict_path}.')
-            predict = None
+    try:
+        peaks = get_meta_lists(filename, result_path, 'peaks')['peaks']
+    except KeyError:
+        print(f'No peaks found in file {filename}')
+        peaks = None
+    try:
+        predict = get_meta_lists(filename, result_path, 'predict')['predict']
+    except KeyError:
+        print(f'No prediction spots found in file {filename}')
+        predict = None
 
     if ('shot_in_subset' not in shots.columns) and 'Event' in shots.columns:
         shots[['shot_in_subset', 'subset']] = shots['Event'].str.split('//')
@@ -132,25 +97,23 @@ def zoomOnCrystalButton_clicked():
 
 
 def updateImage():
-    global imageSerialNumber, rawImage, mapImage, shot, data_path
+    global imageSerialNumber, rawImage, mapImage, shot
 
     try:
-        if isinstance(data_path, str):
-            data_path = [data_path]
         with h5py.File(shot['file'], mode='r', swmr=True) as f:
-            for img_array in data_path:
+            for img_array in img_array_list:
                 try:
-                    path = img_array.replace('%', shot['subset'])
+                    path = data_path.replace('%', shot['subset']) + '/' + img_array
                     rawImage = f[path][int(shot['shot_in_subset']), ...]
                     print('Loading {}:{} from {}'.format(path, shot['shot_in_subset'], shot['file']))
                     break
                 except KeyError:
                     continue
             else:
-                raise KeyError('None of the stack names {} found'.format(data_path))
+                raise KeyError('None of the stack names {} found'.format(img_array_list))
 
             if show_map:
-                mapImage = f[args.map_path.replace('%', shot['subset'])][...]
+                mapImage = f[map_path.replace('%', shot['subset']) + '/image'][...]
     except Exception as err:
         print('Could not load image data due to {}'.format(err))
         rawImage = rawImage
@@ -159,24 +122,24 @@ def updatePlot():
     global img, mapimg, hist, imageSerialNumber, rawImage, mapImage, shot, map_zoomed
 
     if show_peaks and (peaks is not None) and show_markers:
-        ring_pen = pg.mkPen('g', width=0.8)
-        found_peak_canvas.setData(peaks.loc[peaks['serial'] == shot['serial'], 'fs/px'] + 0.5,
-                                  peaks.loc[peaks['serial'] == shot['serial'], 'ss/px'] + 0.5,
+        ring_pen = pg.mkPen('g', width=2)
+        found_peak_canvas.setData(peaks.loc[peaks['serial'] == shot.name, 'fs/px'] + 0.5,
+                                  peaks.loc[peaks['serial'] == shot.name, 'ss/px'] + 0.5,
                                   symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), antialias=True)
 
     else:
         found_peak_canvas.clear()
 
     if show_predict and (predict is not None) and show_markers:
-        square_pen = pg.mkPen('r', width=0.8)
-        predicted_peak_canvas.setData(predict.loc[predict['serial'] == shot['serial'], 'fs/px'] + 0.5,
-                                      predict.loc[predict['serial'] == shot['serial'], 'ss/px'] + 0.5,
-                                      symbol='s', size=13, pen=square_pen, brush=(0, 0, 0, 0), antialias=True)
+        ring_pen = pg.mkPen('g', width=2)
+        predicted_peak_canvas.setData(predict[peaks['serial'] == shot, 'fs/px'] + 0.5,
+                                      predict[peaks['serial'] == shot, 'ss/px'] + 0.5,
+                                      symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), antialias=True)
 
     else:
         predicted_peak_canvas.clear()
 
-    if features is not None:
+    if features is not None and show_markers:
         ring_pen = pg.mkPen('g', width=2)
         dot_pen = pg.mkPen('y', width=0.5)
 
@@ -185,41 +148,21 @@ def updatePlot():
 
         if shot['crystal_id'] != -1:
             single_feat = region_feat.loc[region_feat['crystal_id'] == shot['crystal_id'], :]
-            #x0 = single_feat['crystal_x'].values.squeeze()
-            #y0 = single_feat['crystal_y'].values.squeeze()
-            x0 = shot['crystal_x'].squeeze()
-            y0 = shot['crystal_y'].squeeze()
             found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
                                           symbol='+', size=7, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
         #found_features_canvas.setData([shot['crystal_x'],], [shot['crystal_y'],],
         #                              symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
 
             if map_zoomed:
-                p2.setRange(xRange=(x0 - 5*args.beam_diam, x0 + 5*args.beam_diam),
-                                   yRange=(y0 - 5*args.beam_diam, y0 + 5*args.beam_diam))
-                single_feature_canvas.setData([x0], [y0],
-                                              symbol='o', size=args.beam_diam, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=False)
-                try:
-                    c_real = np.cross([shot.astar_x, shot.astar_y, shot.astar_z],
-                                      [shot.bstar_x, shot.bstar_y, shot.bstar_z])
-                    b_real = np.cross([shot.cstar_x, shot.cstar_y, shot.cstar_z],
-                                      [shot.astar_x, shot.astar_y, shot.astar_z])
-                    a_real = np.cross([shot.bstar_x, shot.bstar_y, shot.bstar_z],
-                                      [shot.cstar_x, shot.cstar_y, shot.cstar_z])
-                    a_real = 20*a_real/np.sum(a_real**2)**.5
-                    b_real = 20*b_real / np.sum(b_real ** 2) ** .5
-                    c_real = 20*c_real / np.sum(c_real ** 2) ** .5
-                    a_dir.setData(x=x0 + np.array([0, a_real[0]]), y=y0 + np.array([0, a_real[1]]))
-                    b_dir.setData(x=x0 + np.array([0, b_real[0]]), y=y0 + np.array([0, b_real[1]]))
-                    c_dir.setData(x=x0 + np.array([0, c_real[0]]), y=y0 + np.array([0, c_real[1]]))
-                except:
-                    print('Could not read lattice vectors.')
+
+                p2.setRange(xRange=(single_feat['crystal_x'].values - 5*beam_diam, single_feat['crystal_x'].values + 5*beam_diam),
+                                   yRange=(single_feat['crystal_y'].values - 5*beam_diam, single_feat['crystal_y'].values + 5*beam_diam))
+                single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
+                                              symbol='o', size=beam_diam, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=False)
             else:
                 single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
                                               symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=True)
                 p2.setRange(xRange=(0, mapImage.shape[1]), yRange=(0, mapImage.shape[0]))
-
-
 
         else:
             single_feature_canvas.setData([],[])
@@ -262,7 +205,6 @@ def mouseMoved(evt):
     #print(x, y, I)
     info_text.setPos(x, y)
     info_text.setText('{}, {}: {}'.format(x, y, I))
-
 
 ########################################################## gui
 
@@ -316,13 +258,6 @@ single_feature_canvas = pg.ScatterPlotItem()
 p2.addItem(single_feature_canvas)
 single_feature_canvas.setZValue(2)
 
-a_dir = pg.PlotDataItem(pen=pg.mkPen('r', width=1))
-b_dir = pg.PlotDataItem(pen=pg.mkPen('g', width=1))
-c_dir = pg.PlotDataItem(pen=pg.mkPen('b', width=1))
-p2.addItem(a_dir)
-p2.addItem(b_dir)
-p2.addItem(c_dir)
-
 # Contrast/color control
 hist2 = pg.HistogramLUTItem()
 hist2.setImageItem(mapimg)
@@ -352,7 +287,7 @@ toggleMarkerButton.clicked.connect(toggleMrkerButton_clicked)
 toggleFoundPeaksButton.clicked.connect(toggleFoundPeaksButton_clicked)
 toggleFoundCrystalButton.clicked.connect(toggleFoundCrystalButton_clicked)
 zoomOnCrystalButton.clicked.connect(zoomOnCrystalButton_clicked)
-reloadButton.clicked.connect(lambda: read_files())
+reloadButton.clicked.connect(lambda: read_files(filename))
 #imageWidget.resize(800, 800)
 
 layout = QtGui.QGridLayout()
@@ -375,46 +310,44 @@ layout.addWidget(mapWidget, 0, 1)
 
 topWidget.show()
 
-show_map = True
-show_peaks = True
-show_predict = True
-show_markers = True
-map_zoomed = True
-
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Viewer for Serial Electron Diffraction data')
-    parser.add_argument('filename', type=str, help='Stream file, list file, or HDF5')
-    parser.add_argument('-g', '--geometry', type=str, help='CrystFEL geometry file, might be helpful')
-    parser.add_argument('-q', '--query', type=str, help='Query string to filter shots by column values')
-    parser.add_argument('-d', '--data_path', type=str, help='Data field in HDF5 file(s). Defaults to stream file or tries a few.')
-    parser.add_argument('--map_path', type=str, help='Path to map image', default='/%/map/image')
-    parser.add_argument('--feature_path', type=str, help='Path to map feature table', default='/%/map/features')
-    parser.add_argument('--peaks_path', type=str, help='Path to peaks table', default='/%/results/peaks')
-    parser.add_argument('--predict_path', type=str, help='Path to prediction table', default='/%/results/predict')
-    parser.add_argument('--no_map', help='Hide map, even if we had it', action='store_true')
-    parser.add_argument('--beam_diam', type=int, help='Beam size displayed in real space, in pixels', default=5)
+    # all the stuff that should go to an option parser:
+    data_path = '/%/data'
+    img_array_list = ['centered_fr', 'centered', 'raw_counts']
+    # img_array_list = ['centered', 'raw_counts']
+    map_path = '/%/map'
+    result_path = '/%/results'
+    beam_diam = 5
+    show_map = True
+    show_peaks = True
+    show_predict = True
+    show_markers = True
+    map_zoomed = True
+    query = 'frame == 1'
 
-    args = parser.parse_args()
+    if len(sys.argv) < 2:
+        print("need a list file or NeXus-compliant HDF5")
+        exit
 
-    # operation modes:
-    # (1) file list (+ geometry) + nxs: estimate geometry from nxs if geometry is absent
-    # (2) expanded file list (+ geometry) + nxs: first match nxs shot lists vs expanded file list
-    # (3) (expanded) file list + geometry + hdf5: omit map image automatically
-    # (4) stream + nxs: as (2), peaks/predict in stream take precedence over nxs
-    # (5) stream + hdf5: as (3)
+    filename = sys.argv[1]
 
-    # TODO next: work on read_file
-    read_files()
+    if len(sys.argv) > 2:
+        query = sys.argv[2]
+
+    if len(sys.argv) > 3:
+        img_array_list = [sys.argv[3]]
+
+    read_files(filename)
 
     switch_shot(0)
-
+    update()
     tmp = rawImage.copy().ravel()
     tmp.sort()
     level_min = tmp[round(0.02 * tmp.size)]
     level_max = tmp[round(0.98 * tmp.size)] * 2
     hist.setLevels(level_min, level_max)
-
     import sys
+
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         QtGui.QApplication.instance().exec_()

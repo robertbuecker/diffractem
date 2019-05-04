@@ -452,7 +452,7 @@ def store_meta_list(filename, list, path='/%/data/shots', **kwargs):
     raise NotImplementedError('Will be done some day.')
 
 
-def get_meta_list(filename, name, path='/%/data/shots'):
+def get_meta_list(filename, path='/%/data/shots'):
     # This one will one day get a single list only, but in parallel on all h5 files
     fns = get_files(filename)
 
@@ -475,7 +475,7 @@ def get_meta_list(filename, name, path='/%/data/shots'):
         return pd.concat(lists, axis=0, ignore_index=True)
 
     with ProcessPoolExecutor() as p:
-        out = p.map(get_meta_list, fns, repeat(name), repeat(path))
+        out = p.map(get_meta_list, fns, repeat(path))
 
     return(pd.concat(out, ignore_index=True))
 
@@ -513,7 +513,8 @@ def store_meta_lists(filename, lists, base_path='/%/data', **kwargs):
 
 
 def get_meta_lists(filename, base_path='/%/data', labels=None):
-    raise DeprecationWarning('Please use get_meta_list instead if you know what you\'re looking for. It is WAY faster.')
+    warnings.warn('Please use get_meta_list instead if you know what you\'re looking for. It is WAY faster.',
+        DeprecationWarning)
     fns = get_files(filename)
     identifiers = base_path.rsplit('%', 1)
     lists = defaultdict(list)
@@ -616,9 +617,9 @@ def get_nxs_list(filename, what='shots'):
             shots['shot_in_subset'] = shots.groupby(['file', 'subset']).cumcount()
         return shots
     if what in ['crystals', 'features']:
-        return get_meta_lists(filename, '/%/map/' + what)
+        return get_meta_list(filename, '/%/map/' + what)
     if what in ['peaks', 'predict']:
-        return get_meta_lists(filename, '/%/results/' + what)
+        return get_meta_list(filename, '/%/results/' + what)
     # for later: if none of the usual ones, just crawl the file for something matching
     return None
 

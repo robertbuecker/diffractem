@@ -28,9 +28,10 @@ def loop_over_stack(fun):
     
     :param func     : function to be decorated
     :return         : decorated function
-    TODO: handle functions with multiple outputs, and return a list of ndarrays
-    TODO: allow switches for paralellization
+
     """
+    #TODO: handle functions with multiple outputs, and return a list of ndarrays
+    #TODO: allow switches for paralellization
 
     @wraps(fun)
     def loop_fun(imgs, *args, **kwargs):
@@ -99,6 +100,7 @@ def mean_clip(c,sigma=2.0):
                     : that is allowed.
     :return c_mean  : mean of clipped values
     """
+    
     c = c[c>0]
     if not c.size:
         return -1
@@ -759,7 +761,7 @@ def center_sgl_image(img, x0, y0, xsize, ysize, padval):
     return simg
 
 
-def center_image(imgs, x0, y0, xsize, ysize, padval):
+def center_image(imgs, x0, y0, xsize, ysize, padval, parallel=True):
     """
     Centers a whole stack of images. See center_sgl_image for details... now, imgs is a 3D stack,
     x0 and y0 are 1d arrays. imgs can be a dask array, map_blocks is automatically invoked then
@@ -784,7 +786,12 @@ def center_image(imgs, x0, y0, xsize, ysize, padval):
     y0[np.isnan(y0)] = imgs.shape[1] / 2
     simgs = np.array(padval).astype(imgs.dtype) * np.ones((imgs.shape[0], ysize, xsize), dtype=imgs.dtype)
 
-    for ii in prange(imgs.shape[0]):    # uses numba's prange for parallelization
+    if parallel:
+        it = prange(imgs.shape[0]) # uses numba's prange for parallelization
+    else:
+        it = range(imgs.shape[0])
+
+    for ii in it:    
         simg = center_sgl_image(imgs[ii, :, :], x0[ii], y0[ii], xsize, ysize, padval)
         simgs[ii, :, :] = simg
 
