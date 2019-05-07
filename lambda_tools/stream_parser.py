@@ -301,7 +301,8 @@ class StreamParser:
                     fh.write(f'{k} = {shot[k]}\n')
                 if include_peaks:
                     fh.write(BEGIN_PEAKS + '\n')
-                    self._peaks.loc[self._peaks.serial==shot.serial, PEAK_COLUMNS].to_csv(fh, sep=' ', index=False)
+                    self._peaks.loc[self._peaks.serial==shot.serial, PEAK_COLUMNS].to_csv(
+                        fh, sep=' ', index=False, na_rep='-nan')
                     fh.write(END_PEAKS + '\n')
 
                 crystals = self._crystals.loc[self._crystals.serial==shot.serial,:]
@@ -325,7 +326,8 @@ class StreamParser:
                         fh.write(f'{k} = {crs[k]}\n') 
                     if include_indexed:
                         fh.write(BEGIN_REFLECTIONS + '\n')
-                        self._indexed.loc[self._indexed.serial==shot.serial, REFLECTION_COLUMNS].to_csv(fh, sep=' ', index=False)
+                        self._indexed.loc[self._indexed.serial==shot.serial, REFLECTION_COLUMNS].to_csv(
+                            fh, sep=' ', index=False, na_rep='-nan')
                         fh.write(END_REFLECTIONS + '\n')
                     fh.write(END_CRYSTAL + '\n')                    
                 fh.write(END_CHUNK + '\n')
