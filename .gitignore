@@ -1,1 +1,6 @@
 debug.py
+*.egg-info
+.idea/
+*-checkpoint.py
+.ipynb_checkpoints
+__pycache__
