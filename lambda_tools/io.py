@@ -659,7 +659,7 @@ def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_s
         serial = shots.index.values
 
     if (np.diff(serial) != 1).any():
-        raise RuntimeWarning('Serial numbers are not equally incrementing by one! Danger!')
+        warnings.warn('Serial numbers are not equally incrementing by one. Just saying.', RuntimeWarning)
 
     stacks.update({'serial': da.from_array(serial, chunks=(1,))})
     counters = {ln: 0 for ln in stacks.keys()}

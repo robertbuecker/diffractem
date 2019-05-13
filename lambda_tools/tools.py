@@ -15,6 +15,16 @@ from .io import *
 from lambda_tools.legacy import save_lambda_img
 from .proc2d import correct_dead_pixels
 
+def strip_file_path(df: pd.DataFrame, add_folder=False):
+    splt = df.file.str.rsplit('/', 1, True)
+    if add_folder:
+        if splt.shape[1] == 2:
+            return df.assign(file=splt.iloc[:,-1], folder=splt.iloc[:,0])
+        else:
+            return df.assign(file=splt.iloc[:,-1], folder='.')
+    else:
+        return df.assign(file=splt.iloc[:,-1])
+        
 
 def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
               rings=(10, 5, 2.5), radii=(3, 4, 6), show_map=True, show_peaks=True, show_predict=False,

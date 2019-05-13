@@ -129,7 +129,7 @@ class OverviewImg:
         self.labels = np.ndarray((0,0))
         self.transform_matrix = []
         self.mask = np.ndarray((0,0))
-        self.features = pd.DataFrame()
+        self._features = pd.DataFrame()
         self._shots = pd.DataFrame()
         self.reference = None
         self.coordinate_source = 'none'

@@ -38,7 +38,7 @@ def parse_str_val(input: str):
 
 class StreamParser:
 
-    def __init__(self, filename, parse_now=True, serial_offset=-1):
+    def __init__(self, filename, parse_now=True, serial_offset=-1, new_folder=None):
 
         self.merge_shot = False
         self.command = ''
@@ -54,7 +54,7 @@ class StreamParser:
         self.serial_offset = serial_offset
 
         if parse_now:
-            self.parse()
+            self.parse(new_folder)
 
     @property
     def geometry(self):
@@ -125,7 +125,7 @@ class StreamParser:
     def input_file(self):
         return self.command.split('-i ')[1].split(' -')[0].strip()
 
-    def parse(self):
+    def parse(self, new_folder):
 
         linedat_peak = StringIO()
         linedat_index = StringIO()
@@ -190,6 +190,8 @@ class StreamParser:
                     shotdat['subset'] = shotdat['Event'].split('//')[0].strip()
                 elif 'Image filename:' in l:
                     shotdat['file'] = l.split(':')[-1].strip()
+                    if new_folder is not None:
+                        shotdat['file'] = new_folder + '/' + shotdat['file'].rsplit('/', 1)[-1]
                 elif 'Image serial number:' in l:
                     shotdat['serial'] = int(l.split(': ')[1]) + self.serial_offset
                 elif (' = ' in l) and (not init_crystal_info) and init_chunk:    # optional shot info
@@ -279,7 +281,10 @@ class StreamParser:
             drop=True).drop('index', axis=1)
 
         self._shots = pd.DataFrame(shotlist).sort_values('serial').reset_index(drop=True)
-        self._crystals = pd.DataFrame(crystallist).sort_values('serial').reset_index(drop=True)
+        if crystallist:
+            self._crystals = pd.DataFrame(crystallist).sort_values('serial').reset_index(drop=True)
+        else:
+            self._crystals = pd.DataFrame(columns=ID_FIELDS)
 
     def write(self, filename, include_peaks=True, include_indexed=True, include_geom=True, include_cell=True):
 
@@ -333,6 +338,18 @@ class StreamParser:
                 fh.write(END_CHUNK + '\n')
 
 
+    def change_path(self, new_folder=None, old_pattern=None, new_pattern=None):
+        
+        for df in [self._crystals, self._shots, self._indexed, self._peaks]:
+            if (new_folder is not None) and (old_pattern is not None):
+                df.file = new_folder + '/' + \
+                    df.file.str.rsplit('/', 1, True).iloc[:,-1].str.replace(old_pattern, new_pattern)
+            elif old_pattern is not None:
+                df.file = df.file.str.replace(old_pattern, new_pattern)
+            elif new_folder is not None:
+                df.file = new_folder + '/' + df.file.str.rsplit('/', 1, True).iloc[:,-1]
+
+
     def get_cxi_format(self, what='peaks', shots=None, half_pixel_shift=False):
 
         if shots is None:
@@ -372,7 +389,7 @@ class StreamParser:
             'peakXPosRaw': (pk2['fs/px'] + off).fillna(0).values,
             'peakYPosRaw': (pk2['ss/px'] + off).fillna(0).values,
             'peakTotalIntensity': pk2[ifield].fillna(0).values,
-            'nPeaks': pk2['fs/px'].notna().sum(axis=1).values.reshape(-1, 1)}
+            'nPeaks': pk2['fs/px'].notna().sum(axis=1).values}
 
         if indexed:
             cxidat.update({'peakSNR': (pk2[ifield]/pk2['Sigma(I)']).fillna(0).values,
