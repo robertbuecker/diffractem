@@ -5,3 +5,5 @@ debug.py
 .ipynb_checkpoints
 __pycache__
 bin/modify_stream.py
+.vscode
+.DS_Store
