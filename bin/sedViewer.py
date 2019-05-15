@@ -71,7 +71,7 @@ def read_files():
     try:
         mp = args.feature_path.rsplit('/', 1)
         features = get_meta_list(files, args.feature_path)
-        print('Found mapping features at {args.map_path}.')
+        print(f'Found mapping features at {args.map_path}.')
     except KeyError:
         print(f'No mapping features found at {args.map_path}.')
         features = None
