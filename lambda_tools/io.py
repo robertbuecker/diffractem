@@ -316,6 +316,8 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
                     newstack = s[grp.index.values, ...].sum(axis=0, keepdims=True)
                 elif aggregate in ['mean', 'average', 'avg']:
                     newstack = s[grp.index.values, ...].mean(axis=0, keepdims=True)
+                elif aggregate in 'cumsum':
+                    newstack = s[grp.index.values, ...].cumsum(axis=0)
                 else:
                     raise ValueError('aggregate must be sum or mean')
                 if newchunk is not None:
@@ -323,7 +325,7 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
                     newstack = da.rechunk(newstack, (newchunk, -1, -1))
 
                 agg_stacks[sn].append(newstack)
-                agg_shots.append(grp.iloc[[0], :])  # at this point, they all should be the same
+                agg_shots.append(grp.iloc[:newstack.shape[0], :])  # at this point, they all should be the same
 
         shot_list_final = pd.concat(agg_shots, ignore_index=True)
         print(f'Aggregated: {shot_list_final.shape[0]} shots')
