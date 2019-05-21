@@ -306,6 +306,10 @@ def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_coun
     stacks = get_data_stacks(filename, base_path, labels)
     print(f'Loaded raw stacks: \n{stacks}.')
 
+    if shot_list_final.shape[0] == 0:
+        stacks_final = {sn: da.from_array(np.zeros((0,) + s.shape[1:]), chunks=-1) for sn, s in stacks.items()}
+        return stacks_final, shot_list_final
+
     # now aggregate the shots if desired, by summing or averaging
     if aggregate is not None:
         agg_stacks = {k: [] for k in stacks.keys()}
