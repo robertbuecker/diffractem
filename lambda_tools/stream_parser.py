@@ -177,12 +177,13 @@ class StreamParser:
                 # Required info at chunk head
                 elif BEGIN_CHUNK in l:
                     shotdat = {'Event': -1, 'shot_in_subset': -1, 'subset': '',
-                               'file': '', 'serial': -1}
+                               'file': '', 'serial': -1, 'first_line': ln, 'last_line': -1}
                     init_chunk = True
                 elif END_CHUNK in l:
+                    shotdat['last_line'] = ln
                     shotlist.append(shotdat)
                     shotdat = {'Event': None, 'shot_in_subset': None, 'subset': None,
-                               'file': None, 'serial': None}
+                               'file': None, 'serial': None, 'first_line': None, 'last_line': None}
                     init_chunk = False
                 elif 'Event:' in l:
                     shotdat['Event'] = l.split(': ')[-1].strip()
