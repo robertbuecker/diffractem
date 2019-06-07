@@ -29,12 +29,10 @@ def get_files(file_list, scan_shots=False):
 
     elif isinstance(file_list, str) and file_list.endswith('.lst'):
         if scan_shots:
-            fl = pd.read_csv(file_list, sep=' |//', header=None, engine='python',
-                             names=['file', 'subset', 'shot_in_subset'])
-            if fl.subset.isna().all():
-                fl.drop('subset', axis=1, inplace=True)
-            if fl.shot_in_subset.isna().all():
-                fl.drop('shot_in_subset', axis=1, inplace=True)
+            fl = pd.read_csv(file_list, sep=' ', header=None, engine='python',
+                             names=['file', 'Event'])
+            if fl.Event.isna().all():
+                fl.drop('Event', axis=1, inplace=True)
         else:
             fl = []
             for s in open(file_list, 'r').readlines():
@@ -280,6 +278,45 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results
     f2.close()
 
 
+def reduce_stack(filename, first_frame=1, last_frame=-1, aggregate='sum', suffix=None, exclude=(),
+                threads=True, instrument_data=True, label='raw_counts', **kwargs):
+
+    exp_time_field = '/entry/instrument/detector/collection/shutter_time'
+    tilt_field = '/entry/instrument/Stage/A'
+    if last_frame == -1:
+        last_frame = 16383
+    exclude = [f'frame < {first_frame}', f'frame > {last_frame}'] + list(exclude)
+
+    from multiprocessing.pool import Pool, ThreadPool
+
+    def make_stacks(raw_name):
+        sr0 = get_nxs_list(raw_name, 'shots')
+        
+        if instrument_data:
+            instrument_data = pd.DataFrame(meta_from_nxs(raw_name, [exp_time_field, tilt_field])).astype(float)
+            instrument_data.columns = ['exp_time', 'tilt_angle']
+            instrument_data['tilt_angle'] = (instrument_data['tilt_angle'] * 180/np.pi).round(1)
+            sr0 = sr0.merge(instrument_data, right_index=True, left_on='file')
+        
+        sr0['selected'] = True
+        for ex in exclude:
+            sr0.loc[sr0.eval(ex),'selected'] = False
+
+        return modify_stack(raw_name, sr0, aggregate=aggregate, labels=label, **kwargs)
+
+    if threads:
+        with ThreadPool() as pool:
+            stkdat = pool.map(make_stacks, get_files(filename))
+    else:
+        stkdat = make_stacks(get_files(filename))
+
+    shots = pd.concat([s[1] for s in stkdat if s[1].shape[0]], ignore_index=True)
+    stack_raw = da.concatenate([s[0][label] for s in stkdat if s[0][label].shape[0]], axis=0)
+    shots['file_raw'] = shots['file']
+
+    return None
+
+
 def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_counts', sort_by=None,
                  drop_invalid=True, aggregate=None, agg_by=('file', 'subset', 'region', 'run', 'crystal_id'),
                  newchunk=None):
@@ -460,7 +497,12 @@ def store_meta_list(filename, list, path='/%/data/shots', **kwargs):
 
 def get_meta_list(filename, path='/%/data/shots'):
     # This one will one day get a single list only, but in parallel on all h5 files
-    fns = get_files(filename)
+    try:
+        fnshots = None
+        fns = get_files(filename)
+    except RuntimeError:
+        fnshots = get_files(filename, scan_shots=True)
+        fns = list(fnshots['file'].unique())
 
     if len(fns) == 1:
         fn = fns[0]
@@ -478,12 +520,16 @@ def get_meta_list(filename, path='/%/data/shots'):
                 newlist['subset'] = subset
                 newlist['file'] = fn
                 lists.append(newlist)
-        return pd.concat(lists, axis=0, ignore_index=True)
 
+            return pd.concat(lists, axis=0, ignore_index=True)
+            
     with ProcessPoolExecutor() as p:
         out = p.map(get_meta_list, fns, repeat(path))
 
-    return(pd.concat(out, ignore_index=True))
+    if fnshots is None:
+        return(pd.concat(out, ignore_index=True))
+    else:
+        return(pd.concat(out, ignore_index=True).merge(fnshots, on=['file', 'Event'], how='right'))
 
 
 def store_meta_lists(filename, lists, base_path='/%/data', **kwargs):

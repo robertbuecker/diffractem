@@ -2,6 +2,7 @@ import pandas as pd
 from io import StringIO
 import numpy as np
 import subprocess
+import re
 
 try:
     label = subprocess.check_output(["git", "describe"]).strip()
@@ -97,16 +98,19 @@ class StreamParser:
 
         :return: crystfel call options (ONLY -- ones) as dict
         """
-
         o = {}
-        for opt in self.command.split('--')[1:]:
+        for opt in re.findall('--\S+', self.command):
             if '=' in opt:
-                k, v = opt.split('=', 1)
+                k, v = opt[2:].split('=', 1)
                 try:
-                    o[k.strip()] = float(v)
+                    o[k.strip()] = int(v)
                 except ValueError:
-                    o[k.strip()] = v.strip()
-
+                    try:
+                        o[k.strip()] = float(v)
+                    except ValueError:
+                        o[k.strip()] = v.strip()
+            else:
+                o[opt[2:].strip()] = None
         return o
 
     @property
