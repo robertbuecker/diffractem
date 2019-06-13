@@ -33,7 +33,7 @@ def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
               map_px=None, clen=None, det_px=None, wavelength=None,
               stacks=None, shots=None, peaks=None, predict=None,
               base_path='/%/data', map_path='/%/map/image', results_path='/%/results',
-              pre_compute=True, store_to=None, **kwargs):
+              pre_compute=True, store_to=None, cmap='gray', ringcolor='y', **kwargs):
     """
 
     """
@@ -89,7 +89,7 @@ def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
         #figh = figs[ii]
 
         img_ax = figh.add_axes([0, 0, 0.66, 0.95])
-        img_ax.imshow(img, vmin=0, vmax=np.quantile(img, cutoff/100), cmap='gray', label='diff')
+        img_ax.imshow(img, vmin=0, vmax=np.quantile(img, cutoff/100), cmap=cmap, label='diff')
 
         if show_peaks:
             coords = peaks.loc[peaks['serial'] == idx, :]
@@ -118,9 +118,9 @@ def diff_plot(filename, idcs, setname='centered', beamdiam=100e-9,
         #print(shot['recpx'])
         for res in rings:
             img_ax.add_artist(mpl.patches.Ellipse((img.shape[1] / 2 + xoff, img.shape[0] / 2 + yoff),
-                                             width=2*(shot['recpx'] / res), height=2*(shot['recpx'] / res * (1+ellipticity)), edgecolor='y', fill=False))
+                                             width=2*(shot['recpx'] / res), height=2*(shot['recpx'] / res * (1+ellipticity)), edgecolor=ringcolor, fill=False))
             img_ax.text(img.shape[1] / 2 + shot['recpx'] / res / 1.4, img.shape[0] / 2 - shot['recpx'] / res / 1.4, '{} A'.format(res),
-                    color='y')
+                    color=ringcolor)
 
         for _, c in coords.iterrows():
             img_ax.add_artist(plt.Circle((c['fs/px'] - 0.5, c['ss/px'] - 0.5),
