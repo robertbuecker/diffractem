@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='lambda-tools',
     version='0.2.1',
-    packages=['lambda_tools'],
+    packages=['diffractem'],
     url='',
     license='',
     scripts=['bin/nxs2tif.py','bin/streamViewer.py','bin/sedViewer.py'],

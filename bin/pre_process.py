@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import hdf5plugin
 
-import lambda_tools.stream_parser
-from lambda_tools import io, proc2d, tools, compute, overview
+import diffractem.stream_parser
+from diffractem import io, proc2d, tools, compute, overview
 import numpy as np
 from tifffile import TiffFile, imread, imsave
 from glob import glob

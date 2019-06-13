@@ -2,7 +2,7 @@ import hdf5plugin
 import h5py
 import numpy as np
 import time
-from lambda_tools.io import *
+from diffractem.io import *
 
 import matplotlib.pyplot as plt
 # for interactive pycharm: %matplotlib tk
@@ -17,7 +17,7 @@ if PyQt4_found is not None:
 else:
     from PyQt5 import QtGui, QtCore
 
-from lambda_tools.StreamFileParser import *
+from diffractem.StreamFileParser import *
 
 pg.setConfigOptions(imageAxisOrder='row-major')
 

@@ -16,7 +16,7 @@ if PyQt4_found is not None:
 else:
     from PyQt5 import QtGui, QtCore
 
-from lambda_tools.StreamFileParser import *
+from diffractem.StreamFileParser import *
 
 # streamFileParser = StreamFileParser("/gpfs/cfel/cxi/scratch/user/gevorkov/test_indexing_aps_jungfrau_protK/idx_protKdoc_chip1dot6_12bunch_run1.stream", 10)
 

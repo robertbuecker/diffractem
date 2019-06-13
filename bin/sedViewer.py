@@ -1,8 +1,8 @@
 import hdf5plugin
 import h5py
 import numpy as np
-from lambda_tools.io import *
-from lambda_tools.stream_parser import StreamParser
+from diffractem.io import *
+from diffractem.stream_parser import StreamParser
 import pyqtgraph as pg
 import importlib
 import sys
