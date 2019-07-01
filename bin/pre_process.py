@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import hdf5plugin
 
+import diffractem.dataset
 import diffractem.stream_parser
-from diffractem import io, proc2d, tools, compute, overview
+from diffractem import io, proc2d, tools, compute, map_image
 import numpy as np
 from tifffile import TiffFile, imread, imsave
 from glob import glob
@@ -36,22 +37,22 @@ if args.pxmask is not None:
 raw_name = args.input
 
 # Shot pre-selection and aggregation
-sr0 = io.get_nxs_list(raw_name, 'shots')
+sr0 = diffractem.dataset.get_nxs_list(raw_name, 'shots')
 sr0['selected'] = True
 for ex in args.exclude:
     sr0.loc[sr0.eval(ex), 'selected'] = False
-stack_raw, shots = io.modify_stack(sr0, drop_invalid=True,
-                                   max_chunk=100, aggregate='sum', min_chunk=60,
-                                   data_path='/entry/data/raw_counts')
+stack_raw, shots = diffractem.dataset.modify_stack(sr0, drop_invalid=True,
+                                                   max_chunk=100, aggregate='sum', min_chunk=60,
+                                                   data_path='/entry/data/raw_counts')
 
 # gymnastics required for paranoid data sets
-crystals = io.get_nxs_list(raw_name, 'features')
+crystals = diffractem.dataset.get_nxs_list(raw_name, 'features')
 shots = shots.drop(['crystal_x', 'crystal_y'], axis=1).merge(
     crystals[['crystal_x', 'crystal_y', 'crystal_id', 'subset']],
     on=['crystal_id', 'subset'], how='left')
 
 io.copy_h5(raw_name, list_name, h5_folder=proc_folder, mode='w', exclude=('%/detector/data',))
-io.store_nxs_list(list_name, shots, what='shots')
+diffractem.dataset.store_nxs_list(list_name, shots, what='shots')
 
 # Pre-processing: flatfield, dead pixels, center-of-mass, Lorentzian fit, centering, pixel mask creation
 
@@ -81,7 +82,7 @@ alldata = {'masked': stack, 'center_of_mass': com, 'lorentz_fit': lorentz, 'beam
 io.store_data_stacks(list_name, alldata, flat=True, shots=shots, base_path='/%/data', compression=32004)
 
 # take care of meta data
-shots = io.get_nxs_list(list_name)
+shots = diffractem.dataset.get_nxs_list(list_name)
 stacks = io.get_data_stacks(list_name, base_path='/%/data')
 
 # mangle data arrays from computation into shot list
@@ -92,4 +93,4 @@ for key in ['adf1', 'adf2', 'beam_center', 'lorentz_fit']:
     else:
         for ii, col in enumerate(data.T):
             shots[key + '_' + '{}'.format(ii)] = col.T
-io.store_nxs_list(list_name, shots)
+diffractem.dataset.store_nxs_list(list_name, shots)

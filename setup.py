@@ -6,7 +6,7 @@ setup(
     packages=['diffractem'],
     url='',
     license='',
-    scripts=['bin/nxs2tif.py','bin/streamViewer.py','bin/sedViewer.py'],
+    scripts=['bin/nxs2tif.py', 'bin/sedViewer.py'],
     author='Robert Buecker',
     author_email='robert.buecker@mpsd.mpg.de',
     description='Some tools for working with serial TEM data acquired with a Lambda Medipix-based detector.',

@@ -1,13 +1,9 @@
-import hdf5plugin
-import h5py
-import numpy as np
 from diffractem.io import *
+from diffractem.nexus import get_table
 from diffractem.stream_parser import StreamParser
 import pyqtgraph as pg
 import importlib
-import sys
 import argparse
-import pandas as pd
 
 PyQt4_found = importlib.util.find_spec("PyQt4")
 if PyQt4_found is not None:
@@ -45,7 +41,7 @@ def read_files():
 
     if file_type in ['lst', 'h5', 'hdf', 'nxs']:
         # here, you need a shot list. Long term: use Crystfel's shot list expansion tool.
-        files = get_files(args.filename) # always expand into list, to be compatible with stream file option
+        files = expand_files(args.filename) # always expand into list, to be compatible with stream file option
         try:
             shots = get_nxs_list(files)
             shots['serial'] = shots.index.values
@@ -70,7 +66,7 @@ def read_files():
 
     try:
         mp = args.feature_path.rsplit('/', 1)
-        features = get_meta_list(files, args.feature_path)
+        features = get_table(files, args.feature_path)
         print(f'Found mapping features at {args.map_path}.')
     except KeyError:
         print(f'No mapping features found at {args.map_path}.')
@@ -79,12 +75,12 @@ def read_files():
     if file_type != 'stream':
         print('No stream file provided, trying to load peaks and predictions from pandas dataframes in HDF5 files.')
         try:
-            peaks = get_meta_list(files, args.peaks_path)
+            peaks = get_table(files, args.peaks_path)
         except KeyError:
             print(f'No peaks found at {args.peaks_path}.')
             peaks = None
         try:
-            predict = get_meta_list(files, args.predict_path)
+            predict = get_table(files, args.predict_path)
         except KeyError:
             print(f'No prediction spots found at {args.predict_path}.')
             predict = None

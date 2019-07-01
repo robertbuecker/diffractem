@@ -1,6 +1,6 @@
 import numpy as np
 
-__all__ = ['compute', 'io', 'proc2d', 'tools', 'overview', 'models']
+__all__ = ['compute', 'io', 'proc2d', 'tools', 'map_image.py', 'models']
 
 
 def gap_pixels():

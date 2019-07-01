@@ -1,7 +1,7 @@
 import json
 from scipy.cluster.vq import kmeans2
 from scipy._lib._util import _asarray_validated
-from sklearn.cluster import KMeans
+#from sklearn.cluster import KMeans
 import cv2
 import numpy as np
 import pandas as pd
@@ -22,6 +22,7 @@ import h5py
 import dask.array as da
 from warnings import warn
 
+import diffractem.nexus
 from diffractem import tools, io, normalize_keys
 
 
@@ -89,7 +90,7 @@ def whiten(obs, check_finite=False):
     return obs / std_dev, std_dev
 
 
-class OverviewImg:
+class MapImage:
 
     def __init__(self, img=None, coordinates=None, basename=None, region_id=0, run_id=0,
                  subset=None, sample='', detector_file=None, flatten_meta=False):
@@ -202,7 +203,7 @@ class OverviewImg:
         retsh['region'] = self.region_id
         retsh['shot'] = range(len(retsh))
         retsh['subset'] = self.subset
-        retsh['stem'] = self._img_label
+        #retsh['stem'] = self._img_label
         retsh['sample'] = self.sample
         if self.mask.size:
             retsh['mask'] = self._img_label
@@ -351,7 +352,7 @@ class OverviewImg:
 
         self.mask = mask
 
-    def store(self, basename):
+    def to_files(self, basename):
         # store overview and coordinate data in separate text/tif files
 
         if self.img.size:
@@ -374,7 +375,7 @@ class OverviewImg:
             print('Saving file {}'.format(fn))
             np.savetxt(fn, self.coordinates, '%.8e')
 
-    def read(self, basename):
+    def from_files(self, basename):
         # read overview and coordinate data from separate text/tif files
 
         try:
@@ -490,9 +491,9 @@ class OverviewImg:
         else:
             m = self._meta
 
-        io.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument_{map_grp}',
-                       data_location=f'/{subset}/instrument_{map_grp}/STEM_Image/data',
-                       data_grp=f'/{subset}/{map_grp}', data_field='image')
+        diffractem.nexus.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument_{map_grp}',
+                                     data_location=f'/{subset}/instrument_{map_grp}/STEM_Image/data',
+                                     data_grp=f'/{subset}/{map_grp}', data_field='image')
 
         if store_diff_meta:
             if self._meta_diff is None:
@@ -500,125 +501,12 @@ class OverviewImg:
             else:
                 m = self._meta_diff
 
-            io.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument', data_grp=None)
+            diffractem.nexus.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument', data_grp=None)
 
         # lists
         self.features.to_hdf(filename, f'/{subset}/{map_grp}/features', format='table', data_columns=True)
         if self._shots.size:
             self.shots.to_hdf(filename, f'/{subset}/{diffdata_grp}/shots', format='table', data_columns=True)
-
-    @classmethod
-    def from_h5(cls, filename, region_id=None, run_id=None, subset=None, **kwargs):
-        """
-        Load overview image data from HDF5 file. Caveat: acquisition metadata will be flattened!
-        :param filename: obvious, right?
-        :param region_id: if None (by default), assumes that the selected subset contains only one region/run
-        :param run_id: if None (by default), assumes that the selected subset contains only one region/run
-        :param subset: if None (by default), assumes that the file contains only a single subset
-        :return: an OverviewImg object
-        """
-
-        meta = io.get_meta_lists(filename, '/entry/meta/%')
-
-        #if subset is None:
-        #    if len(meta) > 1:
-        #        print(meta.keys())
-        #        raise ValueError('File contains more than one subset. You have to specify which one to read.')
-        #    else:
-        #        subset = list(meta.keys())[0]
-
-        #meta = meta[subset]
-
-        if (region_id is None) or (run_id is None):
-            regrun = []
-            #print(meta)
-            for k, v in meta.items():
-                if ('run' in v.columns) and ('region' in v.columns):
-                    regrun.append(v[['region', 'run']])
-
-            if not regrun:
-                raise ValueError('Meta lists do not seem to contain region/run information. You have to give them explicitly!')
-
-            regrun = pd.concat(regrun).drop_duplicates()
-            if len(regrun) > 1:
-                print(regrun)
-                raise ValueError('Subset contains more than one region/run. You have to give it explicitly!')
-
-            region_id = regrun.iloc[0, :]['region']
-            run_id = regrun.iloc[0, :]['run']
-
-        self = cls(region_id=region_id, run_id=run_id, subset=subset, **kwargs)
-
-        if 'crystals' in meta.keys():
-            cryst = meta['crystals']
-            self.features = cryst.loc[(cryst['region'] == self.region_id) & (cryst['run'] == self.run_id), :]
-
-        if 'shots' in meta.keys():
-            self.shots = meta['shots'].loc[
-                         (meta['shots']['region'] == self.region_id) & (meta['shots']['run'] == self.run_id), :]
-
-        if len(self.features) == 0:
-            raise ValueError('No crystals or shots list found in HDF5 file.')
-
-        if 'stem_acqdata' in meta.keys():
-            self.meta = meta['stem_acqdata'].loc[(meta['stem_acqdata']['region']==self.region_id) & (meta['stem_acqdata']['run']==self.run_id)]
-            self.tilt = np.round(self.meta['Stage_A'].values * 180 / np.pi)
-
-        if 'acqdata' in meta.keys():
-            self.meta_diff = meta['acqdata'].loc[(meta['acqdata']['region']==self.region_id) & (meta['acqdata']['run']==self.run_id)]
-            #self.tilt = np.round(self.meta_diff['Stage_A'].values * 180 / np.pi)
-
-        if 'stem' in self.features.columns:
-            self._img = io.get_meta_array(filename, 'stem', self.features.iloc[0, :], subset=self.subset)
-
-        if 'mask' in self.features.columns:
-            self.mask = io.get_meta_array(filename, 'mask', self.features.iloc[0, :], subset=self.subset)
-
-        self.features.drop(['region', 'run'], axis=1, inplace=True)
-
-        return self
-
-    def to_h5(self, filename):
-        """
-        Write overview image data into a HDF5 file conforming to the downstream analysis codes.
-        Note that this is a total mess so far.
-        :param filename: output filename
-        :return:
-        """
-
-        warn('to_h5 is totally deprecated and may cause all sorts of trouble. Use the new to_nxs instead.')
-
-        # all the implicit fields now have to be made explicit
-        cryst = self.features.copy()
-        cryst['region'] = self.region_id
-        cryst['run'] = self.run_id
-        lists = {'crystals': cryst}
-
-        if self._meta is not None:
-            m = self.meta.copy()
-            m['region'] = self.region_id
-            m['run'] = self.run_id
-            lists.update({'stem_acqdata': m})
-
-        if self._meta_diff is not None:
-            md = self.meta_diff.copy()
-            md['region'] = self.region_id
-            md['run'] = self.run_id
-            lists.update({'acqdata': md})
-
-        # note: this has side-effects (but that's ok -> adds the STEM data set name)!
-        self._img_label, _ = io.store_meta_array(filename, 'stem', {'region': self.region_id, 'run': self.run_id}, self.img, shots=cryst,
-                            listname='crystals', subset_label=self.subset)
-
-        if self.mask.size:
-            io.store_meta_array(filename, 'mask', {'region': self.region_id, 'run': self.run_id}, self.mask, shots=cryst,
-                                subset_label=self.subset)
-
-        # must come last, so that all other parameters are properly set (shots is auto-generated)
-        if self._shots.size:
-            lists.update({'shots': self.shots})
-
-        io.store_meta_lists(filename, {self.subset: lists}, flat=False) # MUST go last, as store_meta_array has side-effects
 
     def find_particles(self, show_plot=True, show_segments=True, return_images = False,
                        thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49, two_pass=False, # thresholding

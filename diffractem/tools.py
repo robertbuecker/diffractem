@@ -1,18 +1,12 @@
 # Tool functions to process and convert images from the Lambda detector.
 
-import dask.array as da
-import h5py
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import pandas as pd
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from astropy.convolution import Gaussian2DKernel, convolve
-import os
 
 from . import gap_pixels
 from .io import *
-from diffractem.legacy import save_lambda_img
 from .proc2d import correct_dead_pixels
 
 def strip_file_path(df: pd.DataFrame, add_folder=False):
