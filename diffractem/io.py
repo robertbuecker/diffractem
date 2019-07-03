@@ -1,4 +1,3 @@
-import re
 import h5py
 import numpy as np
 import pandas as pd
@@ -14,6 +13,8 @@ from typing import Union
 def expand_files(file_list: Union[str, list], scan_shots=False):
     if isinstance(file_list, list) or isinstance(file_list, tuple):
         fl = file_list
+        if scan_shots:
+            fl = pd.DataFrame(fl, columns=['file'])
 
     elif isinstance(file_list, str) and file_list.endswith('.lst'):
         if scan_shots:
@@ -30,6 +31,8 @@ def expand_files(file_list: Union[str, list], scan_shots=False):
 
     elif isinstance(file_list, str) and (file_list.endswith('.h5') or file_list.endswith('.nxs')):
         fl = [file_list, ]
+        if scan_shots:
+            fl = pd.DataFrame(fl, columns=['file'])
 
     else:
         raise TypeError('file_list must be a list file, single h5/nxs file, or a list of filenames')
@@ -81,104 +84,6 @@ def h5_to_dict(grp, exclude=('data', 'image'), max_len=100):
                 continue
             d[k] = v.value
     return d
-
-
-def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results/%'), mode='w-',
-            print_skipped=False, h5_folder=None, h5_suffix='.h5'):
-    """
-    Copies datasets h5/nxs files or lists of them to new ones, with exclusion of datasets.
-    :param fn_from: single h5/nxs file or list file
-    :param fn_to: new file name, or new list file. If the latter, specify with h5_folder and h5_suffix how the new names
-        are supposed to be constructed
-    :param exclude: patterns for data sets to be excluded. All regular expressions are allowed, % is mapped to .*
-        (i.e., any string of any length), for compatibility with CrystFEL
-    :param mode: mode in which new files are opened. By default w-, i.e., files are created, but never overwritten
-    :param print_skipped: print the skipped data sets, for debugging
-    :param h5_folder: if operating on a list: folder where new h5 files should go
-    :param h5_suffix: if operating on a list: suffix appended to old files (after stripping their extension)
-    :return:
-    """
-
-    if (isinstance(fn_from, str) and fn_from.endswith('.lst')) or isinstance(fn_from, list):
-        old_files = expand_files(fn_from)
-        new_files = []
-
-        for ofn in old_files:
-            # print(ofn)
-            # this loop could beautifully be parallelized. For later...
-            if h5_folder is None:
-                h5_folder = ofn.rsplit('/', 1)[0]
-            if h5_suffix is None:
-                h5_suffix = ofn.rsplit('.', 1)[-1]
-            nfn = h5_folder + '/' + ofn.rsplit('.', 1)[0].rsplit('/', 1)[-1] + h5_suffix
-            new_files.append(nfn)
-            # exclude detector data and shot list
-            copy_h5(ofn, nfn, exclude, mode, print_skipped)
-
-        with open(fn_to, 'w') as f:
-            f.write('\n'.join(new_files))
-
-        return
-
-    try:
-
-        if len(exclude) == 0:
-            from shutil import copyfile
-            copyfile(fn_from, fn_to)
-
-        f = h5py.File(fn_from)
-        f2 = h5py.File(fn_to, mode)
-
-        exclude_regex = [re.compile(ex.replace('%', '.*')) for ex in exclude]
-
-        def copy_exclude(key, ds, to):
-
-            for ek in exclude_regex:
-                if ek.fullmatch(ds.name) is not None:
-                    if print_skipped:
-                        print(f'Skipping key {key} due to {ek}')
-                    return
-
-            if isinstance(ds, h5py.Dataset):
-                to.copy(ds, key)
-
-            elif isinstance(ds, h5py.Group) and 'table_type' in ds.attrs.keys():
-                # pandas table is a group. Do NOT traverse into it or pain
-                # print(f'Copying table {key}')
-                to.copy(ds, key)
-
-            elif isinstance(ds, h5py.Group):
-                # print(f'Creating group {key}')
-                new_grp = to.require_group(key)
-                # attribute copying is nasty. Lots of error catching required.
-                try:
-                    for k, v in ds.attrs.items():
-                        try:
-                            new_grp.attrs.create(k, v)
-                        except TypeError as err:
-                            new_grp.attrs.create(k, np.string_(v))
-                except OSError:
-                    # some newer HDF5 attribute types (used by pytables) will crash h5py even just listing them
-                    # print(f'Could not copy attributes of group {ds.name}')
-                    pass
-
-                for k, v in ds.items():
-                    lnk = ds.get(k, getlink=True)
-                    if isinstance(lnk, h5py.SoftLink):
-                        new_grp[k] = h5py.SoftLink(lnk.path)
-                        continue
-                    copy_exclude(k, v, new_grp)
-
-        copy_exclude('/', f, f2)
-
-    except Exception as err:
-        f.close()
-        f2.close()
-        os.remove(fn_to)
-        raise err
-
-    f.close()
-    f2.close()
 
 
 def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):

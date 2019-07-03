@@ -1,3 +1,4 @@
+import diffractem.nexus
 import matplotlib.pyplot as plt
 import hdf5plugin
 
@@ -51,7 +52,7 @@ shots = shots.drop(['crystal_x', 'crystal_y'], axis=1).merge(
     crystals[['crystal_x', 'crystal_y', 'crystal_id', 'subset']],
     on=['crystal_id', 'subset'], how='left')
 
-io.copy_h5(raw_name, list_name, h5_folder=proc_folder, mode='w', exclude=('%/detector/data',))
+diffractem.nexus.copy_h5(raw_name, list_name, h5_folder=proc_folder, mode='w', exclude=('%/detector/data',))
 diffractem.dataset.store_nxs_list(list_name, shots, what='shots')
 
 # Pre-processing: flatfield, dead pixels, center-of-mass, Lorentzian fit, centering, pixel mask creation
