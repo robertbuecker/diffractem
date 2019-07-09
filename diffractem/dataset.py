@@ -38,7 +38,7 @@ class Dataset:
         self._zchunks = 1
         self._stacks = {}
         self._shot_id_cols = ['file', 'Event']
-        self._feature_id_cols = ['crystal_id', 'region']
+        self._feature_id_cols = ['crystal_id', 'region', 'sample']
         self._stacks_open = False
 
         # tables
@@ -62,8 +62,8 @@ class Dataset:
         # allows to access stacks with dot notation
         if attr == '_stacks':
             raise AttributeError()  # needed for copying the object to avoid infinite recursion
-        if attr in self.stacks.keys():
-            return self.stacks[attr]
+        if attr in self._stacks.keys():
+            return self._stacks[attr]
         else:
             raise AttributeError(f'{attr} is neither a dataset attribute, nor a stack name.')
 
@@ -208,10 +208,10 @@ class Dataset:
                 if 'sample' not in self._features.columns:
                     sdat = nexus.get_meta_fields(list(self._features.file.unique()),
                                                  ['/%/sample/name', '/%/sample/region_id', '/%/sample/run_id']). \
-                        rename(columns={'name': 'sample', 'region_id': 'region'})
+                        rename(columns={'name': 'sample', 'region_id': 'region', 'run_id': 'run'})
                     self._features = self._features.merge(sdat, how='left', on=['file', 'subset'])
 
-                # self._features.drop_duplicates(inplace=True)
+                self._features.drop_duplicates(self._feature_id_cols, inplace=True)
 
             except KeyError:
                 print('No features found at ' + self.map_pattern + '/features')
@@ -471,8 +471,8 @@ class Dataset:
             newset._peaks = self._sel(self._peaks).reset_index(drop=True)
             newset._predict = self._sel(self._predict).reset_index(drop=True)
             newset._features = self._features.merge(newset._shots[self._feature_id_cols],
-                                                    on=self._feature_id_cols, how='inner', validate='1:m').reset_index(
-                drop=True)
+                                                    on=self._feature_id_cols, how='inner', validate='1:m').\
+                drop_duplicates(self._feature_id_cols).reset_index(drop=True)
             newset._stacks = {}
 
             newset.change_filenames(file_suffix, file_prefix, new_folder)
@@ -492,17 +492,34 @@ class Dataset:
 
         return newset
 
-    def aggregate(self, by: Union[list, tuple] = ('frame'), how: Union[dict, str] = 'mean',
-                  file_suffix: str = '_sel.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
-                  rechunk: Union[None, int] = None) -> 'Dataset':
-        # apply aggregation function based on grouping of fields
+    def aggregate(self, by: Union[list, tuple] = ('run', 'region', 'crystal_id', 'sample'),
+                  how: Union[dict, str] = 'mean',
+                  file_suffix: str = '_agg.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
+                  rechunk: Union[None, int] = None, allow_mix: bool = False) -> 'Dataset':
+        """
+        Aggregate sub-sets of stacks using different aggregation functions. Typical application: sum sub-stacks of
+        dose fractionation movies, or shots with different tilt angles (quasi-precession)
+        :param by:
+        :param how:
+        :param file_suffix:
+        :param file_prefix:
+        :param new_folder:
+        :param rechunk:
+        :param allow_mix:
+        :return:
+        """
 
+        by = list(by)
         # aggregate shots
         newset = copy.copy(self)
-        agg_stacks = {k: [] for k in stacks.keys()}
+        agg_stacks = {k: [] for k in self.stacks.keys()}
         agg_shots = []
 
+        if not self._stacks_open:
+            raise RuntimeError('Stacks are not open.')
+
         for _, grp in self.shots.groupby(by):
+            # loop over aggregation group
 
             # investigate the group a bit...
             if all(np.diff(grp.index) == 1):
@@ -512,25 +529,76 @@ class Dataset:
                 idcs = grp.index.values  # aggregation is a non-continuous region in shot list
                 continuous = False
 
-            agg_shots = grp.copy()
+            # DATA STACKS ----
 
-
-            # now do the stacks...
             for sn, s in self.stacks.items():
-                method = how if isinstance(how, str) else how[sn]
+                method = how if isinstance(how, str) else how.get(sn, 'mean')
 
                 if method == 'sum':
                     newstack = s[idcs, ...].sum(axis=0, keepdims=True)
-                elif method == ['mean', 'average', 'avg']:
+                elif method in ['mean', 'average', 'avg']:
                     newstack = s[idcs, ...].mean(axis=0, keepdims=True)
                 elif method == 'cumsum':
                     newstack = s[idcs, ...].cumsum(axis=0)
                 else:
                     raise ValueError(f'Unknown aggregation method {how}')
+
                 agg_stacks[sn].append(newstack)
 
-        newset._stacks = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
+            newset._stacks = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
 
+            # SHOT LIST ----
+
+            newshots = grp.copy()
+
+            # find columns with non-identical entries in the aggregation group
+            nunique = newshots.apply(pd.Series.nunique)
+            cols_nonid = nunique[nunique > 1].index
+
+            if ('file' in cols_nonid) or ('subset' in cols_nonid):
+                # subset and file are different within aggregation. #uh-oh #crazydata #youpunkorwhat
+                # ...trying to come up with a sensible file and subset name, by finding common sequences
+
+                if not allow_mix:
+                    raise ValueError('Aggregation of data from different files requested. Set allow_mix to true to'
+                                     'allow that.')
+                from functools import reduce
+                from difflib import SequenceMatcher
+
+                common_file = reduce(lambda s1, s2: ''.join([s1[m.a:m.a + m.size] for m in
+                                                             SequenceMatcher(None, s1, s2).get_matching_blocks()]),
+                                     newshots.files)
+                common_subset = reduce(lambda s1, s2: ''.join([s1[m.a:m.a + m.size] for m in
+                                                               SequenceMatcher(None, s1, s2).get_matching_blocks()]),
+                                       newshots.subset)
+                newshots.file = common_file
+                newshots.subset = common_subset
+
+            # ID string for some explanation
+            newshots['aggregation'] = newshots.iloc[0]['file'] + ':' + newshots.iloc[0]['Event'] + '->' + \
+                                      newshots.iloc[-1]['file'] + ':' + newshots.iloc[-1]['Event']
+
+            if newshots.shape[0] > 1:
+                newshots = pd.concat([newshots.iloc[0:1, :]] * newstack.shape[0], axis=0, ignore_index=True)
+            agg_shots.append(newshots)
+
+        print(cols_nonid)
+
+        newset._shots = pd.concat(agg_shots, axis=0, ignore_index=True)
+        newset._features = self._features.merge(newset._shots[self._feature_id_cols],
+                                                on=self._feature_id_cols, how='inner', validate='1:m'). \
+            drop_duplicates(self._feature_id_cols).reset_index(drop=True)
+
+        newset._h5handles = {}
+        newset.change_filenames(file_suffix, file_prefix, new_folder)
+        newset.reset_id(keep_raw=False)
+
+        # drop remaining columns that are inconsistent
+        for col in cols_nonid:
+            if col not in self._shot_id_cols + ['shot_in_subset']:
+                newset._shots.drop(col, axis=1)
+
+        return newset
 
     def init_stacks(self):
         """
@@ -590,7 +658,6 @@ class Dataset:
                         stacks[dsname].append(newstack)
 
         self._stacks.update({sn: da.concatenate(s, axis=0) for sn, s in stacks.items()})
-
         self._stacks_open = True
 
     def add_stack(self, label: str, stack: Union[da.Array, np.array, h5py.Dataset], overwrite=False):
