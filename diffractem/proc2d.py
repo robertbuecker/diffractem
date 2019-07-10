@@ -1,17 +1,14 @@
 import tifffile
-import warnings
 #import time
 import numpy as np
-import matplotlib.pyplot as plt
 import dask.array as da
-from numba import jit, prange, int64, float64
+from numba import jit, prange, int64
 
 #import hyperspy.api as hs
 
 from . import gap_pixels
-from scipy import optimize, sparse, special, ndimage
+from scipy import optimize, sparse, special
 from astropy.convolution import Gaussian2DKernel, convolve
-from sklearn.cluster import KMeans, DBSCAN
 
 from functools import wraps
 #from itertools import repeat
@@ -36,15 +33,20 @@ def loop_over_stack(fun):
     @wraps(fun)
     def loop_fun(imgs, *args, **kwargs):
         # this is NOT intended for dask arrays!
-        assert isinstance(imgs, np.ndarray) 
+        if not isinstance(imgs, np.ndarray):
+            raise TypeError(f'loop_over_stack only works on numpy arrays (not dask etc.). '
+                            f'Passed type to {fun} is {type(imgs)}')
 
         if imgs.ndim == 2:
             return fun(imgs, *args, **kwargs)
 
         elif imgs.shape[0] == 1:
+            # some gymnastics if arrays are on weird dimensions (often after map_blocks)
+            args = [a.squeeze() if isinstance(a, np.ndarray) else a for a in args]
+            kwargs = {k: a.squeeze() if isinstance(a, np.ndarray) else a for k, a in kwargs.items()}
             return np.expand_dims(fun(imgs.squeeze(), *args, **kwargs), axis=0)
 
-        #print('Applying {} to {} images'.format(fun, imgs.shape[0]))
+        # print('Applying {} to {} images'.format(fun, imgs.shape[0]))
 
         def _isiterable(arg):
             try:
@@ -53,33 +55,33 @@ def loop_over_stack(fun):
             except TypeError:
                 return False
 
-
         iter_args = []
         for a in args:
             if _isiterable(a) and len(a) == len(imgs):
+                if isinstance(a, np.ndarray):
+                    a = a.squeeze()
                 iter_args.append(a)
             else:
-                #iter_args.append(repeat(a, lenb(imgs)))
+                # iter_args.append(repeat(a, lenb(imgs)))
                 iter_args.append([a]*len(imgs))
 
         iter_kwargs = []
         for k, a in kwargs.items():
             if _isiterable(a) and len(a) == len(imgs):
+                if isinstance(a, np.ndarray):
+                    a = a.squeeze()
                 iter_kwargs.append(a)
             else:
-                #iter_kwargs.append(repeat(a, len(imgs)))
+                # iter_kwargs.append(repeat(a, len(imgs)))
                 iter_kwargs.append([a] * len(imgs))
 
-
         out = []
-        #print(iter_args)
-        #print(iter_kwargs)
 
         for arg in zip(imgs, *(iter_args + iter_kwargs)):
             theArgs = arg[1:1+len(args)]
             theKwargs = {k: v for k, v in zip(kwargs, arg[1+len(args):])}
-            #print(theArgs)
-            #print(theKwargs)
+            # print('Arguments: ', theArgs)
+            # print('KW Args:   ', theKwargs)
             out.append(fun(arg[0], *theArgs, **theKwargs))
 
         return np.stack(out)
@@ -124,7 +126,7 @@ def func_lorentz(p, x, y):
     return p[0]*((1+((x-p[1])/p[3])**2.0 + ((y-p[2])/p[3])**2.0)**(-p[4]/2.0))
 
 
-def func_voight(p, r):
+def func_voigt(p, r):
     """
     Function that returns the voight-profile
     :param p    : [amp sigma lambda]
@@ -290,7 +292,7 @@ def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limi
     (i.e. to a couple of pixels) has been made by another method such as truncated COM.
     Compared to the other fits, it always assumes a shape parameter 2 (i.e. standard Lorentzian with asymptotic x^-2).
     It can restrict the fit to only a small region around the initial value for the beam center, which massively speeds
-    the function up. Also, it auto-estimates the intial parameters somewhat reasonably if nothing else is given.
+    up the function. Also, it auto-estimates the intial parameters somewhat reasonably if nothing else is given.
     :param img: input image or image stack. If a stack is supplied, it is serially looped. Not accepting dask directly.
     :param x_0: estimated x beam center. If None, is assumed to be in the center of the image.
     :param y_0: analogous.
@@ -364,7 +366,9 @@ def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limi
             out = optimize.leastsq(error, param, Dfun=jacobian)[0]
 
     except Exception as err:
-        print('Fitting did not work: {}'.format(err))
+        # print(param)
+        print('Fitting did not work: {} with initial parameters {}'.format(err, param))
+        # raise err
         return param
 
     change = out - param
@@ -478,139 +482,6 @@ def radial_proj(img, x0, y0, my_func=np.mean, max_size=850):
     return result
 
 
-def profile_classify_ML(prof_stack, fit_record = None, show_plot = False, 
-                        refit = True, rescale = True, verbose = True, 
-                        bin_min = 5, bin_max = 40):
-    """
-    Takes the profile stack,
-    refits a 1D Lorentz distribution(Optional),
-    classifies the profiles with KMeans form sklearn.cluster, 
-    NB MinibatchKMeans is not parrallelized
-    takes the mean, and returns them to the correct index in profile_ave.
-    :param prof_stack   : stack of profiles
-    :fit_record         : array of parameters returned form the 2D lorentz fit
-    :show_plot          : switch for plotting the profiles
-    :refit              : switch for refitting of the profiles
-    :rescale            : if profiles should be scaled.
-    """
-    #scale,shape = np.transpose([rec[0][3:5] for rec in fit_record])
-    n=prof_stack.shape[0]
-    amp = np.zeros(n)
-    scale = np.zeros(n)
-    shape = np.zeros(n)
-    prof_ave = np.zeros(prof_stack.shape)
-
-    ###(Optional) Refitting of the profiles with a Lorentz distribution
-    if refit or fit_record is None:
-        prof_stack = prof_stack[:,:,np.newaxis]
-        amp, scale, shape = (
-                np.transpose(lorentz_fit_simple(prof_stack,bin_min,bin_max)))
-        prof_stack = prof_stack.squeeze()
-    else:
-        amp, scale, shape = np.transpose(fit_record[:,[0,3,4]])
-
-    if rescale:
-        prof_stack = np.transpose(np.transpose(prof_stack)/amp)
-
-    ###Grouping of profiles according to scale and shape
-    X = np.transpose([100*scale,100*shape])
-    # n_jobs=-1 Uses all cores
-    cluster = KMeans(n_jobs=-1, n_clusters=int(np.sqrt(n))).fit(X)
-    labels = cluster.labels_
-    unique_labels = set(labels)
-    print('Grouping the radial profiles into {} groups.'
-          .format(len(unique_labels)))
-    if show_plot :
-        fig = plt.figure(0)
-        fig.clf()
-        plt.scatter(X[:, 0], X[:, 1], c = labels, marker = 'o')
-        plt.title('Estimated number of clusters: {}'.
-                  format(len(unique_labels)))
-        plt.show()
-
-    ###Taking Average of profiles
-    prof_stack[prof_stack == -1] = np.nan
-    for kk in unique_labels:
-        cut = (kk==labels)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            ave = np.nanmean(prof_stack[cut],axis=0)
-        ave = np.nan_to_num(ave)
-        prof_ave[cut] = ave
-    
-    if rescale:
-        prof_ave = np.transpose(np.transpose(prof_ave)*amp)
-    return prof_ave, labels
-
-
-def profile_classify(prof_stack, fit_record = None, show_plot = False, 
-                     show_fit = True, refit = True, rescale = True, 
-                     verbose = True, bin_min = 5, bin_max = 40):
-    """
-    Takes the profile stack,
-    refits a 1D Lorentz distribution(Optional),
-    groups the profiles with the same shape and scale together,
-    takes the mean and std of the group,
-    plots all the profiles in the group on the same figure(Optional)
-    and returns them to the correct index in profile_ave and profile_std.
-    :param prof_stack   : stack of profiles
-    :fit_record         : array of parameters returned form the 2D lorentz fit
-    :show_plot          : switch for plotting the profiles
-    :refit              : switch for refitting of the profiles
-    :rescale            : if profiles should be scaled.
-    """
-    #scale,shape = np.transpose([rec[0][3:5] for rec in fit_record])
-    n=prof_stack.shape[0]
-    amp = np.zeros(n)
-    scale = np.zeros(n)
-    shape = np.zeros(n)
-    prof_ave = np.zeros(prof_stack.shape)
-    prof_std = np.zeros(prof_stack.shape)
-
-    ###(Optional) Refitting of the profiles with a Lorentz distribution
-    if refit or fit_record is None:
-        prof_stack = prof_stack[:,:,np.newaxis]
-        amp, scale, shape = (
-                np.transpose(lorentz_fit_simple(prof_stack,bin_min,bin_max)))
-        prof_stack = prof_stack.squeeze()
-    else:
-        amp, scale, shape = np.transpose(fit_record[:,[0,3,4]])
-
-    if rescale:
-        prof_stack = np.transpose(np.transpose(prof_stack)/amp)
-
-    ###Grouping of profiles according to scale and shape
-    keys = np.rint(scale*10)*100 + np.rint(shape*10)       
-    unique_keys, inverse, counts = np.unique(keys.astype(np.int32),
-                                             return_inverse = True, 
-                                             return_counts = True)
-    prof_stack[prof_stack == -1] = np.nan
-    print('Grouping the radial profiles into {} groups:'
-          .format(len(unique_keys)))
-    print('Categories: {}'.format(unique_keys))
-    print('    Counts: {}'.format(counts))
-    for kk in unique_keys:
-        cut = (kk==keys)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            ave = np.nanmean(prof_stack[cut],axis=0)
-            std = np.nanstd(prof_stack[cut],axis=0)
-        ave = np.nan_to_num(ave)
-        std = np.nan_to_num(std)
-        if show_plot:
-            fig = plt.figure(kk)
-            fig.clf()
-            plt.plot(np.transpose(prof_stack[keys==kk,0:20]))
-        ###(Optional) Plotting of the first 20 bins of the profiles
-        prof_ave[cut] = ave
-        prof_std[cut] = std
-    
-    if rescale:
-        prof_ave = np.transpose(np.transpose(prof_ave)*amp)
-        prof_std = np.transpose(np.transpose(prof_std)*amp)
-    return prof_ave, prof_std, inverse, counts
-
-
 @loop_over_stack
 def strip_img(img, x0, y0, prof, pxmask=None, truncate=True, offset=0, dtype=np.int16):
     """
@@ -645,82 +516,11 @@ def strip_img(img, x0, y0, prof, pxmask=None, truncate=True, offset=0, dtype=np.
     return img_out
 
 
-def peak_finder(img_raw, xy, profile = None, pxmask = None, noise = np.array
-                ([[False,True,False],[True,True,True],[False,True,False]]), 
-                 kernel_size = 9, threshold = 9, db_eps = 1.9,
-                 db_samples = 9, bkg_remove = False, img_clean = True,
-                 radial_min = 5):
-    """
-    1) (OPTIONAL) Construct background from xy and profile. 
-        Subtract from img_raw.
-    2) Remove Impulse noise using morpholigical opening and closing with
-        noise struc.
-    3) Convolve Image with Gaussian kernel to find local background. 
-        Features are all pixels larger than the local background
-        by a certain threshold.
-    4) Pick peaks out of image features using DBSCAN (Clustering)
-    5) Labelling of Peaks using ndimage
-    6) (OPTIONAL) Clean image
-    Simple peakfinder built upon scipy.ndimage. 
-    Uses a morpholgical opening to find features larger than size and higher
-    than threshold. The features are then labelled and the center of mass and 
-    sum of each peak is returned in a numpy array.
-    """
-    ### 1) Strip Background
-    if bkg_remove:
-        ylen,xlen = img_raw.shape
-        y,x = np.ogrid[0:ylen,0:xlen]
-        radius = (np.rint(((x-xy[0])**2 + (y-xy[1])**2)**0.5)).astype(np.int32)
-        prof = np.zeros(1+np.max(radius))
-        np.copyto(prof[0:len(profile)], profile)
-        bkg = prof[radius]
-        img = img_raw - bkg
-        img = correct_dead_pixels(img, pxmask, 'replace', replace_val=-1, 
-                              mask_gaps=True)
-    else:
-        img = img_raw
-        bkg=None
-    ### 2) Remove Impulse Noise
-    img = ndimage.morphology.grey_opening(img, structure=noise)
-    img = ndimage.morphology.grey_closing(img, structure=noise)
-    ### 3) Feature detection NB: astropy.convolve is slow
-    img_fil = np.where(img==-1,0,img)
-    img_fil = ndimage.gaussian_filter(img_fil.astype(np.float),
-                                      kernel_size,mode='constant',cval=0)
-    img_norm = np.where(img==-1,0,1)
-    img_norm = ndimage.gaussian_filter(img_norm.astype(np.float),
-                                       kernel_size,mode='constant',cval=0)
-    img_norm = np.where(img_norm==0.0,1,img_norm)
-    img_fil = img_fil/img_norm
-    img_feat = img - img_fil
-    ### 4) Peak Picking
-    loc = np.where(img_feat > threshold)
-    X = np.transpose(np.stack([loc[1], loc[0] , np.log(img_feat[loc])]))
-    db = DBSCAN(eps=db_eps, min_samples=db_samples, n_jobs=-1).fit(X)
-    img_label = np.zeros(img.shape)
-    img_label[loc] = 1 + db.labels_
-    num_feat = len(set(db.labels_))
-    ### 5) Peak Labelling
-    com = ndimage.center_of_mass(img_feat,img_label,np.arange(1, num_feat))
-    vol = ndimage.sum(img_feat,img_label,np.arange(1, num_feat))
-    ### 6) Apply radial cut to peaks
-    rad = np.sqrt(np.sum(np.square(np.array(com)-xy[::-1]),axis=1))
-    rad_cut = rad > radial_min
-    com = np.array(com)[rad_cut]
-    vol = vol[rad_cut]
-    img_label[img_label-1 == np.where(rad<radial_min)] = 0
-    print("Found {} peaks".format(len(com)))
-    ### 7) Clean Image
-    if img_clean:
-        img[img_label==0] = 0
-    return np.column_stack((com,vol)), img
-
-
 @jit(['int32[:,:](int32[:,:], float64, float64, int64, int64, int64)',
       'int16[:,:](int16[:,:], float64, float64, int64, int64, int64)',
       'int64[:,:](int64[:,:], float64, float64, int64, int64, int64)'],
      nopython=True, nogil=True)  # ahead-of-time compilation using numba. Otherwise painfully slow.
-def center_sgl_image(img, x0, y0, xsize, ysize, padval):
+def _center_sgl_image(img, x0, y0, xsize, ysize, padval):
     """
     Shits a single image, such that the original image coordinates x0, y0 are in the center of the
     output image, which as a size of xsize, ysize.
@@ -775,6 +575,7 @@ def center_image(imgs, x0, y0, xsize, ysize, padval, parallel=True):
             x0 = da.from_array(x0, (imgs.chunks[0], 1, 1))
         if not isinstance(y0, da.Array):
             y0 = da.from_array(y0, (imgs.chunks[0], 1, 1))
+
         return imgs.map_blocks(center_image, x0, y0, xsize, ysize, padval,
                                chunks=(imgs.chunks[0], ysize, xsize),
                                dtype=imgs.dtype)
@@ -791,8 +592,8 @@ def center_image(imgs, x0, y0, xsize, ysize, padval, parallel=True):
     else:
         it = range(imgs.shape[0])
 
-    for ii in it:    
-        simg = center_sgl_image(imgs[ii, :, :], x0[ii], y0[ii], xsize, ysize, padval)
+    for ii in it:
+        simg = _center_sgl_image(imgs[ii, :, :], x0[ii], y0[ii], xsize, ysize, padval)
         simgs[ii, :, :] = simg
 
     return simgs

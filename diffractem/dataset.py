@@ -1,3 +1,5 @@
+# dedicated to Thea and the Penguin
+
 import pandas as pd
 import dask.array as da
 import numpy as np
@@ -582,7 +584,7 @@ class Dataset:
                 newshots = pd.concat([newshots.iloc[0:1, :]] * newstack.shape[0], axis=0, ignore_index=True)
             agg_shots.append(newshots)
 
-        print(cols_nonid)
+        # print(cols_nonid)
 
         newset._shots = pd.concat(agg_shots, axis=0, ignore_index=True)
         newset._features = self._features.merge(newset._shots[self._feature_id_cols],
@@ -730,8 +732,10 @@ class Dataset:
                 path = self.data_pattern.replace('%', ssn) + '/' + label
 
                 try:
+                    cs = tuple([c[0] for c in arr.chunks])
+                    # print(path, cs, arr.shape)
                     ds = fh.create_dataset(path, shape=arr.shape, dtype=arr.dtype,
-                                           chunks=tuple([c[0] for c in arr.chunks]),
+                                           chunks=cs,
                                            compression=compression, **kwargs)
                 except RuntimeError as e:
                     if overwrite or label == 'index':

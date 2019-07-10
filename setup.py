@@ -1,8 +1,8 @@
 from distutils.core import setup
 
 setup(
-    name='lambda-tools',
-    version='0.2.1',
+    name='diffractem',
+    version='0.1',
     packages=['diffractem'],
     url='',
     license='',

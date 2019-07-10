@@ -31,17 +31,6 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
         return pd.concat(lists, axis=0, ignore_index=True)
 
 
-def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset: str):
-
-    tbl_path = path.replace('%', subset)
-    print(tbl_path)
-    #print(tbl)
-    try:
-        tbl.to_hdf(fn, tbl_path, format='table', data_columns=True)
-    except ValueError:
-        tbl.to_hdf(fn, tbl_path, format='table')
-    #print(f'Wrote table to {fn}: {tbl_path}')
-
 
 def get_table(files: Union[list, str], path='/%/data/shots', parallel=True) -> pd.DataFrame:
 
@@ -56,36 +45,48 @@ def get_table(files: Union[list, str], path='/%/data/shots', parallel=True) -> p
     return pd.concat(out, ignore_index=True)
 
 
-def store_table(table: pd.DataFrame, path: str, parallel=True,
-                exec: Union[None, ProcessPoolExecutor, ThreadPoolExecutor] = None):
+def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset: str):
+    """
+    Helper function. Internal use only.
+    """
+
+    tbl_path = path.replace('%', subset)
+    try:
+        tbl.to_hdf(fn, tbl_path, format='table', data_columns=True)
+    except ValueError:
+        tbl.to_hdf(fn, tbl_path, format='table')
+
+
+def store_table(table: pd.DataFrame, path: str, parallel=True):
+    """
+    Stores a pandas DataFrame containing 'file' and 'subset' columns to multiple HDF5 files. Essentially a
+    multi-file, multi-processed wrapper to pd.to_hdf
+    :param table: DataFrame to be stored
+    :param path: path in HDF5 files. % will be substituted by the respective subset name
+    :param parallel: if True (default), writes files in parallel
+    :return: list of futures (see documentation of concurrent.futures). [None] if parallel=False
+    """
 
     # TODO: could be that parallel execution with multiple subsets/table/types will not work
 
     if parallel:
 
-        if exec is not None:
+        with ProcessPoolExecutor() as exec:
             futures = []
             for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
                 futures.append(exec.submit(_store_table_to_single_subset, ssdat, fn, path, ssn))
+
+            wait(futures, return_when=FIRST_EXCEPTION)
+
+            for f in futures:
+                if f.exception():
+                    raise f.exception()
+
             return futures
 
-        else:
-            with ProcessPoolExecutor() as exec:
-                futures = []
-                for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
-                    futures.append(exec.submit(_store_table_to_single_subset, ssdat, fn, path, ssn))
-
-                wait(futures, return_when=FIRST_EXCEPTION)
-
-                for f in futures:
-                    if f.exception():
-                        raise f.exception()
-
-                return futures
-
     else:
-        print(path)
-        print(table.columns)
+        #print(path)
+        #print(table.columns)
 
         for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
             _store_table_to_single_subset(ssdat, fn, path, ssn)
