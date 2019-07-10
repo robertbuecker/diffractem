@@ -5,9 +5,12 @@ import numpy
 
 import numpy as np
 import pandas
+import pandas as pd
+from dask import array as da
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 
-from diffractem.io import get_meta_lists, get_data_stacks
+from diffractem.io import get_meta_lists, get_data_stacks, expand_files
+from diffractem.nexus import get_meta_fields
 from diffractem.proc2d import correct_dead_pixels, lorentz_fit_simple
 from matplotlib import pyplot as plt
 from scipy import ndimage
@@ -477,3 +480,41 @@ def region_plot(file_name, regions=None, crystal_pos=True, peak_ct=True, beamdia
         ax.axis('off')
 
         return fhs
+
+
+def reduce_stack(filename, first_frame=1, last_frame=-1, aggregate='sum', suffix=None, exclude=(),
+                 threads=True, instrument_data=True, label='raw_counts', **kwargs):
+    exp_time_field = '/entry/instrument/detector/collection/shutter_time'
+    tilt_field = '/entry/instrument/Stage/A'
+    if last_frame == -1:
+        last_frame = 16383
+    exclude = [f'frame < {first_frame}', f'frame > {last_frame}'] + list(exclude)
+
+    from multiprocessing.pool import ThreadPool
+
+    def make_stacks(raw_name):
+        sr0 = get_nxs_list(raw_name, 'shots')
+
+        if instrument_data:
+            instrument_data = pd.DataFrame(get_meta_fields(raw_name, [exp_time_field, tilt_field])).astype(float)
+            instrument_data.columns = ['exp_time', 'tilt_angle']
+            instrument_data['tilt_angle'] = (instrument_data['tilt_angle'] * 180 / np.pi).round(1)
+            sr0 = sr0.merge(instrument_data, right_index=True, left_on='file')
+
+        sr0['selected'] = True
+        for ex in exclude:
+            sr0.loc[sr0.eval(ex), 'selected'] = False
+
+        return modify_stack(raw_name, sr0, aggregate=aggregate, labels=label, **kwargs)
+
+    if threads:
+        with ThreadPool() as pool:
+            stkdat = pool.map(make_stacks, expand_files(filename))
+    else:
+        stkdat = make_stacks(expand_files(filename))
+
+    shots = pd.concat([s[1] for s in stkdat if s[1].shape[0]], ignore_index=True)
+    stack_raw = da.concatenate([s[0][label] for s in stkdat if s[0][label].shape[0]], axis=0)
+    shots['file_raw'] = shots['file']
+
+    return None

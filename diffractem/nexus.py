@@ -192,7 +192,6 @@ def get_meta_fields(files: Union[str, list], dataset_paths: Union[list, str, tup
     newcols = {'level_0': 'file', 'level_1': 'subset'}
     if shorten_labels:
         newcols.update({k: k.rsplit('/', 1)[-1] for k in dataset_paths})
-    print(dtypes)
     return pd.DataFrame(values).astype(dtypes).reset_index().rename(columns=newcols)
 
 

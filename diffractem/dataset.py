@@ -1,18 +1,14 @@
 # dedicated to Thea and the Penguin
 
 import pandas as pd
-import dask.array as da
 import numpy as np
 from dask import array as da
 from dask.diagnostics import ProgressBar
-from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
-from diffractem.io import expand_files, get_meta_lists, get_data_stacks
-from diffractem.nexus import get_table, get_meta_fields
 from . import io, nexus
 from .stream_parser import StreamParser
 from .map_image import MapImage
 import h5py
-from typing import Union, List, Dict
+from typing import Union, Dict
 import copy
 from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
@@ -138,7 +134,7 @@ class Dataset:
         """
 
         file_list = io.expand_files(listfile, scan_shots=True)
-        print(file_list)
+        # print(file_list)
         self = cls()
 
         for k, v in kwargs.items():
@@ -497,18 +493,19 @@ class Dataset:
     def aggregate(self, by: Union[list, tuple] = ('run', 'region', 'crystal_id', 'sample'),
                   how: Union[dict, str] = 'mean',
                   file_suffix: str = '_agg.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
-                  rechunk: Union[None, int] = None, allow_mix: bool = False) -> 'Dataset':
+                  allow_mix: bool = False) -> 'Dataset':
         """
         Aggregate sub-sets of stacks using different aggregation functions. Typical application: sum sub-stacks of
         dose fractionation movies, or shots with different tilt angles (quasi-precession)
-        :param by:
-        :param how:
-        :param file_suffix:
-        :param file_prefix:
-        :param new_folder:
-        :param rechunk:
-        :param allow_mix:
-        :return:
+        :param by: shot table columns to group by for aggregation. Default: ('run', 'region', 'crystal_id', 'sample')
+        :param how: aggregation types. 'sum', 'mean', and 'cumsum' are supported. Can be a single operation for all
+            stacks, or a dict, specifying different ones for each, in which case all non-explicitly specified stacks
+            will default to 'mean', e.g. how={'raw_counts': 'sum'}.
+        :param file_suffix: as in Dataset.change_filenames
+        :param file_prefix: as in Dataset.change_filenames
+        :param new_folder: as in Dataset.change_filenames
+        :param allow_mix: allow mixing of shots coming from different files in the initial dataset
+        :return: a new data set with aggregation applied
         """
 
         by = list(by)
@@ -687,6 +684,29 @@ class Dataset:
 
         self._stacks[label] = stack
 
+    def delete_stack(self, label: str, from_files: bool = True):
+        """
+        Delete a data stack
+        :param label: stack label
+        :param from_files: if True (default), the stack is also deleted in the HDF5 files
+        :return:
+        """
+
+        if not self._stacks_open:
+            raise RuntimeError('Please open stacks before deleting.')
+
+        del self._stacks[label]
+
+        if from_files:
+            for _, address in self._shots[['file', 'subset']].iterrows():
+                path = self.data_pattern.replace('%', address.subset) + '/' + label
+                print(f'Deleting dataset {path}')
+                try:
+                    del self._h5handles[address['file']][path]
+                except KeyError:
+                    print(address['file'], path, 'not found!')
+
+
     def store_stacks(self, labels: Union[None, list] = None, overwrite=False, compression=32004, lazy=False, **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
@@ -761,111 +781,8 @@ class Dataset:
 
     def stack_to_shots(self, labels: Union[str, list], selected=False):
         # mangle stack data into the shot list
-        pass
+        raise NotImplementedError('stacks_to_shots not yet implemented')
 
     def merge_acquisition_data(self, fields: dict):
         # mange instrument (acquisition) data like exposure time etc. into shot list
-        pass
-
-
-def reduce_stack(filename, first_frame=1, last_frame=-1, aggregate='sum', suffix=None, exclude=(),
-                 threads=True, instrument_data=True, label='raw_counts', **kwargs):
-    exp_time_field = '/entry/instrument/detector/collection/shutter_time'
-    tilt_field = '/entry/instrument/Stage/A'
-    if last_frame == -1:
-        last_frame = 16383
-    exclude = [f'frame < {first_frame}', f'frame > {last_frame}'] + list(exclude)
-
-    from multiprocessing.pool import ThreadPool
-
-    def make_stacks(raw_name):
-        sr0 = get_nxs_list(raw_name, 'shots')
-
-        if instrument_data:
-            instrument_data = pd.DataFrame(get_meta_fields(raw_name, [exp_time_field, tilt_field])).astype(float)
-            instrument_data.columns = ['exp_time', 'tilt_angle']
-            instrument_data['tilt_angle'] = (instrument_data['tilt_angle'] * 180 / np.pi).round(1)
-            sr0 = sr0.merge(instrument_data, right_index=True, left_on='file')
-
-        sr0['selected'] = True
-        for ex in exclude:
-            sr0.loc[sr0.eval(ex), 'selected'] = False
-
-        return modify_stack(raw_name, sr0, aggregate=aggregate, labels=label, **kwargs)
-
-    if threads:
-        with ThreadPool() as pool:
-            stkdat = pool.map(make_stacks, expand_files(filename))
-    else:
-        stkdat = make_stacks(expand_files(filename))
-
-    shots = pd.concat([s[1] for s in stkdat if s[1].shape[0]], ignore_index=True)
-    stack_raw = da.concatenate([s[0][label] for s in stkdat if s[0][label].shape[0]], axis=0)
-    shots['file_raw'] = shots['file']
-
-    return None
-
-
-def modify_stack(filename, shot_list=None, base_path='/%/data', labels='raw_counts', sort_by=None,
-                 drop_invalid=True, aggregate=None, agg_by=('file', 'subset', 'region', 'run', 'crystal_id'),
-                 newchunk=None):
-    # TODO: documentation
-    # TODO: check nxs file for dropped frames and other anomalies
-
-    if shot_list is None:
-        shot_list = get_meta_lists(filename, base_path, 'shots')['shots']
-
-    if drop_invalid:
-        valid = (shot_list[['region', 'crystal_id', 'run', 'frame', 'shot']] >= 0).all(axis=1)
-        shot_list_final = shot_list.loc[valid, :].copy()
-    else:
-        shot_list_final = shot_list.copy()
-
-    if 'selected' in shot_list_final.columns:
-        shot_list_final = shot_list_final.loc[shot_list_final['selected'], :]
-
-    if sort_by is not None:
-        shot_list_final.sort_values(list(sort_by), inplace=True)
-
-    print(f'Initial: {shot_list.shape[0]} shots, Selection: {shot_list_final.shape[0]} shots')
-
-    stacks = get_data_stacks(filename, base_path, labels)
-    print(f'Loaded raw stacks: \n{stacks}.')
-
-    if shot_list_final.shape[0] == 0:
-        stacks_final = {sn: da.from_array(np.zeros((0,) + s.shape[1:]), chunks=-1) for sn, s in stacks.items()}
-        return stacks_final, shot_list_final
-
-    # now aggregate the shots if desired, by summing or averaging
-    if aggregate is not None:
-        agg_stacks = {k: [] for k in stacks.keys()}
-        agg_shots = []
-        for _, grp in shot_list_final.groupby(list(agg_by)):
-            for sn, s in stacks.items():
-                if aggregate in 'sum':
-                    newstack = s[grp.index.values, ...].sum(axis=0, keepdims=True)
-                elif aggregate in ['mean', 'average', 'avg']:
-                    newstack = s[grp.index.values, ...].mean(axis=0, keepdims=True)
-                elif aggregate in 'cumsum':
-                    newstack = s[grp.index.values, ...].cumsum(axis=0)
-                else:
-                    raise ValueError('aggregate must be sum or mean')
-                if newchunk is not None:
-                    # TODO this does not seem to do anything? Why?!
-                    newstack = da.rechunk(newstack, (newchunk, -1, -1))
-
-                agg_stacks[sn].append(newstack)
-                agg_shots.append(grp.iloc[:newstack.shape[0], :])  # at this point, they all should be the same
-
-        shot_list_final = pd.concat(agg_shots, ignore_index=True)
-        print(f'Aggregated: {shot_list_final.shape[0]} shots')
-
-        stacks_final = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
-
-    else:
-        stacks_final = {sn: s[shot_list_final.index.values, ...] for sn, s in stacks.items()}
-        shot_list_final.reset_index(drop=True, inplace=True)
-
-    shot_list_final['shot_in_subset'] = shot_list_final.groupby(['file', 'subset']).cumcount()
-
-    return stacks_final, shot_list_final
+        raise NotImplementedError('merge_acquisition_data not yet implemented')
