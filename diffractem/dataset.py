@@ -1,4 +1,4 @@
-# dedicated to Thea and the Penguin
+# dedicated to Thea and The Penguin
 
 import pandas as pd
 import numpy as np

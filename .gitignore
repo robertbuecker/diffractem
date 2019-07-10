@@ -8,3 +8,5 @@ bin/modify_stream.py
 .vscode
 .DS_Store
 playbook.ipynb
+dist/
+build/
