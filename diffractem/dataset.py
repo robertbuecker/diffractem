@@ -493,7 +493,7 @@ class Dataset:
     def aggregate(self, by: Union[list, tuple] = ('run', 'region', 'crystal_id', 'sample'),
                   how: Union[dict, str] = 'mean',
                   file_suffix: str = '_agg.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
-                  allow_mix: bool = False) -> 'Dataset':
+                  query: Union[str, None] = None) -> 'Dataset':
         """
         Aggregate sub-sets of stacks using different aggregation functions. Typical application: sum sub-stacks of
         dose fractionation movies, or shots with different tilt angles (quasi-precession)
@@ -504,49 +504,33 @@ class Dataset:
         :param file_suffix: as in Dataset.change_filenames
         :param file_prefix: as in Dataset.change_filenames
         :param new_folder: as in Dataset.change_filenames
-        :param allow_mix: allow mixing of shots coming from different files in the initial dataset
+        :param query: apply a query (see select or get_selection)
         :return: a new data set with aggregation applied
         """
 
         by = list(by)
         # aggregate shots
         newset = copy.copy(self)
-        agg_stacks = {k: [] for k in self.stacks.keys()}
+        newset._stacks = {}
         agg_shots = []
 
         if not self._stacks_open:
             raise RuntimeError('Stacks are not open.')
 
-        for _, grp in self.shots.groupby(by):
-            # loop over aggregation group
+        if query is None:
+            gb = self.shots.reset_index(drop=True).groupby(by)
+        else:
+            gb = self.shots.query(query).reset_index(drop=True).groupby(by)
 
-            # investigate the group a bit...
-            if all(np.diff(grp.index) == 1):
-                idcs = slice(grp.index[0], grp.index[-1] + 1) # aggregation is continuous region in shot list
-                continuous = True
-            else:
-                idcs = grp.index.values  # aggregation is a non-continuous region in shot list
-                continuous = False
+        agglist = gb.apply(lambda x: x.index.tolist())  # Series of indices in stack corresponding to each stack
+        idcs = np.concatenate([np.array(x) for x in agglist.values])  # indices of required stack in proper order
 
-            # DATA STACKS ----
+        chunks = tuple([len(x) for x in agglist.values])  # size of each aggregation group
+        final_zchunk = 1
 
-            for sn, s in self.stacks.items():
-                method = how if isinstance(how, str) else how.get(sn, 'mean')
+        # SHOT TABLE ----
 
-                if method == 'sum':
-                    newstack = s[idcs, ...].sum(axis=0, keepdims=True)
-                elif method in ['mean', 'average', 'avg']:
-                    newstack = s[idcs, ...].mean(axis=0, keepdims=True)
-                elif method == 'cumsum':
-                    newstack = s[idcs, ...].cumsum(axis=0)
-                else:
-                    raise ValueError(f'Unknown aggregation method {how}')
-
-                agg_stacks[sn].append(newstack)
-
-            newset._stacks = {sn: da.concatenate(s) for sn, s in agg_stacks.items()}
-
-            # SHOT LIST ----
+        for _, grp in gb:
 
             newshots = grp.copy()
 
@@ -577,25 +561,54 @@ class Dataset:
             newshots['aggregation'] = newshots.iloc[0]['file'] + ':' + newshots.iloc[0]['Event'] + '->' + \
                                       newshots.iloc[-1]['file'] + ':' + newshots.iloc[-1]['Event']
 
-            if newshots.shape[0] > 1:
-                newshots = pd.concat([newshots.iloc[0:1, :]] * newstack.shape[0], axis=0, ignore_index=True)
+            if final_zchunk > 1:
+                newshots = pd.concat([newshots.iloc[0:1, :]] * final_zchunk, axis=0, ignore_index=True)
+            else:
+                newshots = newshots.iloc[0:1, :]
+
             agg_shots.append(newshots)
 
-        # print(cols_nonid)
-
         newset._shots = pd.concat(agg_shots, axis=0, ignore_index=True)
-        newset._features = self._features.merge(newset._shots[self._feature_id_cols],
-                                                on=self._feature_id_cols, how='inner', validate='1:m'). \
-            drop_duplicates(self._feature_id_cols).reset_index(drop=True)
-
-        newset._h5handles = {}
-        newset.change_filenames(file_suffix, file_prefix, new_folder)
-        newset.reset_id(keep_raw=False)
+        print(f'{newset._shots.shape[0]} aggregated shots.')
 
         # drop remaining columns that are inconsistent
         for col in cols_nonid:
             if col not in self._shot_id_cols + ['shot_in_subset']:
                 newset._shots.drop(col, axis=1)
+
+        # DATA STACKS ------
+
+        for sn, s in self.stacks.items():
+
+            reorder = s[idcs, ...].rechunk({0: chunks})
+            c_final = list(s.chunks)
+            c_final[0] = final_zchunk
+
+            method = how if isinstance(how, str) else how.get(sn, 'mean')
+
+            if method == 'sum':
+                newset.add_stack(sn, reorder.map_blocks(lambda x: np.sum(x, axis=0, keepdims=True),
+                                                      chunks=c_final, dtype=s.dtype))
+
+            elif method == 'mean':
+                newset.add_stack(sn, reorder.map_blocks(lambda x: np.sum(x, axis=0, keepdims=True),
+                                                      chunks=c_final, dtype=s.dtype))
+
+            elif method == 'cumsum':
+                raise NotImplementedError('cumsum not working yet.')
+
+            else:
+                raise ValueError(f'Unknown aggregation method {how}')
+
+        # OTHER STUFF -----
+
+        newset._features = self._features.merge(newset._shots[self._feature_id_cols],
+                                                on=self._feature_id_cols, how='inner', validate='1:m'). \
+            drop_duplicates(self._feature_id_cols).reset_index(drop=True)
+
+        newset._h5handles = {}
+        newset.change_filenames(file_suffix, file_prefix, new_folder, keep_raw=True)
+        newset.reset_id(keep_raw=True)
 
         return newset
 
