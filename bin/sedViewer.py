@@ -1,6 +1,8 @@
+import hdf5plugin
 from diffractem.io import *
 from diffractem.nexus import get_table
 from diffractem.stream_parser import StreamParser
+from diffractem.dataset import Dataset
 import pyqtgraph as pg
 import importlib
 import argparse
@@ -14,12 +16,11 @@ else:
 pg.setConfigOptions(imageAxisOrder='row-major')
 
 def read_files():
-    global args, shots, features, peaks, predict, data_path
+    global args, data_path, dataset
 
     # Mandatory stuff: data path, shot list
 
     data_path = None
-    shots = None
     files = []
     file_type = args.filename.rsplit('.', 1)[-1]
 
@@ -27,26 +28,21 @@ def read_files():
         print(f'Parsing stream file {args.filename}...')
         stream = StreamParser(args.filename)
         data_path = stream.geometry['data']
-        shots = stream.shots
-        predict = stream.indexed
-        peaks = stream.peaks
-        files = list(shots['file'].unique())
+        files = list(stream.shots['file'].unique())
         try:
-            shots_nxs = get_nxs_list(files, 'shots')
-            shots = shots.merge(shots_nxs, on=['file', 'subset', 'shot_in_subset'], how='left', suffixes=('', '_nxs'))
+            dataset = Dataset.from_list(files, load_tables=False)
+            dataset.load_tables(features=True)
+            dataset.merge_stream(stream)
+            # TODO get subset for incomplete coverage
             print('Merged stream and hdf5 shot lists')
         except Exception as err:
+            dataset = Dataset()
+            dataset.merge_stream(stream)
             print('Could not load shot lists from H5 files, but have that from the stream file.')
             print(f'Reason: {err}')
 
     if file_type in ['lst', 'h5', 'hdf', 'nxs']:
-        # here, you need a shot list. Long term: use Crystfel's shot list expansion tool.
-        files = expand_files(args.filename) # always expand into list, to be compatible with stream file option
-        try:
-            shots = get_nxs_list(files)
-            shots['serial'] = shots.index.values
-        except Exception as err:
-            raise NotImplementedError(f'Could not load shot data from lst or hdf5 file... unhandled yet: {err}')
+        dataset = Dataset.from_list(args.filename, load_tables=True)
 
     if args.data_path is not None:
         data_path = args.data_path
@@ -59,42 +55,17 @@ def read_files():
         raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')
 
     if args.query:
-        nshots0 = shots.shape[0]
-        shots = shots.query(args.query).reset_index()
-        nshots = shots.shape[0]
+        nshots0 = dataset.shots.shape[0]
+        dataset = dataset.get_selection(args.query)
+        nshots = dataset.shots.shape[0]
         print(f'{nshots} shots from {nshots0} selected by query f{args.query}')
-
-    try:
-        mp = args.feature_path.rsplit('/', 1)
-        features = get_table(files, args.feature_path)
-        print(f'Found mapping features at {args.map_path}.')
-    except KeyError:
-        print(f'No mapping features found at {args.map_path}.')
-        features = None
-
-    if file_type != 'stream':
-        print('No stream file provided, trying to load peaks and predictions from pandas dataframes in HDF5 files.')
-        try:
-            peaks = get_table(files, args.peaks_path)
-        except KeyError:
-            print(f'No peaks found at {args.peaks_path}.')
-            peaks = None
-        try:
-            predict = get_table(files, args.predict_path)
-        except KeyError:
-            print(f'No prediction spots found at {args.predict_path}.')
-            predict = None
-
-    if ('shot_in_subset' not in shots.columns) and 'Event' in shots.columns:
-        shots[['shot_in_subset', 'subset']] = shots['Event'].str.split('//')
-
 
 # CALLBACK FUNCTIONS
 
 def switch_shot(serial):
-    global imageSerialNumber, shot
-    imageSerialNumber = max(0, serial % shots.shape[0])
-    shot = shots.iloc[imageSerialNumber, :]
+    global imageSerialNumber, shot, dataset
+    imageSerialNumber = max(0, serial % dataset.shots.shape[0])
+    shot = dataset.shots.iloc[imageSerialNumber, :]
     update()
 
 
@@ -128,7 +99,7 @@ def zoomOnCrystalButton_clicked():
 
 
 def updateImage():
-    global imageSerialNumber, rawImage, mapImage, shot, data_path
+    global imageSerialNumber, rawImage, mapImage, data_path, shot
 
     try:
         if isinstance(data_path, str):
@@ -147,54 +118,53 @@ def updateImage():
 
             if show_map:
                 mapImage = f[args.map_path.replace('%', shot['subset'])][...]
+
     except Exception as err:
         print('Could not load image data due to {}'.format(err))
         rawImage = rawImage
 
 def updatePlot():
-    global img, mapimg, hist, imageSerialNumber, rawImage, mapImage, shot, map_zoomed
+    global img, mapimg, hist, imageSerialNumber, rawImage, mapImage, map_zoomed, dataset
 
-    if show_peaks and (peaks is not None) and show_markers:
+    if show_peaks and (dataset.peaks.shape[0] > 0) and show_markers:
         ring_pen = pg.mkPen('g', width=0.8)
-        found_peak_canvas.setData(peaks.loc[peaks['serial'] == shot['serial'], 'fs/px'] + 0.5,
-                                  peaks.loc[peaks['serial'] == shot['serial'], 'ss/px'] + 0.5,
+        peaks = dataset.peaks.loc[(dataset.peaks.file == shot.file) & (dataset.peaks.Event == shot.Event), :]
+        found_peak_canvas.setData(peaks['fs/px'] + 0.5, peaks['ss/px'] + 0.5,
                                   symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), antialias=True)
 
     else:
         found_peak_canvas.clear()
 
-    if show_predict and (predict is not None) and show_markers:
+    if show_predict and (dataset.predict.shape[0] > 0) and show_markers:
         square_pen = pg.mkPen('r', width=0.8)
-        predicted_peak_canvas.setData(predict.loc[predict['serial'] == shot['serial'], 'fs/px'] + 0.5,
-                                      predict.loc[predict['serial'] == shot['serial'], 'ss/px'] + 0.5,
+        predict = dataset.predict.loc[(dataset.predict.file == shot.file) & (dataset.predict.Event == shot.Event), :]
+        predicted_peak_canvas.setData(predict['fs/px'] + 0.5, predict['ss/px'] + 0.5,
                                       symbol='s', size=13, pen=square_pen, brush=(0, 0, 0, 0), antialias=True)
 
     else:
         predicted_peak_canvas.clear()
 
-    if features is not None:
+    if dataset.features.shape[0] > 0:
         ring_pen = pg.mkPen('g', width=2)
         dot_pen = pg.mkPen('y', width=0.5)
 
-        region_feat = features.loc[(features['subset'] == shot['subset']) &
-                                   (features['file'] == shot['file']), :]
+        region_feat = dataset.features.loc[(dataset.features['region'] == shot['region'])
+                                           & (dataset.features['sample'] == shot['sample'])
+                                           & (dataset.features['run'] == shot['run']), :]
 
         if shot['crystal_id'] != -1:
             single_feat = region_feat.loc[region_feat['crystal_id'] == shot['crystal_id'], :]
-            #x0 = single_feat['crystal_x'].values.squeeze()
-            #y0 = single_feat['crystal_y'].values.squeeze()
-            x0 = shot['crystal_x'].squeeze()
-            y0 = shot['crystal_y'].squeeze()
+            x0 = single_feat['crystal_x'].squeeze()
+            y0 = single_feat['crystal_y'].squeeze()
             found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
                                           symbol='+', size=7, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
-        #found_features_canvas.setData([shot['crystal_x'],], [shot['crystal_y'],],
-        #                              symbol='+', size=13, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
 
             if map_zoomed:
                 p2.setRange(xRange=(x0 - 5*args.beam_diam, x0 + 5*args.beam_diam),
                                    yRange=(y0 - 5*args.beam_diam, y0 + 5*args.beam_diam))
                 single_feature_canvas.setData([x0], [y0],
-                                              symbol='o', size=args.beam_diam, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=False)
+                                              symbol='o', size=args.beam_diam, pen=ring_pen,
+                                              brush=(0, 0, 0, 0), pxMode=False)
                 try:
                     c_real = np.cross([shot.astar_x, shot.astar_y, shot.astar_z],
                                       [shot.bstar_x, shot.bstar_y, shot.bstar_z])
@@ -211,7 +181,7 @@ def updatePlot():
                 except:
                     print('Could not read lattice vectors.')
             else:
-                single_feature_canvas.setData(single_feat['crystal_x'], single_feat['crystal_y'],
+                single_feature_canvas.setData([x0], [y0],
                                               symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=True)
                 p2.setRange(xRange=(0, mapImage.shape[1]), yRange=(0, mapImage.shape[0]))
 
@@ -240,13 +210,18 @@ def update():
     print(shot)
 
     topWidget.setWindowTitle('{} Reg {} Run {} Feat {} Frame {} ({}//{} in {}, {} out of {}) '.format(shot['sample'],
-                                                                                         shot['region'], shot['run'],
-                                                                                         shot['crystal_id'],
-                                                                                         shot['frame'],
-                                                                                         shot['subset'],
-                                                                                         shot['shot_in_subset'],
-                                                                                         shot['file'],
-                                                                                                      shot.name, shots.shape[0]))
+                                                                                                      shot['region'],
+                                                                                                      shot['run'],
+                                                                                                      shot[
+                                                                                                          'crystal_id'],
+                                                                                                      shot['frame'],
+                                                                                                      shot['subset'],
+                                                                                                      shot[
+                                                                                                          'shot_in_subset'],
+                                                                                                      shot['file'],
+                                                                                                      shot.name,
+                                                                                                      dataset.shots.shape[
+                                                                                                          0]))
 
 def mouseMoved(evt):
     global rawImage
@@ -340,10 +315,10 @@ zoomOnCrystalButton = QtGui.QPushButton('zoom')
 reloadButton = QtGui.QPushButton('reload')
 nextImageButton.clicked.connect(lambda: switch_shot_rel(1))
 previousImageButton.clicked.connect(lambda: switch_shot_rel(-1))
-randomImageButton.clicked.connect(lambda: switch_shot(np.random.randint(0, shots.shape[0]-1)))
+randomImageButton.clicked.connect(lambda: switch_shot(np.random.randint(0, dataset.shots.shape[0]-1)))
 plus10ImageButton.clicked.connect(lambda: switch_shot_rel(+10))
 minus10ImageButton.clicked.connect(lambda: switch_shot_rel(-10))
-lastImageButton.clicked.connect(lambda: switch_shot(shots.index.max()))
+lastImageButton.clicked.connect(lambda: switch_shot(dataset.shots.index.max()))
 toggleMarkerButton.clicked.connect(toggleMrkerButton_clicked)
 toggleFoundPeaksButton.clicked.connect(toggleFoundPeaksButton_clicked)
 toggleFoundCrystalButton.clicked.connect(toggleFoundCrystalButton_clicked)

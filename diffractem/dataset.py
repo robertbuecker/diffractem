@@ -538,7 +538,7 @@ class Dataset:
         if query is None:
             gb = self.shots.reset_index(drop=True).groupby(by)
         else:
-            gb = self.shots.query(query).reset_index(drop=True).groupby(by)
+            gb = self.shots.reset_index(drop=True).query(query).groupby(by)
 
         agglist = gb.apply(lambda x: x.index.tolist())  # Series of indices in stack corresponding to each stack
         idcs = np.concatenate([np.array(x) for x in agglist.values])  # indices of required stack in proper order
@@ -560,9 +560,6 @@ class Dataset:
                 # subset and file are different within aggregation. #uh-oh #crazydata #youpunkorwhat
                 # ...trying to come up with a sensible file and subset name, by finding common sequences
 
-                if not allow_mix:
-                    raise ValueError('Aggregation of data from different files requested. Set allow_mix to true to'
-                                     'allow that.')
                 from functools import reduce
                 from difflib import SequenceMatcher
 
@@ -737,8 +734,8 @@ class Dataset:
                 except KeyError:
                     print(address['file'], path, 'not found!')
 
-
-    def store_stacks(self, labels: Union[None, list] = None, overwrite=False, compression=32004, lazy=False, **kwargs):
+    def store_stacks(self, labels: Union[None, list] = None, overwrite=False,
+                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
         typically not yet computed, so at this point the actual data crunching is done.
@@ -747,6 +744,8 @@ class Dataset:
         :param compression: compression algorithm to be used. 32004 corresponds to bz4, which we mostly use.
         :param lazy: if True, instead of writing the shots, returns two lists containing the arrays and dataset objects
                         which can be used to later pass them to dask.array.store. Default False (store right away)
+        :param data_pattern: store stacks to this data path (% is replaced by subset) instead of standard path.
+                        Note that stacks stored this way will not be retrievable through Dataset objects.
         :param **kwargs: will be forwarded to h5py.create_dataset
         :return:
         """
@@ -780,7 +779,10 @@ class Dataset:
             for label, stack in stacks.items():
                 # print(label)
                 arr = stack[stack_idcs, ...]
-                path = self.data_pattern.replace('%', ssn) + '/' + label
+                if data_pattern is None:
+                    path = self.data_pattern.replace('%', ssn) + '/' + label
+                else:
+                    path = data_pattern.replace('%', ssn) + '/' + label
 
                 try:
                     cs = tuple([c[0] for c in arr.chunks])
