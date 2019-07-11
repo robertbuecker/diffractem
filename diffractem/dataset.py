@@ -508,7 +508,7 @@ class Dataset:
 
         return newset
 
-    def aggregate(self, by: Union[list, tuple] = ('run', 'region', 'crystal_id', 'sample'),
+    def aggregate(self, by: Union[list, tuple] = ('sample', 'region', 'run', 'crystal_id'),
                   how: Union[dict, str] = 'mean',
                   file_suffix: str = '_agg.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
                   query: Union[str, None] = None) -> 'Dataset':
@@ -810,6 +810,15 @@ class Dataset:
             for fh in self._h5handles.values():
                 fh.flush()
 
+    def rechunk_stacks(self, chunk_height: int):
+        c = chunk_height
+        ss_chunk = self.shots.groupby(['file', 'subset']).size().apply(lambda l: ((l // c) * [c]) + [l % c])
+        zchunks = np.concatenate([np.array(v) for v in ss_chunk])
+        assert zchunks.sum() == self.shots.shape[0]
+        for sn, s in self.stacks.items():
+            self.add_stack(sn, s.rechunk({0: tuple(zchunks)}), overwrite=True)
+        self._zchunks = zchunks
+
     def stack_to_shots(self, labels: Union[str, list], selected=False):
         # mangle stack data into the shot list
         raise NotImplementedError('stacks_to_shots not yet implemented')
@@ -817,3 +826,12 @@ class Dataset:
     def merge_acquisition_data(self, fields: dict):
         # mange instrument (acquisition) data like exposure time etc. into shot list
         raise NotImplementedError('merge_acquisition_data not yet implemented')
+
+    def write_list(self, listfile: str):
+        """
+        Writes the files in the dataset into a list file, containing each file on a line.
+        :param listfile: list file name
+        :return:
+        """
+        with open(listfile, 'w') as fh:
+            fh.write('\n'.join(self.files))

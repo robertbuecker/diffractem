@@ -308,9 +308,9 @@ def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limi
     :param verbose: if True, a message is printed on some occasions
     :return: numpy array of refined parameters [amp, x0, y0, scale]
     """
-    if x_0 is None:
+    if (x_0 is None) or (not np.isfinite(x_0)):
         x_0 = img.shape[1] / 2
-    if y_0 is None:
+    if (y_0 is None) or (not np.isfinite(x_0)):
         y_0 = img.shape[0] / 2
     if radius is not None:
         x1 = int(x_0 - radius)
