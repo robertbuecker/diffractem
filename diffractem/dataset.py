@@ -13,6 +13,7 @@ import copy
 from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
 from tables import NaturalNameWarning
+from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
 
 
 class Dataset:
@@ -426,7 +427,7 @@ class Dataset:
             self.__dict__[lbl] = newtable
             self.__dict__[lbl + '_changed'] = True
 
-    def init_files(self, overwrite=False, parallel=False):
+    def init_files(self, overwrite=False, parallel=True):
         """
         Make new files corresponding to the shot list, by copying over instrument metadata and maps (but not
         results, shot list, data arrays,...
@@ -435,14 +436,31 @@ class Dataset:
         :return:
         """
         fn_map = self.shots[['file', 'file_raw']].drop_duplicates()
-        for _, filepair in fn_map.iterrows():
-            if parallel:
-                raise NotImplementedError('parallel: later')
-            else:
-                print(filepair['file_raw'], ' -> ', filepair['file'])
+
+        if parallel:
+            with ProcessPoolExecutor() as p:
+                futures = []
+                for _, filepair in fn_map.iterrows():
+                    futures.append(p.submit(nexus.copy_h5,
+                                 filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
+                                 exclude=('%/detector/data', self.data_pattern + '/%', self.result_pattern + '/%'),
+                                 print_skipped=False))
+
+                wait(futures, return_when=FIRST_EXCEPTION)
+                for f in futures:
+                    if f.exception():
+                        raise f.exception()
+                return futures
+
+        else:
+            for _, filepair in fn_map.iterrows():
                 nexus.copy_h5(filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
                               exclude=('%/detector/data', self.data_pattern + '/%', self.result_pattern + '/%'),
                               print_skipped=False)
+
+            return None
+
+
 
     def get_selection(self, query: Union[str, None] = None,
                       file_suffix: str = '_sel.h5', file_prefix: str = '',
