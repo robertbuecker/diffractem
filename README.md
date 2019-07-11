@@ -7,3 +7,5 @@ Note that this is still in a _very_ early stage, and pretty much for internal us
 A critical dependency is CrystFEL, available from http://www.desy.de/~twhite/crystfel/.
 
 It can be installed from python package index by: `pip install diffractem`
+
+Get example data here: https://dx.doi.org/10.17617/3.2j
