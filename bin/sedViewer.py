@@ -124,7 +124,7 @@ def updateImage():
         rawImage = rawImage
 
 def updatePlot():
-    global img, mapimg, hist, imageSerialNumber, rawImage, mapImage, map_zoomed, dataset
+    global img, mapimg, hist_img, imageSerialNumber, rawImage, mapImage, map_zoomed, dataset
 
     if show_peaks and (dataset.peaks.shape[0] > 0) and show_markers:
         ring_pen = pg.mkPen('g', width=0.8)
@@ -160,8 +160,8 @@ def updatePlot():
                                           symbol='+', size=7, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
 
             if map_zoomed:
-                p2.setRange(xRange=(x0 - 5*args.beam_diam, x0 + 5*args.beam_diam),
-                                   yRange=(y0 - 5*args.beam_diam, y0 + 5*args.beam_diam))
+                map_box.setRange(xRange=(x0 - 5 * args.beam_diam, x0 + 5 * args.beam_diam),
+                                 yRange=(y0 - 5*args.beam_diam, y0 + 5*args.beam_diam))
                 single_feature_canvas.setData([x0], [y0],
                                               symbol='o', size=args.beam_diam, pen=ring_pen,
                                               brush=(0, 0, 0, 0), pxMode=False)
@@ -183,18 +183,18 @@ def updatePlot():
             else:
                 single_feature_canvas.setData([x0], [y0],
                                               symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), pxMode=True)
-                p2.setRange(xRange=(0, mapImage.shape[1]), yRange=(0, mapImage.shape[0]))
+                map_box.setRange(xRange=(0, mapImage.shape[1]), yRange=(0, mapImage.shape[0]))
 
 
 
         else:
             single_feature_canvas.setData([],[])
 
-    levels = hist.getLevels()
+    levels = hist_img.getLevels()
     img.setImage(rawImage, autoRange=False)
     img.setLevels(levels)
     mapimg.setImage(mapImage)
-    hist.setLevels(levels[0], levels[1])
+    hist_img.setLevels(levels[0], levels[1])
 
 
 def update():
@@ -235,73 +235,74 @@ def mouseMoved(evt):
     info_text.setText('{}, {}: {}'.format(x, y, I))
 
 
-########################################################## gui
+# MAIN SETUP -------
 
 pg.mkQApp()
 
 imageWidget = pg.GraphicsLayoutWidget()
 imageWidget.setWindowTitle('stream file viewer')
 
+# IMAGE DISPLAY
+
 # A plot area (ViewBox + axes) for displaying the image
-p1 = imageWidget.addViewBox()
-p1.setAspectLocked()
+image_box = imageWidget.addViewBox()
+image_box.setAspectLocked()
 
 img = pg.ImageItem()
 img.setZValue(0)
-p1.addItem(img)
+image_box.addItem(img)
 proxy = pg.SignalProxy(img.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
 
 found_peak_canvas = pg.ScatterPlotItem()
-p1.addItem(found_peak_canvas)
+image_box.addItem(found_peak_canvas)
 found_peak_canvas.setZValue(2)
 
 predicted_peak_canvas = pg.ScatterPlotItem()
-p1.addItem(predicted_peak_canvas)
+image_box.addItem(predicted_peak_canvas)
 predicted_peak_canvas.setZValue(2)
 
-info_text = pg.TextItem(text='nothing')
-p1.addItem(info_text)
-info_text.setPos(0,0)
+info_text = pg.TextItem(text='')
+image_box.addItem(info_text)
+info_text.setPos(0, 0)
 
 # Contrast/color control
-hist = pg.HistogramLUTItem()
-hist.setImageItem(img)
-imageWidget.addItem(hist)
+hist_img = pg.HistogramLUTItem(img)
+imageWidget.addItem(hist_img)
+
+# MAP DISPLAY
 
 mapWidget = pg.GraphicsLayoutWidget()
 mapWidget.setWindowTitle('region map')
 
 # Map image control
-p2 = mapWidget.addViewBox()
-p2.setAspectLocked()
+map_box = mapWidget.addViewBox()
+map_box.setAspectLocked()
 
 mapimg = pg.ImageItem()
 mapimg.setZValue(0)
-p2.addItem(mapimg)
+map_box.addItem(mapimg)
 
 found_features_canvas = pg.ScatterPlotItem()
-p2.addItem(found_features_canvas)
+map_box.addItem(found_features_canvas)
 found_features_canvas.setZValue(2)
 
 single_feature_canvas = pg.ScatterPlotItem()
-p2.addItem(single_feature_canvas)
+map_box.addItem(single_feature_canvas)
 single_feature_canvas.setZValue(2)
 
+# lattice vectors
 a_dir = pg.PlotDataItem(pen=pg.mkPen('r', width=1))
 b_dir = pg.PlotDataItem(pen=pg.mkPen('g', width=1))
 c_dir = pg.PlotDataItem(pen=pg.mkPen('b', width=1))
-p2.addItem(a_dir)
-p2.addItem(b_dir)
-p2.addItem(c_dir)
+map_box.addItem(a_dir)
+map_box.addItem(b_dir)
+map_box.addItem(c_dir)
 
 # Contrast/color control
-hist2 = pg.HistogramLUTItem()
-hist2.setImageItem(mapimg)
-mapWidget.addItem(hist2)
+hist_map = pg.HistogramLUTItem(mapimg)
+mapWidget.addItem(hist_map)
 
 # Control Buttons
-
-topWidget = QtGui.QWidget()
 nextImageButton = QtGui.QPushButton('+1')
 previousImageButton = QtGui.QPushButton('-1')
 randomImageButton = QtGui.QPushButton('rnd')
@@ -313,6 +314,7 @@ toggleFoundPeaksButton = QtGui.QPushButton('peaks')
 toggleFoundCrystalButton = QtGui.QPushButton('crystal')
 zoomOnCrystalButton = QtGui.QPushButton('zoom')
 reloadButton = QtGui.QPushButton('reload')
+
 nextImageButton.clicked.connect(lambda: switch_shot_rel(1))
 previousImageButton.clicked.connect(lambda: switch_shot_rel(-1))
 randomImageButton.clicked.connect(lambda: switch_shot(np.random.randint(0, dataset.shots.shape[0]-1)))
@@ -326,9 +328,12 @@ zoomOnCrystalButton.clicked.connect(zoomOnCrystalButton_clicked)
 reloadButton.clicked.connect(lambda: read_files())
 #imageWidget.resize(800, 800)
 
+
+topWidget = QtGui.QWidget()
 layout = QtGui.QGridLayout()
-layoutButtons = QtGui.QGridLayout()
 topWidget.setLayout(layout)
+
+layoutButtons = QtGui.QGridLayout()
 layoutButtons.addWidget(nextImageButton, 0, 3)
 layoutButtons.addWidget(previousImageButton, 0, 2)
 layoutButtons.addWidget(plus10ImageButton, 0, 4)
@@ -340,9 +345,10 @@ layoutButtons.addWidget(toggleMarkerButton, 0, 20)
 layoutButtons.addWidget(toggleFoundPeaksButton, 0, 21)
 layoutButtons.addWidget(toggleFoundCrystalButton, 0, 22)
 layoutButtons.addWidget(zoomOnCrystalButton, 0, 23)
+
 layout.addWidget(imageWidget, 0, 0)
-layout.addLayout(layoutButtons, 1, 0, 1, 2)
 layout.addWidget(mapWidget, 0, 1)
+layout.addLayout(layoutButtons, 1, 0, 1, 2)
 
 topWidget.show()
 
@@ -384,7 +390,7 @@ if __name__ == '__main__':
     tmp.sort()
     level_min = tmp[round(0.02 * tmp.size)]
     level_max = tmp[round(0.98 * tmp.size)] * 2
-    hist.setLevels(level_min, level_max)
+    hist_img.setLevels(level_min, level_max)
 
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
