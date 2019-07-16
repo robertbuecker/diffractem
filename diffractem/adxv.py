@@ -190,10 +190,15 @@ class Adxv:
         payload = 'contrast_max %i\n' % (N)
         self.send(payload)
 
-    def define_spot(self, color, radius=0, box=0):
-        self.spot_type_counter += 1
+    def define_spot(self, color, radius=0, box=0, group=None):
+
+        if group is None:
+            self.spot_type_counter += 1
+        else:
+            self.spot_type_counter = group
+
         self.send('box %d %d\n' % (box, box))  # seems ignored?
-        self.send('define_type %d color %s radius %d\n' % (self.spot_type_counter, color, radius))
+        self.send('define_type %d color %s radius %d\n' % (group, color, radius))
 
         return self.spot_type_counter
 

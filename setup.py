@@ -2,11 +2,11 @@ from setuptools import setup
 
 setup(
     name='diffractem',
-    version='0.1.2',
+    version='0.2',
     packages=['diffractem'],
     url='https://github.com/robertbuecker/diffractem',
     license='',
-    scripts=['bin/nxs2tif.py', 'bin/sedViewer.py'],
+    scripts=['bin/nxs2tif.py', 'bin/edview.py'],
     author='Robert Buecker',
     author_email='robert.buecker@mpsd.mpg.de',
     description='Some tools for working with serial TEM data acquired with a Lambda Medipix-based detector.',
