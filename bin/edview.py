@@ -63,7 +63,7 @@ class EDViewer(QWidget):
                 # TODO get subset for incomplete coverage
                 print('Merged stream and hdf5 shot lists')
             except Exception as err:
-                self.dataset = Dataset.from_list(init_stacks=False)
+                self.dataset = Dataset()
                 self.dataset._shots = stream.shots
                 self.dataset._peaks = stream.peaks
                 self.dataset._predict = stream.indexed
