@@ -55,19 +55,26 @@ class EDViewer(QWidget):
             self.data_path = stream.geometry['data']
             files = list(stream.shots['file'].unique())
             try:
-                self.dataset = Dataset.from_list(files, load_tables=False)
+                self.dataset = Dataset.from_list(files, load_tables=False, init_stacks=False)
                 self.dataset.load_tables(features=True)
                 self.dataset.merge_stream(stream)
+                # get_selection would not be the right method to call (changes IDs), instead do...
+                self.dataset._shots = self.dataset._shots.loc[self.dataset._shots.selected,:].reset_index(drop=True)
                 # TODO get subset for incomplete coverage
-                print('Merged stream and hdf5 self.current_shot lists')
+                print('Merged stream and hdf5 shot lists')
             except Exception as err:
-                self.dataset = Dataset()
-                self.dataset.merge_stream(stream)
+                self.dataset = Dataset(init_stacks=False)
+                self.dataset._shots = stream.shots
+                self.dataset._peaks = stream.peaks
+                self.dataset._predict = stream.indexed
                 print('Could not load shot lists from H5 files, but have that from the stream file.')
                 print(f'Reason: {err}')
 
         if file_type in ['lst', 'h5', 'hdf', 'nxs']:
             self.dataset = Dataset.from_list(args.filename, load_tables=True)
+            if not self.dataset.shots.selected.all():
+                # dirty removal of unwanted shots is sufficient in this case:
+                self.dataset._shots = self.dataset._shots.loc[self.dataset._shots.selected,:].reset_index(drop=True)
 
         if args.data_path is not None:
             self.data_path = args.data_path
@@ -91,7 +98,7 @@ class EDViewer(QWidget):
         self.b_goto.setMinimum(0)
 
     def update_image(self):
-
+        print(self.current_shot)
         with h5py.File(self.current_shot['file'], mode='r', swmr=True) as f:
 
             if self.args.internal:
@@ -153,6 +160,8 @@ class EDViewer(QWidget):
             self.adxv.define_spot('green', 5, 0, 0)
             self.adxv.define_spot('red', 0, 10, 1)
             self.adxv.load_spots(pd.concat(allpk, axis=0, ignore_index=True).values)
+        elif not self.args.internal:
+            self.adxv.load_spots(np.empty((0,3)))
 
         if self.dataset.features.shape[0] > 0:
             ring_pen = pg.mkPen('g', width=2)

@@ -287,9 +287,10 @@ class Dataset:
         else:
             stream = streamfile
 
-        cols = list(self.shots.columns.difference(stream.shots.columns)) + self._shot_id_cols
+        cols = list(self.shots.columns.difference(stream.shots.columns)) + self._shot_id_cols + ['subset', 'shot_in_subset']
         self.shots = self.shots[cols].merge(stream.shots,
-                                            on=self._shot_id_cols, how='left', validate='1:1')
+                                            on=self._shot_id_cols + ['subset', 'shot_in_subset'], how='left', validate='1:1')
+        self.shots['selected'] = self.shots['serial'].notna()
         self.peaks = stream.peaks.merge(self.shots[self._shot_id_cols + ['subset', 'shot_in_subset']],
                                         on=self._shot_id_cols, how='inner')
         self.predict = stream.indexed.merge(self.shots[self._shot_id_cols + ['subset', 'shot_in_subset']],
@@ -459,8 +460,6 @@ class Dataset:
                               print_skipped=False)
 
             return None
-
-
 
     def get_selection(self, query: Union[str, None] = None,
                       file_suffix: str = '_sel.h5', file_prefix: str = '',
@@ -663,7 +662,7 @@ class Dataset:
         stacks = defaultdict(list)
 
         for (fn, subset), subgrp in sets.groupby(['file', 'subset']):
-            self._h5handles[fn] = fh = h5py.File(fn)
+            self._h5handles[fn] = fh = h5py.File(fn, swmr=True)
             grp = fh[self.data_pattern.replace('%', subset)]
             if isinstance(grp, h5py.Group):
                 for dsname, ds in grp.items():
