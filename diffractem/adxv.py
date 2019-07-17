@@ -203,8 +203,8 @@ class Adxv:
         return self.spot_type_counter
 
     def load_spots(self, spots):
-        if len(spots) == 0:
-            return
+        #if len(spots) == 0:
+        #    return
 
         self.send("load_spots %d\n" % len(spots))
 
