@@ -27,6 +27,7 @@ class Dataset:
 
         # HDF5 file addresses
         self.data_pattern = '/%/data'
+        self.shots_pattern = '/%/shots'
         self.result_pattern = '/%/results'
         self.map_pattern = '/%/map'
         self.instrument_pattern = '/%/instrument'
@@ -174,7 +175,7 @@ class Dataset:
                 warn('You are reloading the shot table. This can be dangerous. If you want to ensure a consistent'
                      ' data set, use the from_list class method instead, or start from an empty dataset.')
             try:
-                self._shots = nexus.get_table(files, self.data_pattern + '/shots',
+                self._shots = nexus.get_table(files, self.shots_pattern,
                                               parallel=self.parallel_io).reset_index(drop=True)
 
                 self._shots_changed = False
@@ -197,7 +198,7 @@ class Dataset:
                     self._shots.drop('stem', axis=1, inplace=True)
 
             except KeyError:
-                print('No shots found at ' + self.data_pattern + '/shots')
+                print('No shots found at ' + self.shots_pattern)
 
         if features:
             try:
@@ -230,7 +231,7 @@ class Dataset:
                 print('No predictions found at ' + self.result_pattern + '/predict')
 
     def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None,
-                     peaks: Union[None, bool] = None, predict: Union[None, bool] = None):
+                     peaks: Union[None, bool] = None, predict: Union[None, bool] = None, format: str = 'arrays'):
         """
         Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. For each of the tables,
         it can be automatically determined if they have changed and should be stored...
@@ -239,7 +240,7 @@ class Dataset:
         :param features: similar
         :param peaks: similar
         :param predict: similar
-        :param parallel_io: write to HDF5 files in parallel. Usually works well and is way faster.
+        :param format: format to write metadata tables. 'arrays' (recommended) or 'tables' (old-style)
         :return:
         """
         fs = []
@@ -254,19 +255,19 @@ class Dataset:
 
         simplefilter('ignore', NaturalNameWarning)
         if (shots is None and self._shots_changed) or shots:
-            fs.extend(nexus.store_table(self.shots, self.data_pattern + '/shots', parallel=self.parallel_io))
+            fs.extend(nexus.store_table(self.shots, self.shots_pattern, parallel=self.parallel_io, format=format))
             self._shots_changed = False
 
         if (features is None and self._features_changed) or features:
-            fs.extend(nexus.store_table(self.features, self.map_pattern + '/features', parallel=self.parallel_io))
+            fs.extend(nexus.store_table(self.features, self.map_pattern + '/features', parallel=self.parallel_io, format=format))
             self._features_changed = False
 
         if (peaks is None and self._peaks_changed) or peaks:
-            fs.extend(nexus.store_table(self.peaks, self.result_pattern + '/peaks', parallel=self.parallel_io))
+            fs.extend(nexus.store_table(self.peaks, self.result_pattern + '/peaks', parallel=self.parallel_io, format=format))
             self._peaks_changed = False
 
         if (predict is None and self._predict_changed) or predict:
-            fs.extend(nexus.store_table(self.predict, self.result_pattern + '/predict', parallel=self.parallel_io))
+            fs.extend(nexus.store_table(self.predict, self.result_pattern + '/predict', parallel=self.parallel_io, format=format))
             self._predict_changed = False
 
         if stacks_were_open:
