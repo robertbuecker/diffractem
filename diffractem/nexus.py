@@ -82,6 +82,8 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
                 except TypeError as err:
                     if val.dtype == 'O':                        
                         val2 = val.astype('S')
+                        if key in grp:
+                            del grp[key]
                         #print(f'Retrying: {key} ({val2.shape}, {val2.dtype}) to file {fn}')
                         ds = grp.require_dataset(key, shape=val.shape, dtype=val2.dtype)
                         ds[:] = val2
