@@ -59,7 +59,7 @@ def get_table(files: Union[list, str], path='/%/shots', parallel=True) -> pd.Dat
     return pd.concat(out, ignore_index=True)
 
 
-def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset: str, format: str = 'arrays'):
+def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset: str, format: str = 'nexus'):
     """
     Helper function. Internal use only.
     """
@@ -71,25 +71,27 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
         except ValueError:
             tbl.to_hdf(fn, tbl_path, format='table')
 
-    elif format == 'arrays':
+    elif format == 'nexus':
         with h5py.File(fn) as fh:
             for key, val in tbl.iteritems():
-                print(f'Storing {key} ({val.shape}, {val.dtype}) to file {fn}')
+                #print(f'Storing {key} ({val.shape}, {val.dtype}) to file {fn}')
                 grp = fh.require_group(tbl_path)
                 try:
                     ds = grp.require_dataset(key, shape=val.shape, dtype=val.dtype)
                     ds[:] = val
                 except TypeError as err:
-                    if val.dtype == 'O':
-                        ds = grp.require_dataset(key, shape=val.shape, dtype='S')
-                        ds[:] = val.astype('S')
+                    if val.dtype == 'O':                        
+                        val2 = val.astype('S')
+                        #print(f'Retrying: {key} ({val2.shape}, {val2.dtype}) to file {fn}')
+                        ds = grp.require_dataset(key, shape=val.shape, dtype=val2.dtype)
+                        ds[:] = val2
                     else:
                         raise err
     else:
         raise ValueError('Storage format must be "table" or "arrays".')
 
 
-def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: str = 'arrays'):
+def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: str = 'nexus'):
     """
     Stores a pandas DataFrame containing 'file' and 'subset' columns to multiple HDF5 files. Essentially a
     multi-file, multi-processed wrapper to pd.to_hdf
@@ -121,7 +123,7 @@ def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: s
         #print(table.columns)
 
         for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
-            _store_table_to_single_subset(ssdat, fn, path, ssn)
+            _store_table_to_single_subset(ssdat, fn, path, ssn, format)
 
         return [None]
 
