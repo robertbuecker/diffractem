@@ -231,7 +231,7 @@ class Dataset:
                 print('No predictions found at ' + self.result_pattern + '/predict')
 
     def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None,
-                     peaks: Union[None, bool] = None, predict: Union[None, bool] = None, format: str = 'arrays'):
+                     peaks: Union[None, bool] = None, predict: Union[None, bool] = None, format: str = 'nexus'):
         """
         Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. For each of the tables,
         it can be automatically determined if they have changed and should be stored...
@@ -240,7 +240,7 @@ class Dataset:
         :param features: similar
         :param peaks: similar
         :param predict: similar
-        :param format: format to write metadata tables. 'arrays' (recommended) or 'tables' (old-style)
+        :param format: format to write metadata tables. 'nexus' (recommended) or 'tables' (old-style)
         :return:
         """
         fs = []

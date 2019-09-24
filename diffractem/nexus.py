@@ -88,7 +88,7 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
                     else:
                         raise err
     else:
-        raise ValueError('Storage format must be "table" or "arrays".')
+        raise ValueError('Storage format must be "table" or "nexus".')
 
 
 def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: str = 'nexus'):
