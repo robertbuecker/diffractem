@@ -325,7 +325,8 @@ class MapImage:
             sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(min(self.img.shape[0]/100, len(sh)-10)),
                                        max_rows=self.img.shape[0], inc=25)
         sh = tools.set_frames(sh, frames)
-        sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
+        if predist is not None:
+            sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
         self.shots = sh
 
     def export_scan_list(self, filename, delim=' '):
