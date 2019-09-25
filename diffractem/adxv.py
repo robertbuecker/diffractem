@@ -50,7 +50,7 @@ class Adxv:
             self.logger.debug(f'Port {self.adxv_port} will be used for adxv. Attempting to connect.')
 
             # build adxv start command
-            adxv_comm = self.adxv_bin + ' -socket {} -hdf5dataset {}'.format(self.adxv_port, self.hdf5_path)
+            adxv_comm = self.adxv_bin + ' -socket {} -hdf5dataset {} -rings'.format(self.adxv_port, self.hdf5_path)
 
             for opt, val in self.adxv_opts.items():
                 adxv_comm += ' -{} {}'.format(opt, val)
