@@ -445,7 +445,8 @@ class Dataset:
                 for _, filepair in fn_map.iterrows():
                     futures.append(p.submit(nexus.copy_h5,
                                  filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
-                                 exclude=('%/detector/data', self.data_pattern + '/%', self.result_pattern + '/%'),
+                                 exclude=('%/detector/data', self.data_pattern + '/%', 
+                                 self.result_pattern + '/%', self.shots_pattern + '/%'),
                                  print_skipped=False))
 
                 wait(futures, return_when=FIRST_EXCEPTION)
