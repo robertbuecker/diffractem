@@ -245,7 +245,7 @@ class Dataset:
         """
         fs = []
 
-        if self._stacks_open:
+        if self._stacks_open and (format=='tables'):
             warn('Data stacks are open, and will be transiently closed. You will need to re-create derived stacks.',
                  RuntimeWarning)
             stacks_were_open = True
