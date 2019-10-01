@@ -429,7 +429,7 @@ class Dataset:
             self.__dict__[lbl] = newtable
             self.__dict__[lbl + '_changed'] = True
 
-    def init_files(self, overwrite=False, parallel=True):
+    def init_files(self, overwrite=False, parallel=True, keep_features=False, exclude_list=()):
         """
         Make new files corresponding to the shot list, by copying over instrument metadata and maps (but not
         results, shot list, data arrays,...
@@ -443,10 +443,15 @@ class Dataset:
             with ProcessPoolExecutor() as p:
                 futures = []
                 for _, filepair in fn_map.iterrows():
+                    exc = ('%/detector/data', self.data_pattern + '/%', 
+                                 self.result_pattern + '/%', self.shots_pattern + '/%')
+                    if not keep_features:
+                        exc += (self.map_pattern + '/features',)
+                    if len(exclude_list) > 0:
+                        exc += tuple(exclude_list)
                     futures.append(p.submit(nexus.copy_h5,
                                  filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
-                                 exclude=('%/detector/data', self.data_pattern + '/%', 
-                                 self.result_pattern + '/%', self.shots_pattern + '/%'),
+                                 exclude=exc,
                                  print_skipped=False))
 
                 wait(futures, return_when=FIRST_EXCEPTION)
