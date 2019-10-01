@@ -159,10 +159,10 @@ class Dataset:
     def load_tables(self, shots=False, features=False, peaks=False, predict=False, files=None):
         """
         Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.
-        :param shots:
-        :param features:
-        :param peaks:
-        :param predict:
+        :param shots: shot table
+        :param features: feature table
+        :param peaks: peak table
+        :param predict: prediction table
         :param files: ...allows to supply a custom file list, instead of the stored one. Dangerous.
         :return:
         """
@@ -741,7 +741,8 @@ class Dataset:
                     print(address['file'], path, 'not found!')
 
     def store_stacks(self, labels: Union[None, list] = None, overwrite=False,
-                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, **kwargs):
+                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, 
+                    progress_bar=True, **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
         typically not yet computed, so at this point the actual data crunching is done.
@@ -812,7 +813,10 @@ class Dataset:
 
         else:
             with catch_warnings():
-                with ProgressBar():
+                if progress_bar:
+                    with ProgressBar():
+                        da.store(arrays, datasets)
+                else:
                     da.store(arrays, datasets)
 
             for fh in self._h5handles.values():
