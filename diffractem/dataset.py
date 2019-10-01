@@ -736,7 +736,8 @@ class Dataset:
                     print(address['file'], path, 'not found!')
 
     def store_stacks(self, labels: Union[None, list] = None, overwrite=False,
-                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, **kwargs):
+                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, 
+                    progress_bar=True, **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
         typically not yet computed, so at this point the actual data crunching is done.
@@ -807,7 +808,10 @@ class Dataset:
 
         else:
             with catch_warnings():
-                with ProgressBar():
+                if progress_bar:
+                    with ProgressBar():
+                        da.store(arrays, datasets)
+                else:
                     da.store(arrays, datasets)
 
             for fh in self._h5handles.values():
