@@ -159,10 +159,10 @@ class Dataset:
     def load_tables(self, shots=False, features=False, peaks=False, predict=False, files=None):
         """
         Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.
-        :param shots:
-        :param features:
-        :param peaks:
-        :param predict:
+        :param shots: shot table
+        :param features: feature table
+        :param peaks: peak table
+        :param predict: prediction table
         :param files: ...allows to supply a custom file list, instead of the stored one. Dangerous.
         :return:
         """
