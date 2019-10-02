@@ -384,7 +384,7 @@ if __name__ == '__main__':
     parser.add_argument('-q', '--query', type=str, help='Query string to filter shots by column values')
     parser.add_argument('-d', '--data_path', type=str, help='Data field in HDF5 file(s). Defaults to stream file or tries a few.')
     parser.add_argument('--internal', help='Use internal diffraction viewer instead of adxv', action='store_true')
-    parser.add_argument('--adxv_bin', help='Location of adxv binary', default='adxv')
+    parser.add_argument('--adxv_bin', help='Location/command string of adxv binary', default='adxv')
     parser.add_argument('--map_path', type=str, help='Path to map image', default='/%/map/image')
     parser.add_argument('--feature_path', type=str, help='Path to map feature table', default='/%/map/features')
     parser.add_argument('--peaks_path', type=str, help='Path to peaks table', default='/%/results/peaks')
