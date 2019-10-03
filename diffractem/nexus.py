@@ -30,8 +30,13 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
             else:
                 dt = {}
                 for key, val in fh[tbl_path].items():
-                    if val.dtype.type == np.string_:
-                        dt[key] = val[:].astype(np.str)
+                    dt_field = val.dtype
+                    if dt_field.type == np.string_:
+                        try:
+                            dt[key] = val[:].astype(np.str)
+                        except UnicodeDecodeError as err:
+                            print(f'Field {key} of type {dt_field} gave decoding trouble:')
+                            raise err
                     else:
                         dt[key] = val[:]              
                     if dt[key].ndim != 1:
