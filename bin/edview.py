@@ -90,7 +90,8 @@ class EDViewer(QWidget):
             self.dataset = self.dataset.get_selection(args.query)
 
         if not self.args.internal:
-            adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}
+            #adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}
+            adxv_args = {}
             self.adxv = Adxv(hdf5_path=self.data_path.replace('%', 'entry'),
                              adxv_bin=self.args.adxv_bin, **adxv_args)
 
