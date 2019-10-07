@@ -82,7 +82,7 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
                 #print(f'Storing {key} ({val.shape}, {val.dtype}) to file {fn}')
                 grp = fh.require_group(tbl_path)
                 try:
-                    ds = grp.require_dataset(key, shape=val.shape, dtype=val.dtype, maxshape=(None, 1))
+                    ds = grp.require_dataset(key, shape=val.shape, dtype=val.dtype, maxshape=(None,))
                     ds[:] = val
                 except TypeError as err:
                     if val.dtype == 'O':                        
@@ -90,7 +90,7 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
                         if key in grp:
                             del grp[key]
                         #print(f'Retrying: {key} ({val2.shape}, {val2.dtype}) to file {fn}')
-                        ds = grp.require_dataset(key, shape=val.shape, dtype=val2.dtype, maxshape=(None, 1))
+                        ds = grp.require_dataset(key, shape=val.shape, dtype=val2.dtype, maxshape=(None,))
                         ds[:] = val2
                     else:
                         raise err

@@ -221,14 +221,16 @@ class Dataset:
                 self._peaks = nexus.get_table(files, self.result_pattern + '/peaks', parallel=self.parallel_io)
                 self._peaks_changed = False
             except KeyError:
-                print('No peaks found at ' + self.result_pattern + '/peaks')
+                pass
+                #print('No peaks found at ' + self.result_pattern + '/peaks')
 
         if predict:
             try:
                 self._predict = nexus.get_table(files, self.result_pattern + '/predict', parallel=self.parallel_io)
                 self._predict_changed = False
             except KeyError:
-                print('No predictions found at ' + self.result_pattern + '/predict')
+                pass
+                #print('No predictions found at ' + self.result_pattern + '/predict')
 
     def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None,
                      peaks: Union[None, bool] = None, predict: Union[None, bool] = None, format: str = 'nexus'):
@@ -764,7 +766,7 @@ class Dataset:
             labels = self._stacks.keys()
 
         stacks = {k: v for k, v in self._stacks.items() if k in labels}
-        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(1,))})
+        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(self._zchunks,))})
 
         datasets = []
         arrays = []
@@ -823,7 +825,7 @@ class Dataset:
                 fh.flush()
 
     def rechunk_stacks(self, chunk_height: int):
-        c = chunk_height
+        c = chunk_heightb
         ss_chunk = self.shots.groupby(['file', 'subset']).size().apply(lambda l: ((l // c) * [c]) + [l % c])
         zchunks = np.concatenate([np.array(v) for v in ss_chunk])
         assert zchunks.sum() == self.shots.shape[0]
