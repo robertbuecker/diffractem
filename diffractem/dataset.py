@@ -592,7 +592,7 @@ class Dataset:
             agg_shots.append(newshots)
 
         newset._shots = pd.concat(agg_shots, axis=0, ignore_index=True)
-        print(f'{newset._shots.shape[0]} aggregated shots.')
+        #print(f'{newset._shots.shape[0]} aggregated shots.')
 
         # drop remaining columns that are inconsistent
         for col in cols_nonid:
@@ -793,6 +793,7 @@ class Dataset:
                 else:
                     path = data_pattern.replace('%', ssn) + '/' + label
 
+                #print('Writing to ', path)
                 try:
                     cs = tuple([c[0] for c in arr.chunks])
                     # print(path, cs, arr.shape)
@@ -805,6 +806,7 @@ class Dataset:
                                                 chunks=tuple([c[0] for c in arr.chunks]),
                                                 compression=compression, **kwargs)
                     else:
+                        print('Cannot write stack', label)
                         raise e
 
                 arrays.append(arr)
@@ -825,7 +827,7 @@ class Dataset:
                 fh.flush()
 
     def rechunk_stacks(self, chunk_height: int):
-        c = chunk_heightb
+        c = chunk_height
         ss_chunk = self.shots.groupby(['file', 'subset']).size().apply(lambda l: ((l // c) * [c]) + [l % c])
         zchunks = np.concatenate([np.array(v) for v in ss_chunk])
         assert zchunks.sum() == self.shots.shape[0]
