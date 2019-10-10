@@ -133,7 +133,7 @@ def from_raw(fn, opt: pre_proc_opts):
     alldata = {'center_of_mass': com, 
                 'lorentz_fit': lorentz, 
                 'beam_center': ctr, 
-                'centered': centered.astype(np.int16), 
+                'centered': centered, 
                'pxmask_centered': (centered != -1).astype(np.uint16), 
                'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]), 
                'adf2': proc2d.apply_virtual_detector(centered, opt.r_adf2[0], opt.r_adf2[1])}

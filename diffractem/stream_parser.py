@@ -174,7 +174,7 @@ class StreamParser:
 
                 # Required info at chunk head
                 elif BEGIN_CHUNK in l:
-                    shotdat = {'Event': -1, 'shot_in_subset': -1, 'subset': '',
+                    shotdat = {'Event': '_', 'shot_in_subset': -1, 'subset': '_',
                                'file': '', 'serial': -1, 'first_line': ln, 'last_line': -1}
                     init_chunk = True
                 elif END_CHUNK in l:
@@ -185,7 +185,11 @@ class StreamParser:
                     init_chunk = False
                 elif 'Event:' in l:
                     shotdat['Event'] = l.split(': ')[-1].strip()
-                    shotdat['shot_in_subset'] = int(shotdat['Event'].split('//')[-1])
+                    dummy_shot = shotdat['Event'].split('//')[-1]
+                    if dummy_shot == '_':
+                        shotdat['shot_in_subset'] = 0
+                    else:
+                        shotdat['shot_in_subset'] = int(shotdat['Event'].split('//')[-1])
                     shotdat['subset'] = shotdat['Event'].split('//')[0].strip()
                 elif 'Image filename:' in l:
                     shotdat['file'] = l.split(':')[-1].strip()

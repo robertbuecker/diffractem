@@ -28,6 +28,7 @@ class Dataset:
         # HDF5 file addresses
         self.data_pattern = '/%/data'
         self.shots_pattern = '/%/shots'
+        self._fallback_shots_pattern = '/%/data/shots'
         self.result_pattern = '/%/results'
         self.map_pattern = '/%/map'
         self.instrument_pattern = '/%/instrument'
@@ -175,7 +176,11 @@ class Dataset:
                 warn('You are reloading the shot table. This can be dangerous. If you want to ensure a consistent'
                      ' data set, use the from_list class method instead, or start from an empty dataset.')
             try:
-                self._shots = nexus.get_table(files, self.shots_pattern,
+                try:
+                    self._shots = nexus.get_table(files, self.shots_pattern,
+                                              parallel=self.parallel_io).reset_index(drop=True)
+                except KeyError:
+                    self._shots = nexus.get_table(files, self._fallback_shots_pattern,
                                               parallel=self.parallel_io).reset_index(drop=True)
 
                 self._shots_changed = False
