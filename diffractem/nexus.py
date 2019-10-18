@@ -30,17 +30,22 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
             else:
                 dt = {}
                 for key, val in fh[tbl_path].items():
+                    if val.ndim != 1:
+                        warn('Data fields in list group must be 1-D, {} is {}-D. Skipping.'.format(key, val.ndim))
+                        continue
                     dt_field = val.dtype
+                    if 'label' in val.attrs:
+                        k = val.attrs['label']
+                    else:
+                        k = key
                     if dt_field.type == np.string_:
                         try:
-                            dt[key] = val[:].astype(np.str)
+                            dt[k] = val[:].astype(np.str)
                         except UnicodeDecodeError as err:
                             print(f'Field {key} of type {dt_field} gave decoding trouble:')
                             raise err
                     else:
-                        dt[key] = val[:]              
-                    if dt[key].ndim != 1:
-                        raise ValueError('Data fields in list group must be 1-D, {} is {}-D!'.format(key, dt[key].ndim))
+                        dt[k] = val[:]              
                 newlist = pd.DataFrame().from_dict(dt)
 
             newlist['subset'] = subset
@@ -79,21 +84,30 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
     elif format == 'nexus':
         with h5py.File(fn) as fh:
             for key, val in tbl.iteritems():
-                #print(f'Storing {key} ({val.shape}, {val.dtype}) to file {fn}')
+                #print(f'Storing {key} ({val.shape}, {val.dtype}) to {fn}: {path}')
                 grp = fh.require_group(tbl_path)
+                grp.attrs['NX_class'] = 'NXcollection'
+                k = key.replace('/', '_').replace('.', ' ')
                 try:
-                    ds = grp.require_dataset(key, shape=val.shape, dtype=val.dtype, maxshape=(None,))
+                    if k not in grp:
+                        ds = grp.require_dataset(k, shape=val.shape, dtype=val.dtype, maxshape=(None,))
+                    else:
+                        ds = grp[k]
+                        if ds.shape[0] != val.shape[0]:
+                            ds.resize(val.shape[0], axis=0)
+                            #print('resizing', k)
                     ds[:] = val
-                except TypeError as err:
+                except (TypeError, OSError) as err:
                     if val.dtype == 'O':                        
                         val2 = val.astype('S')
-                        if key in grp:
-                            del grp[key]
-                        #print(f'Retrying: {key} ({val2.shape}, {val2.dtype}) to file {fn}')
-                        ds = grp.require_dataset(key, shape=val.shape, dtype=val2.dtype, maxshape=(None,))
+                        if k in grp:
+                            del grp[k]
+                        ds = grp.require_dataset(k, shape=val.shape, dtype=val2.dtype, maxshape=(None,))
                         ds[:] = val2
                     else:
                         raise err
+
+                ds.attrs['label'] = key
     else:
         raise ValueError('Storage format must be "table" or "nexus".')
 
