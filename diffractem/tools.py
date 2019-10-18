@@ -3,6 +3,8 @@
 from astropy.convolution import Gaussian2DKernel, convolve
 
 from . import gap_pixels
+from .stream_parser import StreamParser
+from .dataset import Dataset
 from .io import *
 from .proc2d import correct_dead_pixels
 
@@ -272,3 +274,39 @@ def make_geometry(parameters, file_name=None):
 
     return par
 
+def chop_stream(streamfile: str, frame: int):
+    """Carve shots with a given frame number from a stream file
+    
+    Arguments:
+        streamfile {str} -- [stream file to open]
+        frame {int} -- [frame number to extract]
+    """
+    stream = StreamParser(streamfile)
+    ds = Dataset.from_list(stream.files)
+    ds.merge_stream(stream)
+
+    skip = ds.shots[['frame','first_line', 'last_line']].query(f'frame != {frame}').sort_values(by='first_line', ascending=False)
+
+    start = list(skip.first_line)
+    stop = list(skip.last_line)
+
+    with open(streamfile, 'r') as fh_in, \
+        open(streamfile.rsplit('.',1)[0] + f'_{frame}.stream', 'w') as fh_out:
+        lstart = start.pop()
+        lstop = -1
+        exclude = False
+        for ln, l in enumerate(fh_in):
+            if exclude:
+                if ln == lstop:
+                    exclude = False
+                    try:
+                        lstart = start.pop()
+                    except IndexError:
+                        lstart = -1
+                        #print('Reached last exclusion')
+            else:
+                if ln == lstart:
+                    exclude = True
+                    lstop = stop.pop()
+                else:
+                    fh_out.write(l)
