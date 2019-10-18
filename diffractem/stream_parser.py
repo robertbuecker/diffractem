@@ -123,6 +123,10 @@ class StreamParser:
     def input_file(self):
         return self.command.split('-i ')[1].split(' -')[0].strip()
 
+    @property
+    def files(self):
+        return list(self.shots.file.unique())
+
     def parse(self, new_folder):
 
         linedat_peak = StringIO()
