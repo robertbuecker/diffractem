@@ -369,7 +369,7 @@ class Dataset:
         Change file names in all lists using some handy modifications. The old file names are copied to a "file_raw"
         column, if not already present (can be overriden with keep_raw).
         :param file_suffix: add suffix to file, INCLUDING file extension, e.g. '_modified.h5'
-        :param file_prefix: add suffix to actual filenames (not folder/full path!), e.g. 'aggregated_
+        :param file_prefix: add prefix to actual filenames (not folder/full path!), e.g. 'aggregated_
         :param new_folder: if not None, changes folder name to this path
         :param fn_map: if not None, gives an explicit table (pd.DataFrame) with columns 'file' and 'file_new'
             that manually maps old to new filenames. All other parameters are ignored, if provided
@@ -453,7 +453,7 @@ class Dataset:
                     exc = ('%/detector/data', self.data_pattern + '/%', 
                                  self.result_pattern + '/%', self.shots_pattern + '/%')
                     if not keep_features:
-                        exc += (self.map_pattern + '/features',)
+                        exc += (self.map_pattern + '/features', '%/ref/features')
                     if len(exclude_list) > 0:
                         exc += tuple(exclude_list)
                     futures.append(p.submit(nexus.copy_h5,
@@ -697,7 +697,12 @@ class Dataset:
                             newstack = da.from_array(ds, chunks=ds.chunks)
                         stacks[dsname].append(newstack)
 
-        self._stacks.update({sn: da.concatenate(s, axis=0) for sn, s in stacks.items()})
+        for sn, s in stacks.items():
+            try:
+                self._stacks[sn] = da.concatenate(s, axis=0) 
+            except ValueError as err:
+                warn(f'Could not read stack {sn}')
+
         self._stacks_open = True
 
     def add_stack(self, label: str, stack: Union[da.Array, np.array, h5py.Dataset], overwrite=False):
