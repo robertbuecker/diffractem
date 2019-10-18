@@ -29,7 +29,7 @@ class pre_proc_opts:
         self.r_adf2 = (100, 200)
         self.select_query = 'frame >= 0'
         self.agg_query = 'frame >= 0 and frame <= 5'
-        self.agg_file_suffix = '_agg0to5_f.h5'
+        self.agg_file_suffix = '_agg.h5'
         self.aggregate = True
         self.scratch_dir = '/scratch/diffractem'
         self.proc_dir = 'proc_data'
@@ -47,7 +47,8 @@ class pre_proc_opts:
         self.friedel_refine = True
         self.min_peaks = 10
         self.peak_sigma = 2
-        self.center_stack = 'beam_center_refined' if self.friedel_refine else 'beam_center'
+        self.refined_file_suffix = '_ref.h5'
+        self.center_stack = 'beam_center'
         self.broadcast_single = True
         self.broadcast_cumulative = True
         self.single_suffix = '_all.h5'
@@ -184,7 +185,8 @@ def from_raw(fn, opt: pre_proc_opts):
     else:
         # get Friedel-refined center from stream file
         ctr_fr = proc_peaks.center_friedel(stream.peaks, dsagg.shots, 
-                                    p0=[opt.xsize//2, opt.ysize//2], sigma=opt.peak_sigma, minpeaks=opt.min_peaks)
+                                    p0=[opt.xsize//2, opt.ysize//2], 
+                                    sigma=opt.peak_sigma, minpeaks=opt.min_peaks)
 
         try:
             dsagg.open_stacks()
@@ -193,8 +195,13 @@ def from_raw(fn, opt: pre_proc_opts):
             ctr2 = (ctr_fr[['beam_x', 'beam_y']].values - [[opt.xsize//2, opt.ysize//2]]) + da.ceil(dsagg.beam_center)
 
             dsagg.add_stack('centered', centered2, overwrite=True)
-            dsagg.add_stack('beam_center_refined', ctr2, overwrite=True)
-            dsagg.store_stacks(['centered', 'beam_center_refined'], overwrite=True, progress_bar=False)
+            dsagg.add_stack('pxmask_centered', (centered2 != -1).astype(np.uint16), overwrite=True)
+            dsagg.add_stack('beam_center', ctr2, overwrite=True)
+
+            dsagg.change_filenames(opt.refined_file_suffix)
+            dsagg.init_files(overwrite=True, keep_features=True)
+            dsagg.store_tables(shots=True)
+            dsagg.store_stacks(overwrite=True, progress_bar=False)
         except Exception as err:
             log('Friedel refinement raised an error:')
             raise err
@@ -259,7 +266,7 @@ def broadcast(fn, opt: pre_proc_opts):
     stack_rechunked = dssel.raw_counts.rechunk({0: ctr.chunks[0]}) # re-chunk the raw data
     stack_ff = proc2d.apply_flatfield(stack_rechunked, reference)
     stack = proc2d.correct_dead_pixels(stack_ff, pxmask, strategy='replace', replace_val=-1, mask_gaps=True)
-    centered = proc2d.center_image(stack, ctr[:,0], ctr[:,1], opt.xsize//2, opt.ysize//2, -1, parallel=True)
+    centered = proc2d.center_image(stack, ctr[:,0], ctr[:,1], opt.xsize, opt.ysize, -1, parallel=True)
     
     # add the new stacks to the aggregated dataset
     alldata = {'center_of_mass': dsagg.stacks['center_of_mass'][shots.from_id.values,...], 
@@ -315,8 +322,9 @@ def cumulate(fn, opt: pre_proc_opts):
             dispfn = os.path.basename(fn)
         idstring = '[{} - {} - cumulate] '.format(datetime.datetime.now().time(), dispfn) 
         print(idstring, *args)
-
+    
     dssel = Dataset().from_list(fn)
+    log('Cumulating from frame', opt.cum_first_frame)
     dssel.open_stacks()
 
     # chunks for aggregation
@@ -338,11 +346,11 @@ def cumulate(fn, opt: pre_proc_opts):
         dssel.stacks[k] = dssel.stacks[k].map_blocks(cumfunc, dtype=dssel.stacks[k].dtype)
 
     dssel.change_filenames(opt.cum_file_suffix)    
-    dssel.init_files(overwrite=True)
+    dssel.init_files(overwrite=True, keep_features=False)
+    dssel.store_tables()
     
     try:
-        dssel.open_stacks()
-        dssel.store_tables()
+        dssel.open_stacks()        
         dssel.store_stacks(overwrite=True, progress_bar=False)
 
     except Exception as err:
