@@ -475,6 +475,19 @@ class Dataset:
 
             return None
 
+    def get_meta(self, path='%/instrument/detector/collection/shutter_time'):
+        meta = {}    
+        for lbl, _ in self.shots.groupby(['file', 'subset']):
+            with h5py.File(lbl[0]) as fh:
+                meta[tuple(lbl)] = fh[path.replace('%', lbl[1])][:]
+                if meta[tuple(lbl)].size == 1:
+                    meta[tuple(lbl)] = meta[tuple(lbl)][0]
+        return pd.Series(meta, name=path.rsplit('/',1)[-1])
+
+    def merge_meta(self, path='%/instrument/detector/collection/shutter_time'):
+        meta = self.get_meta(path)
+        self.shots = self.shots.join(meta, on=['file', 'subset'])
+
     def get_selection(self, query: Union[str, None] = None,
                       file_suffix: str = '_sel.h5', file_prefix: str = '',
                       new_folder: Union[str, None] = None) -> 'Dataset':

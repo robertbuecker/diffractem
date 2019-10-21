@@ -4,7 +4,7 @@ from astropy.convolution import Gaussian2DKernel, convolve
 
 from . import gap_pixels
 from .stream_parser import StreamParser
-from .dataset import Dataset
+#from .dataset import Dataset
 from .io import *
 from .proc2d import correct_dead_pixels
 
