@@ -628,6 +628,25 @@ def center_image(imgs, x0, y0, xsize, ysize, padval, parallel=True):
     return simgs
 
 
+def apply_saturation_correction(img: np.ndarray, exp_time: float, dead_time: float = 1.9e-3):
+    """Apply detector correction function to image. Should ideally be done even before flatfield.
+    Uses a 5th order polynomial approximation to the Lambert function, which is appropriate
+    for a paralyzable detector, up to the point where its signal starts inverting (which is where
+    nothing can be done anymore)
+    
+    Arguments:
+        img {np.ndarray} -- Input image or image stack
+        exp {float} -- Exposure time in ms
+    
+    Keyword Arguments:
+        dead_time {float} -- Dead time of detector in ms (default: {1.9e-3})
+    """
+    lambert = lambda x: x - x**2 + 3/2*x**3 - 8/3*x**4 + 125/24*x**5
+    satcorr = lambda y, sat: -lambert(-sat*y)/sat # saturation parameter: dead time/exposure time
+
+    return satcorr(img, dead_time/exp_time)
+
+
 def apply_flatfield(img, reference=None, keep_type=True, ref_smooth_range=None, 
                     normalize_reference=False, **kwargs):
     """
