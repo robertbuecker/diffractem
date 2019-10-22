@@ -274,7 +274,7 @@ def make_geometry(parameters, file_name=None):
 
     return par
 
-def chop_stream(streamfile: str, frame: int):
+def chop_stream(streamfile: str, shots: pd.DataFrame, query='frame == 1', postfix='fr1'):
     """Carve shots with a given frame number from a stream file
     
     Arguments:
@@ -282,16 +282,14 @@ def chop_stream(streamfile: str, frame: int):
         frame {int} -- [frame number to extract]
     """
     stream = StreamParser(streamfile)
-    ds = Dataset.from_list(stream.files)
-    ds.merge_stream(stream)
-
-    skip = ds.shots[['frame','first_line', 'last_line']].query(f'frame != {frame}').sort_values(by='first_line', ascending=False)
+    skip = stream.shots[['frame','first_line', 'last_line']].merge(shots, on = ['file', 'Event']).\
+        query(query).sort_values(by='first_line', ascending=False)
 
     start = list(skip.first_line)
     stop = list(skip.last_line)
 
     with open(streamfile, 'r') as fh_in, \
-        open(streamfile.rsplit('.',1)[0] + f'_{frame}.stream', 'w') as fh_out:
+        open(streamfile.rsplit('.',1)[0] + postfix + '.stream', 'w') as fh_out:
         lstart = start.pop()
         lstop = -1
         exclude = False

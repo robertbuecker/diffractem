@@ -8,6 +8,8 @@ from numba import jit, prange, int64
 
 from . import gap_pixels
 from scipy import optimize, sparse, special
+from scipy.ndimage.morphology import binary_dilation, generate_binary_structure
+from skimage.morphology import disk
 from astropy.convolution import Gaussian2DKernel, convolve
 
 from functools import wraps
@@ -483,7 +485,31 @@ def radial_proj(img, x0, y0, my_func=np.mean, max_size=850):
 
 
 @loop_over_stack
-def strip_img(img, x0, y0, prof, pxmask=None, truncate=True, offset=0, dtype=np.int16):
+def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray, peakYPosRaw: np.ndarray, radius=2, replaceval=-1):
+    """Cuts peaks out of an image and replaces them with replaceval.
+    Peak positions are provided in CXI format.
+    
+    Arguments:
+        img {np.array} -- Input image
+        nPeaks {np.array} -- Number of peaks
+        peakXPosRaw {np.array} -- X position of peaks
+        peakYPosRaw {np.array} -- Y position of peaks
+    
+    Keyword Arguments:
+        radius {int} -- Radius in pixel of peak cut-out region (default: {2})
+        replaceval {int} -- Value to change the cut pixels to (default: {-1})
+    
+    Returns:
+        [as img] -- Image with peaks cut out
+    """
+    mask = np.zeros_like(img).astype(np.bool)
+    mask[(peakYPosRaw[:nPeaks]).round().astype(int), (peakXPosRaw[:nPeaks]).round().astype(int)] = True
+    mask = binary_dilation(mask,disk(radius),1)
+    img_nopeaks = np.where(mask,replaceval,img)
+    return img_nopeaks
+
+@loop_over_stack
+def strip_img(img, x0, y0, prof, pxmask=None, truncate=False, offset=0, dtype=None):
     """
     Given an image, coordinate(x0,y0) and a radial profile, removes the
     radial profile from the image.
@@ -507,6 +533,9 @@ def strip_img(img, x0, y0, prof, pxmask=None, truncate=True, offset=0, dtype=np.
                                       replace_val=-1, mask_gaps=True)
     if truncate:
         img_out[img_out < offset] = -1
+
+    if dtype is None:
+        return img_out
 
     if not dtype == img_out.dtype:
         if issubclass(dtype, np.integer) or issubclass(dtype, int):
