@@ -434,7 +434,7 @@ def center_of_mass2(img, threshold=None):
 
 
 @loop_over_stack
-def radial_proj(img, x0, y0, my_func=np.mean, max_size=850):
+def radial_proj(img, x0, y0, my_func=np.mean, max_size=850, filter_len=1):
     """
     Applies the function to the azimuthal bins of the image around 
     the center (x0,y0) for each integer radius and returns the result 
@@ -460,7 +460,7 @@ def radial_proj(img, x0, y0, my_func=np.mean, max_size=850):
         result.fill(np.nan)
         return result
 
-    radius = (np.rint(((x-x0.flatten())**2 + (y-y0.flatten())**2)**0.5)
+    radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5)
                 .astype(np.int32))
     center = img[int(np.round(y0)),int(np.round(x0))]
     radius[np.where(img==-1)]=0
@@ -477,6 +477,10 @@ def radial_proj(img, x0, y0, my_func=np.mean, max_size=850):
 
         if rbin_data.size:
             result[r + fstart] = [fn(rbin_data) for fn in my_func]
+
+    if filter_len > 1:
+        from scipy.signal import medfilt
+        result[filter_len//2:] = medfilt(result, filter_len)[filter_len//2:]
 
     if center > -1:
         result[fstart] = [fn(center)  for fn in my_func]
@@ -502,7 +506,13 @@ def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray, peak
     Returns:
         [as img] -- Image with peaks cut out
     """
+    #print(nPeaks)
+    nPeaks = nPeaks.squeeze()
+    peakXPosRaw = peakXPosRaw.squeeze()
+    peakYPosRaw = peakYPosRaw.squeeze()
+    #print(peakYPosRaw[:nPeaks.squeeze()])
     mask = np.zeros_like(img).astype(np.bool)
+    #print(img.shape)
     mask[(peakYPosRaw[:nPeaks]).round().astype(int), (peakXPosRaw[:nPeaks]).round().astype(int)] = True
     mask = binary_dilation(mask,disk(radius),1)
     img_nopeaks = np.where(mask,replaceval,img)
@@ -516,8 +526,6 @@ def strip_img(img, x0, y0, prof, pxmask=None, truncate=False, offset=0, dtype=No
     """
     if np.isnan(x0) or np.isnan(y0):
         return np.zeros(img.shape)
-    x0 = x0.flatten()
-    y0 = y0.flatten()
     prof = prof.flatten()
     ylen,xlen = img.shape
     y,x = np.ogrid[0:ylen,0:xlen]
@@ -547,7 +555,8 @@ def strip_img(img, x0, y0, prof, pxmask=None, truncate=False, offset=0, dtype=No
 
 @jit(['int32[:,:](int32[:,:], float64, float64, int64, int64, int64)',
       'int16[:,:](int16[:,:], float64, float64, int64, int64, int64)',
-      'int64[:,:](int64[:,:], float64, float64, int64, int64, int64)'],
+      'int64[:,:](int64[:,:], float64, float64, int64, int64, int64)',
+      'float64[:,:](float64[:,:], float64, float64, int64, int64, float64)'],
      nopython=True, nogil=True)  # ahead-of-time compilation using numba. Otherwise painfully slow.
 def _center_sgl_image(img, x0, y0, xsize, ysize, padval):
     """
