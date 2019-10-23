@@ -14,6 +14,9 @@ from time import time
 import json
 import subprocess
 import datetime
+from typing import Union, Optional
+from random import randrange
+from shutil import copyfile
 
 class pre_proc_opts:
     def __init__(self, fn=None):   
@@ -72,6 +75,73 @@ class pre_proc_opts:
     def export(self, fn):
         json.dump(self.__dict__, open(fn,'w'), skipkeys=True, indent=4)
 
+def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = None, return_cxi=True, 
+                params: Optional[dict] = None, geo_params: Optional[dict] = None, procs: Optional[int] = None, 
+                exc='indexamajig', **kwargs) -> Union[dict, pd.DataFrame]:
+    """Handy function to find peaks using peakfinder8
+    
+    Arguments:
+        ds {Union[Dataset, list, str]} -- dataset, list file, single nexus file, or list of files.
+            If a Dataset is supplied, the peakdata will be merged into it.
+    
+    Keyword Arguments:
+        opt {Optional[pre_proc_opts]} -- pre-processing option object containing defaults for
+            indexamajig (default: {None})
+        return_cxi {bool} -- return a dict of CXI peak arrays instead of pandas dataframe (default: {True})
+        params {Optional[dict]} -- additional parameter for indexamajig (default: {None})
+        geo_params {Optional[dict]} -- additional parameters for geometry file, e.g. clen (default: {None})
+        procs {Optional[int]} -- number of processes. If None, uses all available cores (default: {None})
+        exc {str} -- Path of indexamajig executable (default: {'indexamajig'})
+    
+    Returns:
+        Union[dict, pd.DataFrame] -- Dataframe with peaks if return_cxi==False, otherwise dict of CXI type peak arrays
+    """
+
+    if opt is not None:
+        cfpars = opt.crystfel_params
+    else:
+        cfpars = {'min-res': 5, 'max-res': 600, 
+        'local-bg-radius': 3, 'threshold': 8, 
+        'min-pix-count': 3, 'max-pix-count': 30,
+        'min-snr': 3, 'int-radius': '3,4,5'}
+    cfpars.update(dict({'indexing': 'none', 'peaks': 'peakfinder8'},
+                    **params, **kwargs))
+
+    rnd_id = randrange(0, 1000000)
+    gfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.geom')
+    infile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.lst')
+    outfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.stream')
+    if isinstance(ds, Dataset):
+        ds.write_list(infile)
+    elif isinstance(ds, str) and ds.endswith('.lst'):
+        copyfile(ds, infile)
+    elif isinstance(ds, str):
+        with open(infile) as fh:
+            fh.write(str)
+    elif isinstance(ds, list):
+        with open(infile) as fh:
+            fh.writelines(str)
+
+    geom = tools.make_geometry({} if geo_params is None else geo_params, gfile)
+    numprocs = os.cpu_count() if procs is None else procs
+    callstr = tools.call_indexamajig(infile, gfile, outfile, im_params=cfpars, procs=procs, exc=exc)
+    print(callstr)
+    improc1 = subprocess.run(callstr.split(' '), capture_output=True)
+    print(improc1.stderr.decode())
+    stream = StreamParser(outfile)
+    os.remove(gfile)
+    os.remove(infile)
+    os.remove(outfile)
+
+    if isinstance(ds, Dataset):
+        ds.merge_stream(stream)
+
+    if return_cxi:
+        cxi = stream.get_cxi_format(half_pixel_shift=True)
+        return cxi
+
+    else:
+        return stream
 
 def from_raw(fn, opt: pre_proc_opts):
 
