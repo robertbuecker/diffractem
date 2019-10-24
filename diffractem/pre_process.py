@@ -19,9 +19,15 @@ from random import randrange
 from shutil import copyfile
 
 class pre_proc_opts:
-    def __init__(self, fn=None):   
+    def __init__(self, fn=None):  
+
+        # raw-image corrections
         self.reference = 'Ref12_reference.tif'
         self.pxmask = 'Ref12_pxmask.tif'
+        self.correct_saturation = True
+        self.dead_time = 1.9e-3
+        self.shutter_time = 2
+        self.float = False
         self.com_threshold = 0.9
         self.com_xrng = 800
         self.lorentz_radius = 30
@@ -75,9 +81,11 @@ class pre_proc_opts:
     def export(self, fn):
         json.dump(self.__dict__, open(fn,'w'), skipkeys=True, indent=4)
 
-def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = None, return_cxi=True, 
+
+def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = None, 
+                from_cxi=False, return_cxi=True, revalidate_cxi=False, merge_peaks=True,
                 params: Optional[dict] = None, geo_params: Optional[dict] = None, procs: Optional[int] = None, 
-                exc='indexamajig', **kwargs) -> Union[dict, pd.DataFrame]:
+                exc='indexamajig', stream_out: Optional[str] = None, **kwargs) -> Union[dict, pd.DataFrame]:
     """Handy function to find peaks using peakfinder8
     
     Arguments:
@@ -102,17 +110,26 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
     else:
         cfpars = {'min-res': 5, 'max-res': 600, 
         'local-bg-radius': 3, 'threshold': 8, 
-        'min-pix-count': 3, 'max-pix-count': 30,
+        'min-pix-count': 3,
         'min-snr': 3, 'int-radius': '3,4,5'}
-    cfpars.update(dict({'indexing': 'none', 'peaks': 'peakfinder8'},
+    
+    if from_cxi:
+        cfpars.update(dict({'indexing': 'none', 'peaks': 'cxi', 'hdf5-peaks': '/%/data', 'no-revalidate': not revalidate_cxi},
+                    **params, **kwargs))
+    else:
+        cfpars.update(dict({'indexing': 'none', 'peaks': 'peakfinder8'},
                     **params, **kwargs))
 
     rnd_id = randrange(0, 1000000)
     gfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.geom')
     infile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.lst')
-    outfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.stream')
+    if stream_out is None:
+        outfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.stream')
+    else:
+        outfile = stream_out
     if isinstance(ds, Dataset):
         ds.write_list(infile)
+        print('Wrote', infile)
     elif isinstance(ds, str) and ds.endswith('.lst'):
         copyfile(ds, infile)
     elif isinstance(ds, str):
@@ -131,9 +148,10 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
     stream = StreamParser(outfile)
     os.remove(gfile)
     os.remove(infile)
-    os.remove(outfile)
+    if stream_out is None:
+        os.remove(outfile)
 
-    if isinstance(ds, Dataset):
+    if isinstance(ds, Dataset) and merge_peaks:
         ds.merge_stream(stream)
 
     if return_cxi:
@@ -334,7 +352,11 @@ def broadcast(fn, opt: pre_proc_opts):
    
     # Flat-field and dead-pixel correction
     stack_rechunked = dssel.raw_counts.rechunk({0: ctr.chunks[0]}) # re-chunk the raw data
-    stack_ff = proc2d.apply_flatfield(stack_rechunked, reference)
+    if opt.correct_saturation:
+        stack_ff = proc2d.apply_flatfield(proc2d.apply_saturation_correction(
+            stack_rechunked, opt.shutter_time, opt.dead_time), reference)  
+    else:
+        stack_ff = proc2d.apply_flatfield(stack_rechunked, reference)
     stack = proc2d.correct_dead_pixels(stack_ff, pxmask, strategy='replace', replace_val=-1, mask_gaps=True)
     centered = proc2d.center_image(stack, ctr[:,0], ctr[:,1], opt.xsize, opt.ysize, -1, parallel=True)
     
@@ -342,7 +364,7 @@ def broadcast(fn, opt: pre_proc_opts):
     alldata = {'center_of_mass': dsagg.stacks['center_of_mass'][shots.from_id.values,...], 
                'lorentz_fit': dsagg.stacks['lorentz_fit'][shots.from_id.values,...], 
                'beam_center': ctr, 
-               'centered': centered.astype(np.int16), 
+               'centered': centered.astype(np.float32) if opt.float else centered.astype(np.int16), 
                'pxmask_centered': (centered != -1).astype(np.uint16), 
                'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]), 
                'adf2': proc2d.apply_virtual_detector(centered, opt.r_adf2[0], opt.r_adf2[1])
@@ -417,10 +439,12 @@ def cumulate(fn, opt: pre_proc_opts):
 
     dssel.change_filenames(opt.cum_file_suffix)    
     dssel.init_files(overwrite=True, keep_features=False)
-    dssel.store_tables()
+    log('File initialized, writing tables...')
+    dssel.store_tables(shots=True, features=True, peaks=False)
     
     try:
-        dssel.open_stacks()        
+        dssel.open_stacks()    
+        log('Writing stack data...')    
         dssel.store_stacks(overwrite=True, progress_bar=False)
 
     except Exception as err:
@@ -429,5 +453,6 @@ def cumulate(fn, opt: pre_proc_opts):
 
     finally:
         dssel.close_stacks()
+        log('Cumulation done.')
     
     return dssel.files
