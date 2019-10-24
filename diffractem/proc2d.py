@@ -11,7 +11,8 @@ from scipy import optimize, sparse, special
 from scipy.ndimage.morphology import binary_dilation, generate_binary_structure
 from skimage.morphology import disk
 from astropy.convolution import Gaussian2DKernel, convolve
-
+from scipy.ndimage.filters import median_filter
+from scipy.signal import medfilt
 from functools import wraps
 from typing import Optional, Tuple, Union, List, Callable
 #from itertools import repeat
@@ -49,7 +50,7 @@ def loop_over_stack(fun):
             kwargs = {k: a.squeeze() if isinstance(a, np.ndarray) else a for k, a in kwargs.items()}
             return np.expand_dims(fun(imgs.squeeze(), *args, **kwargs), axis=0)
 
-        # print('Applying {} to {} images'.format(fun, imgs.shape[0]))
+        #print('Applying {} to {} images of shape {}'.format(fun, imgs.shape[0], imgs.shape[1:]))
 
         def _isiterable(arg):
             try:
@@ -86,6 +87,11 @@ def loop_over_stack(fun):
             # print('Arguments: ', theArgs)
             # print('KW Args:   ', theKwargs)
             out.append(fun(arg[0], *theArgs, **theKwargs))
+
+        if not out:
+            # required for dask map_blocks init runs
+            print('Looping of',fun,'requested for zero-size input.')
+            return np.ndarray(imgs.shape, dtype=imgs.dtype)
 
         try:
             return np.stack(out)
@@ -440,7 +446,7 @@ def center_of_mass2(img, threshold=None):
 
 @loop_over_stack
 def radial_proj(img: np.ndarray, x0: float, y0: float, 
-    my_func: Union[Callable[np.ndarray], List[Callable[np.ndarray]]] = np.nanmean, 
+    my_func: Union[Callable[[np.ndarray], np.ndarray], List[Callable[[np.ndarray], np.ndarray]]] = np.nanmean, 
     min_size: int = 600, max_size: int = 850, filter_len: int = 1):
     """
     Applies the function to the azimuthal bins of the image around 
@@ -477,16 +483,17 @@ def radial_proj(img: np.ndarray, x0: float, y0: float,
     radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5) # radius coordinate of each pixel
                 .astype(np.int32))
     center = img[int(np.round(y0)),int(np.round(x0))]
-    radius[np.where((img==-1) or np.isnan(img))]=0 # ignore bad pixels by setting radius to zero
+    radius[np.where((img==-1) | np.isnan(img))]=0 # ignore bad pixels by setting radius to zero
     row = radius.flatten()
     col = np.arange(len(row))
     mat = sparse.csr_matrix((img.flatten(), (row, col)))
 
-    size = np.max([np.min([1+np.max(radius), max_size]), min_size])
+    rng = np.min([1+np.max(radius), max_size])
+    size = np.max([rng, min_size])
     result = -1 * np.ones(size*len(my_func))
     fstart = np.arange(0, size*len(my_func), size)
 
-    for r in range(1, size):
+    for r in range(1, rng):
         rbin_data = mat[r].data
 
         if rbin_data.size:
@@ -495,9 +502,10 @@ def radial_proj(img: np.ndarray, x0: float, y0: float,
     if center > -1:
         result[fstart] = [fn(center)  for fn in my_func]
 
-    if filter_len > 1:
-        from scipy.signal import medfilt
-        result[filter_len//2:] = medfilt(result, filter_len)[filter_len//2:]
+    if filter_len > 1:       
+        result[filter_len//2:] = median_filter(result, filter_len)[filter_len//2:]
+
+    assert (result.size >= min_size) and (result.size <= max_size)
 
     return result
 
@@ -533,7 +541,8 @@ def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray, peak
     return img_nopeaks
 
 @loop_over_stack
-def strip_img(img, x0, y0, prof, pxmask=None, truncate=False, offset=0, dtype=None):
+def strip_img(img, x0, y0, prof, pxmask=None, truncate=False, 
+    offset=0, keep_edge_offset=False, dtype=None):
     """
     Given an image, coordinate(x0,y0) and a radial profile, removes the
     radial profile from the image.
@@ -545,19 +554,21 @@ def strip_img(img, x0, y0, prof, pxmask=None, truncate=False, offset=0, dtype=No
     y,x = np.ogrid[0:ylen,0:xlen]
     radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5)).astype(np.int32)
     profile = np.zeros(1+np.max(radius))
-    np.copyto(profile[0:len(prof)], prof)
+    comlen = min(len(profile), len(prof))
+    np.copyto(profile[:comlen], prof[:comlen])
     bkg = profile[radius]
 
-    img_out = img - bkg + offset
+    img_out = img - bkg + offset if keep_edge_offset else img - bkg
 
     if pxmask is not None:
         img_out = correct_dead_pixels(img_out, pxmask, 'replace', 
                                       replace_val=-1, mask_gaps=True)
-    if truncate:
-        img_out[img_out < offset] = -1
 
     if dtype is None:
-        return img_out
+        dtype = img_out.dtype
+
+    if truncate:
+        img_out[img_out < offset] = np.nan if issubclass(dtype, np.float) else -1
 
     if not dtype == img_out.dtype:
         if issubclass(dtype, np.integer) or issubclass(dtype, int):
