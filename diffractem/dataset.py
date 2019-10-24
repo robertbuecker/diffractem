@@ -262,6 +262,8 @@ class Dataset:
 
         simplefilter('ignore', NaturalNameWarning)
         if (shots is None and self._shots_changed) or shots:
+            #sh = self.shots.drop(['Event', 'shot_in_subset'], axis=1)
+            #sh['id'] = sh[['sample', 'region', 'run', 'crystal_id']].apply(lambda x: '//'.join(x.astype(str)), axis=1)
             fs.extend(nexus.store_table(self.shots, self.shots_pattern, parallel=self.parallel_io, format=format))
             self._shots_changed = False
 
@@ -759,11 +761,12 @@ class Dataset:
         if from_files:
             for _, address in self._shots[['file', 'subset']].iterrows():
                 path = self.data_pattern.replace('%', address.subset) + '/' + label
-                print(f'Deleting dataset {path}')
+                #print(f'Deleting dataset {path}')
                 try:
                     del self._h5handles[address['file']][path]
                 except KeyError:
-                    print(address['file'], path, 'not found!')
+                    pass
+                    #print(address['file'], path, 'not found!')
 
     def store_stacks(self, labels: Union[None, list] = None, overwrite=False,
                      compression=32004, lazy=False, data_pattern: Union[None,str] = None, 
