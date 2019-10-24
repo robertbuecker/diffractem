@@ -13,6 +13,7 @@ from skimage.morphology import disk
 from astropy.convolution import Gaussian2DKernel, convolve
 
 from functools import wraps
+from typing import Optional, Tuple, Union, List, Callable
 #from itertools import repeat
 
 
@@ -86,7 +87,11 @@ def loop_over_stack(fun):
             # print('KW Args:   ', theKwargs)
             out.append(fun(arg[0], *theArgs, **theKwargs))
 
-        return np.stack(out)
+        try:
+            return np.stack(out)
+        except ValueError as err:
+            print('Function',fun,'failed for output array construction.')
+            raise err
 
     return loop_fun
 
@@ -434,24 +439,33 @@ def center_of_mass2(img, threshold=None):
 
 
 @loop_over_stack
-def radial_proj(img, x0, y0, my_func=np.mean, max_size=850, filter_len=1):
+def radial_proj(img: np.ndarray, x0: float, y0: float, 
+    my_func: Union[Callable[np.ndarray], List[Callable[np.ndarray]]] = np.nanmean, 
+    min_size: int = 600, max_size: int = 850, filter_len: int = 1):
     """
     Applies the function to the azimuthal bins of the image around 
     the center (x0,y0) for each integer radius and returns the result 
-    in a np.array of size max_size. Skips values that are set to -1.
-    This is the split-apply-combine paradigm, done with a sparse matrix.
+    in a np.array of size max_size. Skips values that are set to -1 or nan.
     :param img: input image
     :param x0: x center of mass of image
     :param y0: y center of mass of image
-    :param function: function to be applied to the bins
-    :param max_size: size of returned np.array hyperspy requires all returned 
-                        arrays to be of the same size
+    :param my_func: function to be applied to the bins, or list thereof
+    :param min_size: minimum length of output array
+    :param max_size: maximum length of output array
+    :param filter_len: kernel size of median filter applied after profile calculation.
+        filter_len must be odd, and filtering is at the moment incompatible with multiple functions
     :return result: array of function returns on each radius.
-    TODO: allow my_func to be a list of functions, and return multiple outputs
     """
+    # BUG: median filter 
+
+    if isinstance(my_func, tuple) and (len(my_func) > 1) and (filter_len > 1):
+        raise ValueError('radial_proj with filtering only works if a single function is used. Sorry.')
+
+    if filter_len//2 == filter_len/2:
+        raise ValueError('filter_len must be odd.')
 
     if not (isinstance(my_func, list) or isinstance(my_func, tuple)):
-        my_func = (my_func, )
+        my_func = [my_func]
 
     (ylen,xlen) = img.shape
     (y,x) = np.ogrid[0:ylen,0:xlen]
@@ -460,15 +474,15 @@ def radial_proj(img, x0, y0, my_func=np.mean, max_size=850, filter_len=1):
         result.fill(np.nan)
         return result
 
-    radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5)
+    radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5) # radius coordinate of each pixel
                 .astype(np.int32))
     center = img[int(np.round(y0)),int(np.round(x0))]
-    radius[np.where(img==-1)]=0
+    radius[np.where((img==-1) or np.isnan(img))]=0 # ignore bad pixels by setting radius to zero
     row = radius.flatten()
     col = np.arange(len(row))
     mat = sparse.csr_matrix((img.flatten(), (row, col)))
 
-    size = np.min([1+np.max(radius), max_size])
+    size = np.max([np.min([1+np.max(radius), max_size]), min_size])
     result = -1 * np.ones(size*len(my_func))
     fstart = np.arange(0, size*len(my_func), size)
 
@@ -478,12 +492,12 @@ def radial_proj(img, x0, y0, my_func=np.mean, max_size=850, filter_len=1):
         if rbin_data.size:
             result[r + fstart] = [fn(rbin_data) for fn in my_func]
 
+    if center > -1:
+        result[fstart] = [fn(center)  for fn in my_func]
+
     if filter_len > 1:
         from scipy.signal import medfilt
         result[filter_len//2:] = medfilt(result, filter_len)[filter_len//2:]
-
-    if center > -1:
-        result[fstart] = [fn(center)  for fn in my_func]
 
     return result
 
