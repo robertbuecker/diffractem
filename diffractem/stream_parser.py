@@ -357,7 +357,7 @@ class StreamParser:
                 df.file = new_folder + '/' + df.file.str.rsplit('/', 1, True).iloc[:,-1]
 
 
-    def get_cxi_format(self, what='peaks', shots=None, half_pixel_shift=False):
+    def get_cxi_format(self, what='peaks', shots=None, half_pixel_shift=True):
 
         if shots is None:
             shots = self.shots
