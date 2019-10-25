@@ -143,6 +143,10 @@ class Dataset:
         for k, v in kwargs.items():
             self.__dict__[k] = v
 
+        if len(file_list) == 1:
+            print('Single-file dataset, disabling parallel I/O.')
+            self.parallel_io = False
+
         self.load_tables(shots=True, files=list(file_list.file.unique()))
 
         # now set selected property...
@@ -409,6 +413,9 @@ class Dataset:
             self.__dict__[lbl] = newtable
             self.__dict__[lbl + '_changed'] = True
 
+        # invalidate all the hdf file references (note that references into old files might still exist)
+        self._h5handles = {}
+
         return fn_map
 
     def reset_id(self, keep_raw=True):
@@ -441,7 +448,7 @@ class Dataset:
     def init_files(self, overwrite=False, parallel=True, keep_features=False, exclude_list=()):
         """
         Make new files corresponding to the shot list, by copying over instrument metadata and maps (but not
-        results, shot list, data arrays,...
+        results, shot list, data arrays,...) from the raw files (as stored in file_raw).
         :param overwrite: overwrite new files if not yet existing
         :param parallel: copy file data over in parallel. Can be way faster.
         :return:

@@ -105,6 +105,9 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
         Union[dict, pd.DataFrame] -- Dataframe with peaks if return_cxi==False, otherwise dict of CXI type peak arrays
     """
 
+    #print(type(ds))
+    #print(isinstance(ds, type(ds)))
+
     if opt is not None:
         cfpars = opt.crystfel_params
     else:
@@ -112,6 +115,8 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
         'local-bg-radius': 3, 'threshold': 8, 
         'min-pix-count': 3,
         'min-snr': 3, 'int-radius': '3,4,5'}
+
+    params = {} if params is None else params
     
     if from_cxi:
         cfpars.update(dict({'indexing': 'none', 'peaks': 'cxi', 'hdf5-peaks': '/%/data', 'no-revalidate': not revalidate_cxi},
@@ -123,13 +128,14 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
     rnd_id = randrange(0, 1000000)
     gfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.geom')
     infile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.lst')
+
     if stream_out is None:
         outfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.stream')
     else:
         outfile = stream_out
     if isinstance(ds, Dataset):
         ds.write_list(infile)
-        print('Wrote', infile)
+        #print('Wrote', infile)
     elif isinstance(ds, str) and ds.endswith('.lst'):
         copyfile(ds, infile)
     elif isinstance(ds, str):
@@ -138,13 +144,15 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
     elif isinstance(ds, list):
         with open(infile) as fh:
             fh.writelines(str)
+    else:
+        raise ValueError('ds must be a list, string or Dataset.')
 
     geom = tools.make_geometry({} if geo_params is None else geo_params, gfile)
     numprocs = os.cpu_count() if procs is None else procs
     callstr = tools.call_indexamajig(infile, gfile, outfile, im_params=cfpars, procs=procs, exc=exc)
-    print(callstr)
+    #print(callstr)
     improc1 = subprocess.run(callstr.split(' '), capture_output=True)
-    print(improc1.stderr.decode())
+    print('\n'.join([l for l in improc1.stderr.decode().split('\n') if l.startswith('Final') or l.lower().startswith('warning')]))
     stream = StreamParser(outfile)
     os.remove(gfile)
     os.remove(infile)
