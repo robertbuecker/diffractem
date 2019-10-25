@@ -7,7 +7,7 @@ from numba import jit, prange, int64
 #import hyperspy.api as hs
 
 from . import gap_pixels
-from scipy import optimize, sparse, special
+from scipy import optimize, sparse, special, interpolate
 from scipy.ndimage.morphology import binary_dilation, generate_binary_structure
 from skimage.morphology import disk
 from astropy.convolution import Gaussian2DKernel, convolve
@@ -15,6 +15,7 @@ from scipy.ndimage.filters import median_filter
 from scipy.signal import medfilt
 from functools import wraps
 from typing import Optional, Tuple, Union, List, Callable
+from warnings import warn
 #from itertools import repeat
 
 
@@ -90,7 +91,7 @@ def loop_over_stack(fun):
 
         if not out:
             # required for dask map_blocks init runs
-            print('Looping of',fun,'requested for zero-size input.')
+            # print('Looping of',fun,'requested for zero-size input.')
             return np.ndarray(imgs.shape, dtype=imgs.dtype)
 
         try:
@@ -445,7 +446,7 @@ def center_of_mass2(img, threshold=None):
 
 
 @loop_over_stack
-def radial_proj(img: np.ndarray, x0: float, y0: float, 
+def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=None, 
     my_func: Union[Callable[[np.ndarray], np.ndarray], List[Callable[[np.ndarray], np.ndarray]]] = np.nanmean, 
     min_size: int = 600, max_size: int = 850, filter_len: int = 1):
     """
@@ -475,6 +476,11 @@ def radial_proj(img: np.ndarray, x0: float, y0: float,
 
     (ylen,xlen) = img.shape
     (y,x) = np.ogrid[0:ylen,0:xlen]
+    #print(x0,y0)
+
+    x0 = img.shape[1]/2 if x0 is None else float(x0)
+    y0 = img.shape[0]/2 if y0 is None else float(y0)
+
     if np.isnan(x0) or np.isnan(y0) or x0<0 or x0>=xlen or y0<0 or y0>=ylen:
         result = np.empty(max_size*len(my_func))
         result.fill(np.nan)
@@ -541,47 +547,89 @@ def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray, peak
     return img_nopeaks
 
 @loop_over_stack
-def strip_img(img, x0, y0, prof, pxmask=None, truncate=False, 
-    offset=0, keep_edge_offset=False, dtype=None):
+def strip_img(img, x0, y0, prof: np.ndarray, pxmask: Optional[np.ndarray]=None, truncate=False, 
+    offset=0, keep_edge_offset=False, replaceval: Optional[float]=None, interp=True, dtype=None):
     """
-    Given an image, coordinate(x0,y0) and a radial profile, removes the
+    Given an image, center coordinate(x0,y0) and a radial profile, removes the
     radial profile from the image.
     """
     if np.isnan(x0) or np.isnan(y0):
         return np.zeros(img.shape)
-    prof = prof.flatten()
+
+    prof = prof.flatten()   # background profile
     ylen,xlen = img.shape
     y,x = np.ogrid[0:ylen,0:xlen]
-    radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5)).astype(np.int32)
-    profile = np.zeros(1+np.max(radius))
-    comlen = min(len(profile), len(prof))
-    np.copyto(profile[:comlen], prof[:comlen])
-    bkg = profile[radius]
+
+    if interpolate:
+        iprof = interpolate.interp1d(range(len(prof)), prof, fill_value=0, bounds_error=False)
+        radius = ((x-x0)**2 + (y-y0)**2)**0.5
+        profile = np.zeros(1+np.floor(np.max(radius)).astype(np.int32))
+        bkg = iprof(radius)
+    else:
+        radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5)).astype(np.int32)
+        profile = np.zeros(1+np.max(radius))
+        comlen = min(len(profile), len(prof))
+        np.copyto(profile[:comlen], prof[:comlen])
+        bkg = profile[radius]
 
     img_out = img - bkg + offset if keep_edge_offset else img - bkg
 
-    if pxmask is not None:
-        img_out = correct_dead_pixels(img_out, pxmask, 'replace', 
-                                      replace_val=-1, mask_gaps=True)
+    dtype = img_out.dtype if dtype is None else dtype
 
-    if dtype is None:
-        dtype = img_out.dtype
+    if replaceval is None:
+        replaceval = np.nan if np.issubdtype(dtype, np.floating) else -1
 
     if truncate:
-        img_out[img_out < offset] = np.nan if issubclass(dtype, np.float) else -1
+        img_out[img_out < offset] = replaceval
+
+    if pxmask is not None:
+        img_out = correct_dead_pixels(img_out, pxmask, 'replace', 
+                                      replace_val=replaceval, mask_gaps=False)
 
     if not dtype == img_out.dtype:
-        if issubclass(dtype, np.integer) or issubclass(dtype, int):
+        if np.issubdtype(dtype, np.integer):
             img_out = img_out.round()
         img_out = img_out.astype(dtype)
 
     return img_out
 
 
+@loop_over_stack
+def remove_background(img, x0: Optional[Union[float]] = None, y0: Optional[Union[float]] = None,
+    nPeaks: Optional[np.ndarray] = None, peakXPosRaw: Optional[np.ndarray] = None, peakYPosRaw: Optional[np.ndarray] = None, 
+    peak_radius=3, filter_len=5, rfunc: Callable[[np.ndarray], np.ndarray] = np.nanmean,
+    pxmask=None, truncate=False,  offset=0):
+
+    if np.issubdtype(img.dtype, np.integer) and offset == 0:
+        warn('Removing background on an integer image with zero offset will likely cause trouble later on.')
+
+    replace_val = np.nan if np.issubdtype(img.dtype, np.floating) else -1
+
+    x0 = img.shape[1]/2 if x0 is None else x0
+    y0 = img.shape[0]/2 if y0 is None else y0
+
+    pxmask = ((img == np.nan) | (img == -1)) if pxmask is None else pxmask
+    #print((pxmask == 0).sum())
+
+    #print(nPeaks)
+
+    if (nPeaks is not None) and (nPeaks > 0):
+        img_nopk = cut_peaks(img, nPeaks, peakXPosRaw, peakYPosRaw, radius=peak_radius, replaceval=replace_val)
+    else:
+        img_nopk = img
+
+    r0 = radial_proj(img_nopk, x0, y0, my_func=rfunc, filter_len=filter_len)
+    img_nobg = strip_img(img, x0, y0, r0, pxmask=pxmask, truncate=truncate, 
+        keep_edge_offset=True, interp=True, dtype=img.dtype)
+
+    return img_nobg
+
+
 @jit(['int32[:,:](int32[:,:], float64, float64, int64, int64, int64)',
       'int16[:,:](int16[:,:], float64, float64, int64, int64, int64)',
       'int64[:,:](int64[:,:], float64, float64, int64, int64, int64)',
-      'float64[:,:](float64[:,:], float64, float64, int64, int64, float64)'],
+      'float64[:,:](float64[:,:], float64, float64, int64, int64, float64)',
+      'float32[:,:](float32[:,:], float64, float64, int64, int64, float64)'],
      nopython=True, nogil=True)  # ahead-of-time compilation using numba. Otherwise painfully slow.
 def _center_sgl_image(img, x0, y0, xsize, ysize, padval):
     """
