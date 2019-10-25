@@ -445,7 +445,7 @@ class Dataset:
             self.__dict__[lbl] = newtable
             self.__dict__[lbl + '_changed'] = True
 
-    def init_files(self, overwrite=False, parallel=True, keep_features=False, exclude_list=()):
+    def init_files(self, overwrite=False, keep_features=False, exclude_list=()):
         """
         Make new files corresponding to the shot list, by copying over instrument metadata and maps (but not
         results, shot list, data arrays,...) from the raw files (as stored in file_raw).
@@ -455,16 +455,17 @@ class Dataset:
         """
         fn_map = self.shots[['file', 'file_raw']].drop_duplicates()
 
-        if parallel:
+        exc = ('%/detector/data', self.data_pattern + '/%', 
+                        self.result_pattern + '/%', self.shots_pattern + '/%')
+        if not keep_features:
+            exc += (self.map_pattern + '/features', '%/ref/features')
+        if len(exclude_list) > 0:
+            exc += tuple(exclude_list)
+
+        if self.parallel_io:
             with ProcessPoolExecutor() as p:
                 futures = []
                 for _, filepair in fn_map.iterrows():
-                    exc = ('%/detector/data', self.data_pattern + '/%', 
-                                 self.result_pattern + '/%', self.shots_pattern + '/%')
-                    if not keep_features:
-                        exc += (self.map_pattern + '/features', '%/ref/features')
-                    if len(exclude_list) > 0:
-                        exc += tuple(exclude_list)
                     futures.append(p.submit(nexus.copy_h5,
                                  filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
                                  exclude=exc,
@@ -479,7 +480,7 @@ class Dataset:
         else:
             for _, filepair in fn_map.iterrows():
                 nexus.copy_h5(filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
-                              exclude=('%/detector/data', self.data_pattern + '/%', self.result_pattern + '/%'),
+                              exclude=exc,
                               print_skipped=False)
 
             return None
