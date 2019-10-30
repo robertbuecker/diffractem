@@ -14,10 +14,30 @@ from time import time
 import json
 import subprocess
 import datetime
-from typing import Union, Optional
+from typing import Union, Optional, Callable
 from random import randrange
 from shutil import copyfile
+from concurrent.futures import ProcessPoolExecutor, FIRST_EXCEPTION, as_completed, wait
+import dask
+from itertools import repeat
+from functools import wraps
 
+
+def run_mp(func, fns: Union[str, list], 
+    opts, wait_until_done=True):
+
+    fns = io.expand_files(fns)
+    with ProcessPoolExecutor() as exc, \
+        dask.config.set(scheduler='single-threaded'):
+        ftr = []
+        for fn in fns:
+            ftr.append(exc.submit(func, fn, opts))
+        if wait_until_done:
+            wait(ftr, FIRST_EXCEPTION)
+            return [ft.result for ft in ftr]
+        else:
+            return ftr
+            
 class pre_proc_opts:
     def __init__(self, fn=None):  
 
@@ -66,6 +86,9 @@ class pre_proc_opts:
         self.cum_file_suffix = '_cum.h5'
         self.cum_stacks = ['centered']
         self.cum_first_frame = 0
+        self.peak_radius = 4
+        self.filter_len = 5
+        self.nobg_file_suffix = '_nobg.h5'
 
         if fn is not None:
             self.read(fn)
@@ -324,6 +347,49 @@ def from_raw(fn, opt: pre_proc_opts):
 
     log('Finished raw processing with', dsagg.centered.shape[0], 'shots after', time()-t0, 'seconds')
     return dsagg.files
+
+
+def subtract_bg(fn, opt: pre_proc_opts):
+
+    if isinstance(fn, list) and len(fn) == 1:
+        fn = fn[0]
+
+    def log(*args):
+        if isinstance(fn, list):
+            dispfn = os.path.basename(fn[0]) + ' etc.'
+        else:
+            dispfn = os.path.basename(fn)
+        idstring = '[{} - {} - subtract_bg] '.format(datetime.datetime.now().time(), dispfn) 
+        print(idstring, *args)
+
+
+    ds = Dataset().from_list(fn)
+    ds.open_stacks()
+
+    nPeaks = ds.nPeaks[:,np.newaxis,np.newaxis]
+    peakX = ds.peakXPosRaw[:,:,np.newaxis]
+    peakY = ds.peakYPosRaw[:,:,np.newaxis]
+    original = ds.centered
+    bg_corrected = da.map_blocks(proc2d.remove_background, original, original.shape[2]/2, original.shape[1]/2,
+                                     nPeaks, peakX, peakY, peak_radius=opt.peak_radius, filter_len=opt.filter_len, 
+                                     dtype=np.float32 if opt.float else np.int32, chunks=original.chunks)
+
+    ds.add_stack('centered', bg_corrected, overwrite=True)
+    ds.change_filenames(opt.nobg_file_suffix)
+    ds.init_files(keep_features=False, overwrite=True)
+    ds.store_tables(shots=True, features=True, peaks=False)
+    ds.open_stacks()
+
+    #for lbl in ['nPeaks', 'peakTotalIntensity', 'peakXPosRaw', 'peakYPosRaw']:
+    #    if lbl in ds.stacks:
+    #        ds.delete_stack(lbl, from_files=False)
+
+    try:
+        ds.store_stacks(overwrite=True, progress_bar=False)
+    finally:
+        ds.close_stacks()
+
+    return ds.files    
 
 
 def broadcast(fn, opt: pre_proc_opts):
