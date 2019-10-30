@@ -105,6 +105,7 @@ class EDViewer(QWidget):
             if self.args.internal:
                 path = self.data_path.replace('%', self.current_shot.subset)
                 self.diff_image = f[path][int(self.current_shot['shot_in_subset']), ...]
+                self.diff_image[np.isnan(self.diff_image)] = 0
                 print('Loading {}:{} from {}'.format(path,
                                                      self.current_shot['shot_in_subset'], self.current_shot['file']))
                 levels = self.hist_img.getLevels()
