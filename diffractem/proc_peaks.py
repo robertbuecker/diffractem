@@ -3,6 +3,7 @@ from scipy.optimize import least_squares, leastsq
 import numpy as np
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION, ALL_COMPLETED
+from multiprocessing import current_process
 
 
 def _ctr_from_pks(pkl: np.ndarray, p0: np.ndarray,
@@ -43,6 +44,9 @@ def center_friedel(peaks, shots=None, p0=(778, 308), colnames=('fs/px', 'ss/px')
     colnames = list(colnames)
     p0 = np.array(p0)
 
+    if current_process().daemon:
+        print('Danger, its a Daemon.')
+
     with ProcessPoolExecutor() as p:
         futures = []
         for grp, pks in peaks.groupby(['file', 'Event']):
@@ -55,7 +59,7 @@ def center_friedel(peaks, shots=None, p0=(778, 308), colnames=('fs/px', 'ss/px')
 
     wait(futures, return_when=ALL_COMPLETED)
     if len(futures) == 0:
-        cpos = shots[['file', 'Event']]
+        cpos = shots[['file', 'Event']].copy()
         cpos['beam_x'] = p0[0]
         cpos['beam_y'] = p0[1]
         cpos['friedel_cost'] = np.nan

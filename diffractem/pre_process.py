@@ -21,6 +21,8 @@ from concurrent.futures import ProcessPoolExecutor, FIRST_EXCEPTION, as_complete
 import dask
 from itertools import repeat
 from functools import wraps
+import yaml
+import pprint
 
 
 def run_mp(func, fns: Union[str, list], 
@@ -38,16 +40,18 @@ def run_mp(func, fns: Union[str, list],
         else:
             return ftr
             
-class pre_proc_opts:
+class PreProcOpts:
     def __init__(self, fn=None):  
 
         # raw-image corrections
+        self.verbose = True
         self.reference = 'Ref12_reference.tif'
         self.pxmask = 'Ref12_pxmask.tif'
         self.correct_saturation = True
         self.dead_time = 1.9e-3
         self.shutter_time = 2
         self.float = False
+        self.cam_length = 2
         self.com_threshold = 0.9
         self.com_xrng = 800
         self.lorentz_radius = 30
@@ -63,11 +67,19 @@ class pre_proc_opts:
         self.scratch_dir = '/scratch/diffractem'
         self.proc_dir = 'proc_data'
         self.rechunk = None
-        self.crystfel_params = {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
+        self.peak_search_params = {'min-res': 5, 'max-res': 600, 
+                    'local-bg-radius': 3, 'threshold': 8, 
+                    'min-pix-count': 3,
+                    'min-snr': 3, 'int-radius': '3,4,5'}
+        self.indexing_params = {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
                     'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
                     'peaks': 'peakfinder8', 'indexing': 'none'}
-        self.crystfel_params.update({'temp-dir': self.scratch_dir})
-        self.crystfel_procs = 2 # number of processes
+        self.integration_params = {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
+                    'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
+                    'peaks': 'peakfinder8', 'indexing': 'none'}                    
+        self.peak_search_params.update({'temp-dir': self.scratch_dir})
+        self.indexing_params.update({'temp-dir': self.scratch_dir})
+        self.crystfel_procs = 40 # number of processes
         self.im_exc = 'indexamajig'
         self.geometry = 'calibrated.geom'
         self.peaks_cxi = True
@@ -91,24 +103,37 @@ class pre_proc_opts:
         self.nobg_file_suffix = '_nobg.h5'
 
         if fn is not None:
-            self.read(fn)
+            self.load(fn)
 
-    def read(self, fn):
-        config = json.load(open(fn,'r'))
+    def __str__(self):
+        return pprint.pformat(self.__dict__)
+
+    def __repr__(self):
+        return pprint.pformat(self.__dict__)
+
+    def load(self, fn):
+        if fn.endswith('json'):
+            config = json.load(open(fn,'r'))
+        elif fn.endswith('yaml'):
+            config = yaml.safe_load(open(fn,'r'))
+
         for k, v in config.items():
             if k in self.__dict__:
                 setattr(self, k, v)
             else:
                 print('Option',k,'in',fn,'unknown.')
 
-    def export(self, fn):
-        json.dump(self.__dict__, open(fn,'w'), skipkeys=True, indent=4)
+    def save(self, fn: str):
+        if fn.endswith('json'):
+            json.dump(self.__dict__, open(fn,'w'), skipkeys=True, indent=4)
+        elif fn.endswith('yaml'):
+            yaml.dump(self.__dict__, open(fn,'w'), sort_keys=False)
 
 
-def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = None, 
+def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None, 
                 from_cxi=False, return_cxi=True, revalidate_cxi=False, merge_peaks=True,
                 params: Optional[dict] = None, geo_params: Optional[dict] = None, procs: Optional[int] = None, 
-                exc='indexamajig', stream_out: Optional[str] = None, **kwargs) -> Union[dict, pd.DataFrame]:
+                exc='indexamajig', stream_out: Optional[str] = None, parse=True, **kwargs) -> Union[dict, pd.DataFrame]:
     """Handy function to find peaks using peakfinder8
     
     Arguments:
@@ -123,6 +148,7 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
         geo_params {Optional[dict]} -- additional parameters for geometry file, e.g. clen (default: {None})
         procs {Optional[int]} -- number of processes. If None, uses all available cores (default: {None})
         exc {str} -- Path of indexamajig executable (default: {'indexamajig'})
+        stream_out {str} -- File name of stream file, if it should be retained.
     
     Returns:
         Union[dict, pd.DataFrame] -- Dataframe with peaks if return_cxi==False, otherwise dict of CXI type peak arrays
@@ -132,12 +158,13 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
     #print(isinstance(ds, type(ds)))
 
     if opt is not None:
-        cfpars = opt.crystfel_params
+        cfpars = opt.peak_search_params
+        exc = opt.im_exc
     else:
         cfpars = {'min-res': 5, 'max-res': 600, 
         'local-bg-radius': 3, 'threshold': 8, 
         'min-pix-count': 3,
-        'min-snr': 3, 'int-radius': '3,4,5'}
+        'min-snr': 3, 'int-radius': '3,4,5', 'peaks': 'peakfinder8'}
 
     params = {} if params is None else params
     
@@ -145,12 +172,15 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
         cfpars.update(dict({'indexing': 'none', 'peaks': 'cxi', 'hdf5-peaks': '/%/data', 'no-revalidate': not revalidate_cxi},
                     **params, **kwargs))
     else:
-        cfpars.update(dict({'indexing': 'none', 'peaks': 'peakfinder8'},
+        cfpars.update(dict({'indexing': 'none'},
                     **params, **kwargs))
 
     rnd_id = randrange(0, 1000000)
     gfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.geom')
     infile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.lst')
+
+    if (not parse) and (stream_out is None):
+        raise ValueError('You must either parse the peaks, or give an output name for the stream file.')
 
     if stream_out is None:
         outfile = os.path.join('.' if opt is None else opt.scratch_dir, f'pksearch_{rnd_id}.stream')
@@ -162,11 +192,11 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
     elif isinstance(ds, str) and ds.endswith('.lst'):
         copyfile(ds, infile)
     elif isinstance(ds, str):
-        with open(infile) as fh:
-            fh.write(str)
+        with open(infile,'w') as fh:
+            fh.write(ds)
     elif isinstance(ds, list):
-        with open(infile) as fh:
-            fh.writelines(str)
+        with open(infile,'w') as fh:
+            fh.writelines([l + '\n' for l in ds])
     else:
         raise ValueError('ds must be a list, string or Dataset.')
 
@@ -175,12 +205,20 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
     callstr = tools.call_indexamajig(infile, gfile, outfile, im_params=cfpars, procs=procs, exc=exc)
     #print(callstr)
     improc1 = subprocess.run(callstr.split(' '), capture_output=True)
+    #print(improc1.stderr.decode())
     print('\n'.join([l for l in improc1.stderr.decode().split('\n') if l.startswith('Final') or l.lower().startswith('warning')]))
-    stream = StreamParser(outfile)
     os.remove(gfile)
     os.remove(infile)
-    if stream_out is None:
+
+    if parse and (stream_out is None):
+        stream = StreamParser(outfile)
         os.remove(outfile)
+    elif parse and (stream_out is not None):
+        stream = StreamParser(outfile)
+    elif not parse and (stream_out is not None):
+        return outfile
+    else:
+        raise RuntimeError('This should not happen.')
 
     if isinstance(ds, Dataset) and merge_peaks:
         ds.merge_stream(stream)
@@ -192,44 +230,48 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[pre_proc_opts] = Non
     else:
         return stream
 
-def from_raw(fn, opt: pre_proc_opts):
+def from_raw(fn, opt: PreProcOpts):
 
     if isinstance(fn, list) and len(fn) == 1:
         fn = fn[0]
 
-    def log(*args):
-        if isinstance(fn, list):
-            dispfn = os.path.basename(fn[0]) + ' etc.'
-        else:
-            dispfn = os.path.basename(fn)
-        idstring = '[{} - {} - from_raw] '.format(datetime.datetime.now().time(), dispfn) 
-        print(idstring, *args)
+    def log(*args, err=False):
+        if opt.verbose or err:
+            if isinstance(fn, list):
+                dispfn = os.path.basename(fn[0]) + ' etc.'
+            else:
+                dispfn = os.path.basename(fn)
+            idstring = '[{} - {} - from_raw] '.format(datetime.datetime.now().time(), dispfn) 
+            print(idstring, *args)
 
     t0 = time()
-    dsraw = Dataset.from_list(fn)
+    dsraw = Dataset().from_list(fn)
 
     reference = imread(opt.reference)
     pxmask = imread(opt.pxmask)   
 
     os.makedirs(opt.scratch_dir, exist_ok=True)
+    os.makedirs(opt.proc_dir, exist_ok=True)
     dsraw.open_stacks()
 
     if opt.aggregate:
         dsagg = dsraw.aggregate(file_suffix=opt.agg_file_suffix, new_folder=opt.proc_dir, 
                             how={'raw_counts': 'sum'}, query=opt.agg_query)
     else:
-        dsagg = dsraw.get_selection(opt.select_query, new_folder=opt.proc_dir, file_suffix=opt.single_suffix)
+        dsagg = dsraw.get_selection(opt.agg_query, new_folder=opt.proc_dir, file_suffix=opt.single_suffix)
 
     log(f'{dsraw.shots.shape[0]} raw, {dsagg.shots.shape[0]} aggregated/selected.')
     
     if opt.rechunk is not None:
         dsagg.rechunk_stacks(opt.rechunk)
     
-    # A re-chunking of raw_counts might be a good idea at this point...
-    # dsagg.add_stack('raw_counts', da.rechunk(dsagg.raw_counts, (10,-1,-1)), overwrite=True)
+    # Saturation, flat-field and dead-pixel correction
+    if opt.correct_saturation:
+        stack_ff = proc2d.apply_flatfield(proc2d.apply_saturation_correction(
+            dsagg.raw_counts, opt.shutter_time, opt.dead_time), reference)
+    else:
+        stack_ff = proc2d.apply_flatfield(dsraw.raw_counts, reference)
 
-    # Flat-field and dead-pixel correction
-    stack_ff = proc2d.apply_flatfield(dsagg.raw_counts, reference)
     stack = proc2d.correct_dead_pixels(stack_ff, pxmask, strategy='replace', replace_val=-1, mask_gaps=True)
 
     # Stack in central region along x (note that the gaps are not masked this time)
@@ -237,7 +279,7 @@ def from_raw(fn, opt: pre_proc_opts):
     stack_ct = proc2d.correct_dead_pixels(stack_ff[:,:,xrng], pxmask[:,xrng], 
                                           strategy='replace', replace_val=-1, mask_gaps=False)
 
-    # Define COM threshold as 0.7*highest pixel (after discarding some too high ones)
+    # Define COM threshold as fraction of highest pixel (after discarding some too high ones)
     thr = stack_ct.max(axis=1).topk(10,axis=1)[:,9].reshape((-1,1,1))*opt.com_threshold
     com = proc2d.center_of_mass2(stack_ct, threshold=thr) + [[(opt.xsize-opt.com_xrng)//2, 0]]
 
@@ -271,85 +313,114 @@ def from_raw(fn, opt: pre_proc_opts):
         log('Finished first centering', dsagg.centered.shape[0], 'shots after', time()-t0, 'seconds')
 
     except Exception as err:
-        log('Raw processing of failed.')
+        log('Raw processing failed.', err=True)
         raise err
 
     finally:    
         dsagg.close_stacks()   
         dsraw.close_stacks()
-     
-    # write file list for crystfel
-    list_name = os.path.join(opt.scratch_dir,os.path.basename(dsagg.files[0]).rsplit('.')[0]) + '_ff.lst'
-    dsagg.write_list(list_name)
-    stream_name = list_name.rsplit('.',1)[0] + f'_peaks.stream'
 
-    # run CrystFEL peak finding (indexamajig with indexing=none)
-    callstr = tools.call_indexamajig(list_name, opt.geometry, stream_name, 
-                                     im_params=opt.crystfel_params, procs=opt.crystfel_procs, 
-                                     exc=opt.im_exc)
-    
-    log('Running indexamajig:', callstr)
-    improc1 = subprocess.run(callstr.split(' '), capture_output=True)
-    #print(improc1)
-
-    # parse stream file (but don't merge into data set yet)
-    stream = StreamParser(stream_name)
-    log('Indexamajig found',stream.peaks.shape[0],'peaks.')
-    
-    # if desired, do Friedel mate refinement
-    if not opt.friedel_refine:
-        dsagg.merge_stream(stream)
-        dsagg.store_tables(shots=True, peaks=opt.peaks_nexus)
-
-    else:
-        # get Friedel-refined center from stream file
-        ctr_fr = proc_peaks.center_friedel(stream.peaks, dsagg.shots, 
-                                    p0=[opt.xsize//2, opt.ysize//2], 
-                                    sigma=opt.peak_sigma, minpeaks=opt.min_peaks)
-
-        try:
-            dsagg.open_stacks()
-            # re-center, based on already-centered images
-            centered2 = proc2d.center_image(dsagg.centered, ctr_fr['beam_x'].values, ctr_fr['beam_y'].values, opt.xsize, opt.ysize, -1)
-            ctr2 = (ctr_fr[['beam_x', 'beam_y']].values - [[opt.xsize//2, opt.ysize//2]]) + da.ceil(dsagg.beam_center)
-
-            dsagg.add_stack('centered', centered2, overwrite=True)
-            dsagg.add_stack('pxmask_centered', (centered2 != -1).astype(np.uint16), overwrite=True)
-            dsagg.add_stack('beam_center', ctr2, overwrite=True)
-
-            dsagg.change_filenames(opt.refined_file_suffix)
-            dsagg.init_files(overwrite=True, keep_features=True)
-            dsagg.store_tables(shots=True)
-            dsagg.store_stacks(overwrite=True, progress_bar=False)
-        except Exception as err:
-            log('Friedel refinement raised an error:')
-            raise err
-        finally:        
-            dsagg.close_stacks()
-            del centered2
-
-        #re-run peak finder
-        improc1 = subprocess.run(callstr.split(' '), capture_output=True)
-        stream = StreamParser(stream_name)
-        dsagg.merge_stream(stream)
-        dsagg.store_tables(shots=True, peaks=opt.peaks_nexus)
-
-        log('Finished refined centering', dsagg.centered.shape[0], 'shots after', time()-t0, 'seconds')
-    
-    # export peaks to CXI-format arrays
-    if opt.peaks_cxi:
-        cxidata = stream.get_cxi_format(shots=dsagg.shots, half_pixel_shift=opt.half_pixel_shift)
-        dsagg.open_stacks()
-        for k, v in cxidata.items():
-            dsagg.add_stack(k, v, overwrite=True)
-        dsagg.store_stacks(list(cxidata.keys()), progress_bar=False)
-        dsagg.close_stacks()
-
-    log('Finished raw processing with', dsagg.centered.shape[0], 'shots after', time()-t0, 'seconds')
     return dsagg.files
 
+def refine_center(fn, opt: PreProcOpts):
+    """Refines the centering of diffraction patterns based on Friedel mate positions.
+    
+    Arguments:
+        fn {str} -- [file/list name of input files, can contain wildcards]
+        opt {PreProcOpts} -- [pre-processing options]
+    
+    Raises:
+        err: [description]
+    
+    Returns:
+        [list] -- [output files]
+    """
 
-def subtract_bg(fn, opt: pre_proc_opts):
+    if isinstance(fn, list) and len(fn) == 1:
+        fn = fn[0]
+
+    def log(err=False, *args):
+        if opt.verbose or err:
+            if isinstance(fn, list):
+                dispfn = os.path.basename(fn[0]) + ' etc.'
+            else:
+                dispfn = os.path.basename(fn)
+            idstring = '[{} - {} - refine_center] '.format(datetime.datetime.now().time(), dispfn) 
+            print(idstring, *args)
+
+    ds = Dataset.from_list(fn)
+    stream = find_peaks(ds, opt=opt, merge_peaks=False, 
+        return_cxi=False, geo_params={'clen': opt.cam_length}, exc=opt.im_exc)
+
+    p0 = [opt.xsize//2, opt.ysize//2]
+
+    # get Friedel-refined center from stream file
+    ctr = proc_peaks.center_friedel(stream.peaks, ds.shots, 
+                                p0=p0, 
+                                sigma=opt.peak_sigma, minpeaks=opt.min_peaks)
+
+    maxcorr = ctr['friedel_cost'].values
+    changed = np.logical_not(np.isnan(maxcorr))
+
+    ds.open_stacks()
+    beam_center_old = ds.beam_center.compute() # previous beam center
+    ds.close_stacks()
+
+    beam_center_new = beam_center_old.copy()
+    beam_center_new[changed,:] = np.ceil(beam_center_old[changed,:]) + ctr.loc[changed,['beam_x', 'beam_y']].values - p0
+    if (np.abs(np.mean(beam_center_new - beam_center_old, axis=0) > .5)).any():
+        log('WARNING: average shift is larger than 0.5!')
+
+    # visualization
+    log('{:g}% of shots refined. \n'.format((1-np.isnan(maxcorr).sum()/len(maxcorr))*100),
+        'Shift standard deviation: {} \n'.format(np.std(beam_center_new - beam_center_old, axis=0)),
+        'Average shift: {} \n'.format(np.mean(beam_center_new - beam_center_old, axis=0)))
+
+    # make new files and add the shifted images
+    try:
+        ds.open_stacks()
+        centered2 = proc2d.center_image(ds.centered, ctr['beam_x'].values, ctr['beam_y'].values, 1556, 616, -1)
+        ds.add_stack('centered', centered2, overwrite=True)
+        ds.add_stack('pxmask_centered', (centered2 != -1).astype(np.uint16), overwrite=True)
+        ds.add_stack('beam_center', beam_center_new, overwrite=True)
+        ds.change_filenames(opt.refined_file_suffix)
+        ds.init_files(keep_features=False, overwrite=True)
+        ds.store_tables(shots=True, features=True)
+        ds.open_stacks()
+        ds.store_stacks(overwrite=True, progress_bar=False)
+        ds.close_stacks()
+        del centered2
+    except Exception as err:
+        log('Error during storing center-refined images', err=True)
+        raise err
+    finally:
+        ds.close_stacks()
+
+    # run peak finder again, this time on the refined images
+    pks_cxi = find_peaks(ds, opt=opt, merge_peaks=opt.peaks_nexus, 
+        return_cxi=True, geo_params={'clen': opt.cam_length}, exc=opt.im_exc)
+
+    # export peaks to CXI-format arrays
+    if opt.peaks_cxi:
+        ds.open_stacks()
+        for k, v in pks_cxi.items():
+            ds.add_stack(k, v, overwrite=True)
+        ds.store_stacks(list(pks_cxi.keys()), progress_bar=False)
+        ds.close_stacks()
+
+    return ds.files
+
+
+def subtract_bg(fn, opt: PreProcOpts):
+    """Subtracts the background of a diffraction pattern by azimuthal integration excluding the Bragg peaks.
+    
+    Arguments:
+        fn {function} -- [description]
+        opt {PreProcOpts} -- [description]
+    
+    Returns:
+        [type] -- [description]
+    """
 
     if isinstance(fn, list) and len(fn) == 1:
         fn = fn[0]
@@ -392,7 +463,20 @@ def subtract_bg(fn, opt: pre_proc_opts):
     return ds.files    
 
 
-def broadcast(fn, opt: pre_proc_opts):
+def broadcast(fn, opt: PreProcOpts):
+    """Pre-processes in one go a dataset comprising movie frames, by transferring the found beam center
+    positions and diffraction spots (in CXI format) from an aggregated set processed earlier.
+    
+    Arguments:
+        fn {function} -- [description]
+        opt {PreProcOpts} -- [description]
+    
+    Raises:
+        err: [description]
+    
+    Returns:
+        [type] -- [description]
+    """
 
     if isinstance(fn, list) and len(fn) == 1:
         fn = fn[0]
@@ -475,8 +559,20 @@ def broadcast(fn, opt: pre_proc_opts):
     return dssel.files
 
 
-def cumulate(fn, opt: pre_proc_opts):
-    #fn = 'proc_data/DUT-67_000_00000_all.h5'
+def cumulate(fn, opt: PreProcOpts):
+    """Applies cumulative summation to a data set comprising movie frame stacks. At the moment, requires
+    the summed frame stacks to have the same shape as the raw data.
+    
+    Arguments:
+        fn {function} -- [description]
+        opt {PreProcOpts} -- [description]
+    
+    Raises:
+        err: [description]
+    
+    Returns:
+        [type] -- [description]
+    """
 
     if isinstance(fn, list) and len(fn) == 1:
         fn = fn[0]
