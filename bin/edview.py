@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (QPushButton, QSpinBox, QCheckBox,
                              QTextEdit, QWidget, QApplication, QGridLayout, QTableWidget, QTableWidgetItem)
 from diffractem.adxv import Adxv
 from warnings import warn
+from typing import Optional, Union
 
 pg.setConfigOptions(imageAxisOrder='row-major')
 
@@ -87,7 +88,8 @@ class EDViewer(QWidget):
             raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')
 
         if args.query:
-            self.dataset = self.dataset.get_selection(args.query)
+            print('Only showing shots with', args.query)
+            self.dataset = self.dataset.get_selection(args.query, file_suffix=None)
 
         if not self.args.internal:
             #adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}

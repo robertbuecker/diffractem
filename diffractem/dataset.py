@@ -8,7 +8,7 @@ from . import io, nexus
 from .stream_parser import StreamParser
 from .map_image import MapImage
 import h5py
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 import copy
 from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
@@ -367,7 +367,7 @@ class Dataset:
         lbls = ['_shots', '_peaks', '_predict', '_features']
         return {k: v for k, v in self.__dict__.items() if k in lbls}
 
-    def change_filenames(self, file_suffix: str = '.h5', file_prefix: str = '',
+    def change_filenames(self, file_suffix: Optional[str] = '.h5', file_prefix: str = '',
                          new_folder: Union[str, None] = None,
                          fn_map: Union[pd.DataFrame, None] = None,
                          keep_raw=True):
@@ -388,7 +388,10 @@ class Dataset:
             # name mangling pt. 1: make map of old names to new names
             fn_map = self._shots[['file']].drop_duplicates()
             folder_file = fn_map.file.str.rsplit('/', 1, expand=True)
-            new_fn = file_prefix + folder_file[1].str.rsplit('.', 1, expand=True)[0] + file_suffix
+            if file_suffix is not None:
+                new_fn = file_prefix + folder_file[1].str.rsplit('.', 1, expand=True)[0] + file_suffix
+            else:
+                new_fn = file_prefix + folder_file[1]
             if new_folder is not None:
                 new_fn = new_folder + '/' + new_fn
             else:

@@ -43,6 +43,8 @@ def run_mp(func, fns: Union[str, list],
 class PreProcOpts:
     def __init__(self, fn=None):  
 
+        self._filename = None
+
         # raw-image corrections
         self.verbose = True
         self.reference = 'Ref12_reference.tif'
@@ -111,7 +113,12 @@ class PreProcOpts:
     def __repr__(self):
         return pprint.pformat(self.__dict__)
 
-    def load(self, fn):
+    def load(self, fn=None):
+
+        fn = self._filename if fn is None else fn
+        if fn is None:
+            raise ValueError('Please set the option file name first')
+
         if fn.endswith('json'):
             config = json.load(open(fn,'r'))
         elif fn.endswith('yaml'):
@@ -122,6 +129,8 @@ class PreProcOpts:
                 setattr(self, k, v)
             else:
                 print('Option',k,'in',fn,'unknown.')
+
+        self._filename = fn
 
     def save(self, fn: str):
         if fn.endswith('json'):
