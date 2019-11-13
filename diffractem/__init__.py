@@ -1,6 +1,13 @@
 import numpy as np
 
-__all__ = ['compute', 'io', 'proc2d', 'tools', 'map_image.py', 'models']
+__all__ = ['compute', 'io', 'proc2d', 'tools', 'map_image', 'models']
+
+def version():
+    try:
+        with open(__file__.rsplit('/',1)[0] + '/../version.txt') as fh:
+            return fh.readline().strip()
+    except FileNotFoundError:
+        return 'Could not determine diffractem version'
 
 
 def gap_pixels():

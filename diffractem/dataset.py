@@ -14,6 +14,7 @@ from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
 from tables import NaturalNameWarning
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
+from contextlib import contextmanager
 
 
 class Dataset:
@@ -726,10 +727,23 @@ class Dataset:
         for sn, s in stacks.items():
             try:
                 self._stacks[sn] = da.concatenate(s, axis=0) 
-            except ValueError as err:
+            except ValueError:
                 warn(f'Could not read stack {sn}')
 
         self._stacks_open = True
+
+    @contextmanager
+    def Stacks(self):
+        """Context manager to handle the opening and closing of stacks.
+        returns the opened data stacks, which are automatically closed
+        once the context is left. Example:
+            with ds.Stacks() as stk:
+                center = stk.beam_center.compute()
+            print('Have', center.shape[0], 'centers.')
+        """
+        self.open_stacks()
+        yield self.stacks
+        self.close_stacks()
 
     def add_stack(self, label: str, stack: Union[da.Array, np.array, h5py.Dataset], overwrite=False):
         """

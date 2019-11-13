@@ -24,6 +24,15 @@ from functools import wraps
 import yaml
 import pprint
 
+"""
+Pre-processing macros for diffractem.
+
+They operate on files or lists thereof, according to the settings made in an PreProcOpts object.
+(With the exception of find_peaks, which does not require an opts object, but settings can be made
+in the options directly)
+
+Mostly, the functions here call functions from proc2d in a more or less smart sequence.
+"""
 
 def run_mp(func, fns: Union[str, list], 
     opts, wait_until_done=True):
@@ -214,8 +223,10 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None,
     callstr = tools.call_indexamajig(infile, gfile, outfile, im_params=cfpars, procs=procs, exc=exc)
     #print(callstr)
     improc1 = subprocess.run(callstr.split(' '), capture_output=True)
-    #print(improc1.stderr.decode())
-    print('\n'.join([l for l in improc1.stderr.decode().split('\n') if l.startswith('Final') or l.lower().startswith('warning')]))
+    if opt is None or opt.verbose:
+        print(improc1.stderr.decode())
+    else:
+        print('\n'.join([l for l in improc1.stderr.decode().split('\n') if l.startswith('Final') or l.lower().startswith('warning')]))
     os.remove(gfile)
     os.remove(infile)
 
@@ -244,14 +255,15 @@ def from_raw(fn, opt: PreProcOpts):
     if isinstance(fn, list) and len(fn) == 1:
         fn = fn[0]
 
-    def log(*args, err=False):
-        if opt.verbose or err:
-            if isinstance(fn, list):
-                dispfn = os.path.basename(fn[0]) + ' etc.'
-            else:
-                dispfn = os.path.basename(fn)
-            idstring = '[{} - {} - from_raw] '.format(datetime.datetime.now().time(), dispfn) 
-            print(idstring, *args)
+    def log(*args):
+        if not (opt.verbose or any([isinstance(err, Exception) for e in args])):
+            return        
+        if isinstance(fn, list):
+            dispfn = os.path.basename(fn[0]) + ' etc.'
+        else:
+            dispfn = os.path.basename(fn)
+        idstring = '[{} - {} - from_raw] '.format(datetime.datetime.now().time(), dispfn) 
+        print(idstring, *args)
 
     t0 = time()
     dsraw = Dataset().from_list(fn)
@@ -322,7 +334,7 @@ def from_raw(fn, opt: PreProcOpts):
         log('Finished first centering', dsagg.centered.shape[0], 'shots after', time()-t0, 'seconds')
 
     except Exception as err:
-        log('Raw processing failed.', err=True)
+        log('Raw processing failed.', err)
         raise err
 
     finally:    
@@ -348,14 +360,15 @@ def refine_center(fn, opt: PreProcOpts):
     if isinstance(fn, list) and len(fn) == 1:
         fn = fn[0]
 
-    def log(err=False, *args):
-        if opt.verbose or err:
-            if isinstance(fn, list):
-                dispfn = os.path.basename(fn[0]) + ' etc.'
-            else:
-                dispfn = os.path.basename(fn)
-            idstring = '[{} - {} - refine_center] '.format(datetime.datetime.now().time(), dispfn) 
-            print(idstring, *args)
+    def log(*args):
+        if not (opt.verbose or any([isinstance(err, Exception) for e in args])):
+            return
+        if isinstance(fn, list):
+            dispfn = os.path.basename(fn[0]) + ' etc.'
+        else:
+            dispfn = os.path.basename(fn)
+        idstring = '[{} - {} - refine_center] '.format(datetime.datetime.now().time(), dispfn) 
+        print(idstring, *args)
 
     ds = Dataset.from_list(fn)
     stream = find_peaks(ds, opt=opt, merge_peaks=False, 
@@ -393,6 +406,7 @@ def refine_center(fn, opt: PreProcOpts):
         ds.add_stack('pxmask_centered', (centered2 != -1).astype(np.uint16), overwrite=True)
         ds.add_stack('beam_center', beam_center_new, overwrite=True)
         ds.change_filenames(opt.refined_file_suffix)
+        print(ds.files)
         ds.init_files(keep_features=False, overwrite=True)
         ds.store_tables(shots=True, features=True)
         ds.open_stacks()
@@ -400,7 +414,7 @@ def refine_center(fn, opt: PreProcOpts):
         ds.close_stacks()
         del centered2
     except Exception as err:
-        log('Error during storing center-refined images', err=True)
+        log('Error during storing center-refined images', err)
         raise err
     finally:
         ds.close_stacks()
@@ -435,6 +449,8 @@ def subtract_bg(fn, opt: PreProcOpts):
         fn = fn[0]
 
     def log(*args):
+        if not (opt.verbose or any([isinstance(err, Exception) for e in args])):
+            return
         if isinstance(fn, list):
             dispfn = os.path.basename(fn[0]) + ' etc.'
         else:
@@ -466,6 +482,9 @@ def subtract_bg(fn, opt: PreProcOpts):
 
     try:
         ds.store_stacks(overwrite=True, progress_bar=False)
+    except Exception as err:
+        log('Error during background correction:', err)
+        raise err
     finally:
         ds.close_stacks()
 
@@ -491,6 +510,8 @@ def broadcast(fn, opt: PreProcOpts):
         fn = fn[0]
 
     def log(*args):
+        if not (opt.verbose or any([isinstance(err, Exception) for e in args])):
+            return
         if isinstance(fn, list):
             dispfn = os.path.basename(fn[0]) + ' etc.'
         else:
@@ -557,7 +578,7 @@ def broadcast(fn, opt: PreProcOpts):
         log('Finished with', dssel.centered.shape[0], 'shots after', time()-t0, 'seconds')
  
     except Exception as err:
-        log('Broadcast processing failed.')
+        log('Broadcast processing failed:', err)
         raise err
        
     finally:    
