@@ -60,11 +60,11 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
     reference = reference/np.nanmedian(reference)
 
     if not output_base_fn is None:
-        imsave(output_base_fn + '_reference', reference.astype(np.float32))
-        imsave(output_base_fn + '_pxmask', 255 * pxmask.astype(np.uint8))
+        imsave(output_base_fn + '_reference.tif', reference.astype(np.float32))
+        imsave(output_base_fn + '_pxmask.tif', 255 * pxmask.astype(np.uint8))
         if save_stat_imgs:
-            imsave(output_base_fn + '_mimg', mimg.astype(np.float32))
-            imsave(output_base_fn + '_vom', vom.astype(np.float32))
+            imsave(output_base_fn + '_mimg.tif', mimg.astype(np.float32))
+            imsave(output_base_fn + '_vom.tif', vom.astype(np.float32))
 
     return pxmask, reference
 
