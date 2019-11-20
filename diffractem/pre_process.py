@@ -99,6 +99,7 @@ class PreProcOpts:
         self.friedel_refine = True
         self.min_peaks = 10
         self.peak_sigma = 2
+        self.friedel_max_radius = None
         self.refined_file_suffix = '_ref.h5'
         self.center_stack = 'beam_center'
         self.broadcast_single = True
@@ -109,6 +110,7 @@ class PreProcOpts:
         self.cum_file_suffix = '_cum.h5'
         self.cum_stacks = ['centered']
         self.cum_first_frame = 0
+        self.rerun_peak_finder = False
         self.peak_radius = 4
         self.filter_len = 5
         self.nobg_file_suffix = '_nobg.h5'
@@ -379,14 +381,14 @@ def refine_center(fn, opt: PreProcOpts):
     # get Friedel-refined center from stream file
     ctr = proc_peaks.center_friedel(stream.peaks, ds.shots, 
                                 p0=p0, 
-                                sigma=opt.peak_sigma, minpeaks=opt.min_peaks)
+                                sigma=opt.peak_sigma, minpeaks=opt.min_peaks, 
+                                maxres=opt.friedel_max_radius)
 
     maxcorr = ctr['friedel_cost'].values
     changed = np.logical_not(np.isnan(maxcorr))
 
-    ds.open_stacks()
-    beam_center_old = ds.beam_center.compute() # previous beam center
-    ds.close_stacks()
+    with ds.Stacks() as stk:
+        beam_center_old = stk['beam_center'].compute() # previous beam center
 
     beam_center_new = beam_center_old.copy()
     beam_center_new[changed,:] = np.ceil(beam_center_old[changed,:]) + ctr.loc[changed,['beam_x', 'beam_y']].values - p0
@@ -462,9 +464,16 @@ def subtract_bg(fn, opt: PreProcOpts):
     ds = Dataset().from_list(fn)
     ds.open_stacks()
 
-    nPeaks = ds.nPeaks[:,np.newaxis,np.newaxis]
-    peakX = ds.peakXPosRaw[:,:,np.newaxis]
-    peakY = ds.peakYPosRaw[:,:,np.newaxis]
+    if opt.rerun_peak_finder:
+        pks = find_peaks(ds, opt=opt)
+        nPeaks = da.from_array(pks['nPeaks'][:,np.newaxis,np.newaxis], chunks=(ds.centered.chunks[0],1,1))
+        peakX = da.from_array(pks['peakXPosRaw'][:,:,np.newaxis], chunks=(ds.centered.chunks[0],-1,1))
+        peakY = da.from_array(pks['peakYPosRaw'][:,:,np.newaxis], chunks=(ds.centered.chunks[0],-1,1))
+    else:
+        nPeaks = ds.nPeaks[:,np.newaxis,np.newaxis]
+        peakX = ds.peakXPosRaw[:,:,np.newaxis]
+        peakY = ds.peakYPosRaw[:,:,np.newaxis]
+
     original = ds.centered
     bg_corrected = da.map_blocks(proc2d.remove_background, original, original.shape[2]/2, original.shape[1]/2,
                                      nPeaks, peakX, peakY, peak_radius=opt.peak_radius, filter_len=opt.filter_len, 

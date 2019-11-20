@@ -15,7 +15,7 @@ from diffractem.io import expand_files, dict_to_h5
 def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
     identifiers = path.rsplit('%', 1)
     lists = []
-    with h5py.File(fn) as fh:
+    with h5py.File(fn, 'r', swmr=True) as fh:
 
         if len(identifiers) == 1:
             subsets = ['']

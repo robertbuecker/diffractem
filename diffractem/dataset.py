@@ -886,9 +886,18 @@ class Dataset:
             self.add_stack(sn, s.rechunk({0: tuple(zchunks)}), overwrite=True)
         self._zchunks = zchunks
 
-    def stack_to_shots(self, labels: Union[str, list], selected=False):
-        # mangle stack data into the shot list
-        raise NotImplementedError('stacks_to_shots not yet implemented')
+    def stacks_to_shots(self, stack_labels: Union[str, list], shot_labels: Optional[Union[str, list]] = None):
+        if isinstance(stack_labels, str):
+            stack_labels = [stack_labels,]
+        if shot_labels is None:
+            shot_labels = stack_labels
+        elif isinstance(shot_labels, str):
+            shot_labels = [shot_labels,]
+        with self.Stacks() as stk:
+            for lbl_from, lbl_to in zip(stack_labels, shot_labels):
+                if lbl_from not in stk:
+                    warn(f'{lbl_from} not in stacks, skipping.')
+                self.shots[lbl_to] = stk[lbl_from]
 
     def merge_acquisition_data(self, fields: dict):
         # mange instrument (acquisition) data like exposure time etc. into shot list
