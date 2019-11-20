@@ -281,7 +281,7 @@ def from_raw(fn, opt: PreProcOpts):
         dsagg = dsraw.aggregate(file_suffix=opt.agg_file_suffix, new_folder=opt.proc_dir, 
                             how={'raw_counts': 'sum'}, query=opt.agg_query)
     else:
-        dsagg = dsraw.get_selection(opt.agg_query, new_folder=opt.proc_dir, file_suffix=opt.single_suffix)
+        dsagg = dsraw.get_selection(opt.agg_query, new_folder=opt.proc_dir, file_suffix=opt.agg_file_suffix)
 
     log(f'{dsraw.shots.shape[0]} raw, {dsagg.shots.shape[0]} aggregated/selected.')
     
@@ -293,7 +293,7 @@ def from_raw(fn, opt: PreProcOpts):
         stack_ff = proc2d.apply_flatfield(proc2d.apply_saturation_correction(
             dsagg.raw_counts, opt.shutter_time, opt.dead_time), reference)
     else:
-        stack_ff = proc2d.apply_flatfield(dsraw.raw_counts, reference)
+        stack_ff = proc2d.apply_flatfield(dsagg.raw_counts, reference)
 
     stack = proc2d.correct_dead_pixels(stack_ff, pxmask, strategy='replace', replace_val=-1, mask_gaps=True)
 
@@ -323,6 +323,7 @@ def from_raw(fn, opt: PreProcOpts):
                'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]), 
                'adf2': proc2d.apply_virtual_detector(centered, opt.r_adf2[0], opt.r_adf2[1])}
     for lbl, stk in alldata.items():
+        print('adding',lbl,stk.shape)
         dsagg.add_stack(lbl, stk, overwrite=True)
 
     # make the files and crunch the data

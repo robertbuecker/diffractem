@@ -47,7 +47,7 @@ class Dataset:
         self._shots = pd.DataFrame(columns=self._shot_id_cols + self._feature_id_cols + ['selected'])
         self._peaks = pd.DataFrame(columns=self._shot_id_cols)
         self._predict = pd.DataFrame(columns=self._shot_id_cols)
-        self._features = pd.DataFrame(columns=self._feature_id_cols)
+        self._features = pd.DataFrame(columns=self._feature_id_cols + ['file', 'subset'])
 
     def __str__(self):
         return (f'diffractem Dataset object spanning {len(self._shots.file.unique())} NeXus/HDF5 files\n-----\n'
@@ -489,12 +489,16 @@ class Dataset:
 
             return None
 
-    def get_meta(self, path='%/instrument/detector/collection/shutter_time'):
+    def get_meta(self, path='/%/instrument/detector/collection/shutter_time'):
         meta = {}    
         for lbl, _ in self.shots.groupby(['file', 'subset']):
             with h5py.File(lbl[0]) as fh:
-                meta[tuple(lbl)] = fh[path.replace('%', lbl[1])][:]
-                if meta[tuple(lbl)].size == 1:
+                meta[tuple(lbl)] = fh[path.replace('%', lbl[1])][...]
+                #print(type(meta[tuple(lbl)]))
+                #print(meta[tuple(lbl)].shape)
+                if meta[tuple(lbl)].ndim == 0:
+                    meta[tuple(lbl)] = meta[tuple(lbl)][()]
+                elif (meta[tuple(lbl)].size == 1):
                     meta[tuple(lbl)] = meta[tuple(lbl)][0]
         return pd.Series(meta, name=path.rsplit('/',1)[-1])
 

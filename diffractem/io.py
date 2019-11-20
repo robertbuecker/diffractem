@@ -11,8 +11,10 @@ from typing import Union
 from glob import glob
 
 def expand_files(file_list: Union[str, list], scan_shots=False):
+    def remove_bs(fns):
+        return [fn.replace('\\', '/') for fn in fns]
     if isinstance(file_list, list) or isinstance(file_list, tuple):
-        fl = file_list
+        fl = remove_bs(file_list)
         if scan_shots:
             fl = pd.DataFrame(fl, columns=['file'])
 
@@ -20,6 +22,7 @@ def expand_files(file_list: Union[str, list], scan_shots=False):
         if scan_shots:
             fl = pd.read_csv(file_list, sep=' ', header=None, engine='python',
                              names=['file', 'Event'])
+            fl['file'] = remove_bs(fl['file'])
             if fl.Event.isna().all():
                 fl.drop('Event', axis=1, inplace=True)
         else:
@@ -28,9 +31,10 @@ def expand_files(file_list: Union[str, list], scan_shots=False):
                 if '//' in s:
                     raise RuntimeError('Shot identifier found in list file. You may want to set scan_shots=True')
                 fl.append(s.split(' ', 1)[0].strip())
+            fl = remove_bs(fl)
 
     elif isinstance(file_list, str) and (file_list.endswith('.h5') or file_list.endswith('.nxs')):
-        fl = sorted(glob(file_list))
+        fl = remove_bs(sorted(glob(file_list)))
         if scan_shots:
             fl = pd.DataFrame(fl, columns=['file'])
 
@@ -42,7 +46,6 @@ def expand_files(file_list: Union[str, list], scan_shots=False):
 
     else:
         return fl
-
 
 def dict_to_h5(grp, data, exclude=()):
     """
