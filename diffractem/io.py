@@ -8,7 +8,7 @@ import os.path
 from diffractem import normalize_names
 import warnings
 from typing import Union
-
+from glob import glob
 
 def expand_files(file_list: Union[str, list], scan_shots=False):
     if isinstance(file_list, list) or isinstance(file_list, tuple):
@@ -30,12 +30,12 @@ def expand_files(file_list: Union[str, list], scan_shots=False):
                 fl.append(s.split(' ', 1)[0].strip())
 
     elif isinstance(file_list, str) and (file_list.endswith('.h5') or file_list.endswith('.nxs')):
-        fl = [file_list, ]
+        fl = sorted(glob(file_list))
         if scan_shots:
             fl = pd.DataFrame(fl, columns=['file'])
 
     else:
-        raise TypeError('file_list must be a list file, single h5/nxs file, or a list of filenames')
+        raise TypeError('file_list must be a list file, single or glob pattern of h5/nxs files, or a list of filenames')
 
     if (not scan_shots) and (not len(fl) == len(set(fl))):
         raise ValueError('File identifiers are not unique, most likely because the file names are not.')

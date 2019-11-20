@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (QPushButton, QSpinBox, QCheckBox,
                              QTextEdit, QWidget, QApplication, QGridLayout, QTableWidget, QTableWidgetItem)
 from diffractem.adxv import Adxv
 from warnings import warn
+from typing import Optional, Union
 
 pg.setConfigOptions(imageAxisOrder='row-major')
 
@@ -87,10 +88,12 @@ class EDViewer(QWidget):
             raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')
 
         if args.query:
-            self.dataset = self.dataset.get_selection(args.query)
+            print('Only showing shots with', args.query)
+            self.dataset = self.dataset.get_selection(args.query, file_suffix=None)
 
         if not self.args.internal:
-            adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}
+            #adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}
+            adxv_args = {}
             self.adxv = Adxv(hdf5_path=self.data_path.replace('%', 'entry'),
                              adxv_bin=self.args.adxv_bin, **adxv_args)
 
@@ -104,6 +107,7 @@ class EDViewer(QWidget):
             if self.args.internal:
                 path = self.data_path.replace('%', self.current_shot.subset)
                 self.diff_image = f[path][int(self.current_shot['shot_in_subset']), ...]
+                self.diff_image[np.isnan(self.diff_image)] = 0
                 print('Loading {}:{} from {}'.format(path,
                                                      self.current_shot['shot_in_subset'], self.current_shot['file']))
                 levels = self.hist_img.getLevels()
@@ -384,7 +388,7 @@ if __name__ == '__main__':
     parser.add_argument('-q', '--query', type=str, help='Query string to filter shots by column values')
     parser.add_argument('-d', '--data_path', type=str, help='Data field in HDF5 file(s). Defaults to stream file or tries a few.')
     parser.add_argument('--internal', help='Use internal diffraction viewer instead of adxv', action='store_true')
-    parser.add_argument('--adxv_bin', help='Location of adxv binary', default='adxv')
+    parser.add_argument('--adxv_bin', help='Location/command string of adxv binary', default='adxv')
     parser.add_argument('--map_path', type=str, help='Path to map image', default='/%/map/image')
     parser.add_argument('--feature_path', type=str, help='Path to map feature table', default='/%/map/features')
     parser.add_argument('--peaks_path', type=str, help='Path to peaks table', default='/%/results/peaks')

@@ -8,12 +8,13 @@ from . import io, nexus
 from .stream_parser import StreamParser
 from .map_image import MapImage
 import h5py
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 import copy
 from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
 from tables import NaturalNameWarning
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
+from contextlib import contextmanager
 
 
 class Dataset:
@@ -27,6 +28,8 @@ class Dataset:
 
         # HDF5 file addresses
         self.data_pattern = '/%/data'
+        self.shots_pattern = '/%/shots'
+        self._fallback_shots_pattern = '/%/data/shots'
         self.result_pattern = '/%/results'
         self.map_pattern = '/%/map'
         self.instrument_pattern = '/%/instrument'
@@ -141,6 +144,10 @@ class Dataset:
         for k, v in kwargs.items():
             self.__dict__[k] = v
 
+        if len(file_list) == 1:
+            print('Single-file dataset, disabling parallel I/O.')
+            self.parallel_io = False
+
         self.load_tables(shots=True, files=list(file_list.file.unique()))
 
         # now set selected property...
@@ -158,10 +165,10 @@ class Dataset:
     def load_tables(self, shots=False, features=False, peaks=False, predict=False, files=None):
         """
         Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.
-        :param shots:
-        :param features:
-        :param peaks:
-        :param predict:
+        :param shots: shot table
+        :param features: feature table
+        :param peaks: peak table
+        :param predict: prediction table
         :param files: ...allows to supply a custom file list, instead of the stored one. Dangerous.
         :return:
         """
@@ -174,7 +181,11 @@ class Dataset:
                 warn('You are reloading the shot table. This can be dangerous. If you want to ensure a consistent'
                      ' data set, use the from_list class method instead, or start from an empty dataset.')
             try:
-                self._shots = nexus.get_table(files, self.data_pattern + '/shots',
+                try:
+                    self._shots = nexus.get_table(files, self.shots_pattern,
+                                              parallel=self.parallel_io).reset_index(drop=True)
+                except KeyError:
+                    self._shots = nexus.get_table(files, self._fallback_shots_pattern,
                                               parallel=self.parallel_io).reset_index(drop=True)
 
                 self._shots_changed = False
@@ -197,7 +208,7 @@ class Dataset:
                     self._shots.drop('stem', axis=1, inplace=True)
 
             except KeyError:
-                print('No shots found at ' + self.data_pattern + '/shots')
+                print('No shots found at ' + self.shots_pattern)
 
         if features:
             try:
@@ -220,17 +231,19 @@ class Dataset:
                 self._peaks = nexus.get_table(files, self.result_pattern + '/peaks', parallel=self.parallel_io)
                 self._peaks_changed = False
             except KeyError:
-                print('No peaks found at ' + self.result_pattern + '/peaks')
+                pass
+                #print('No peaks found at ' + self.result_pattern + '/peaks')
 
         if predict:
             try:
                 self._predict = nexus.get_table(files, self.result_pattern + '/predict', parallel=self.parallel_io)
                 self._predict_changed = False
             except KeyError:
-                print('No predictions found at ' + self.result_pattern + '/predict')
+                pass
+                #print('No predictions found at ' + self.result_pattern + '/predict')
 
     def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None,
-                     peaks: Union[None, bool] = None, predict: Union[None, bool] = None):
+                     peaks: Union[None, bool] = None, predict: Union[None, bool] = None, format: str = 'nexus'):
         """
         Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. For each of the tables,
         it can be automatically determined if they have changed and should be stored...
@@ -239,12 +252,12 @@ class Dataset:
         :param features: similar
         :param peaks: similar
         :param predict: similar
-        :param parallel_io: write to HDF5 files in parallel. Usually works well and is way faster.
+        :param format: format to write metadata tables. 'nexus' (recommended) or 'tables' (old-style)
         :return:
         """
         fs = []
 
-        if self._stacks_open:
+        if self._stacks_open and (format=='tables'):
             warn('Data stacks are open, and will be transiently closed. You will need to re-create derived stacks.',
                  RuntimeWarning)
             stacks_were_open = True
@@ -254,19 +267,21 @@ class Dataset:
 
         simplefilter('ignore', NaturalNameWarning)
         if (shots is None and self._shots_changed) or shots:
-            fs.extend(nexus.store_table(self.shots, self.data_pattern + '/shots', parallel=self.parallel_io))
+            #sh = self.shots.drop(['Event', 'shot_in_subset'], axis=1)
+            #sh['id'] = sh[['sample', 'region', 'run', 'crystal_id']].apply(lambda x: '//'.join(x.astype(str)), axis=1)
+            fs.extend(nexus.store_table(self.shots, self.shots_pattern, parallel=self.parallel_io, format=format))
             self._shots_changed = False
 
         if (features is None and self._features_changed) or features:
-            fs.extend(nexus.store_table(self.features, self.map_pattern + '/features', parallel=self.parallel_io))
+            fs.extend(nexus.store_table(self.features, self.map_pattern + '/features', parallel=self.parallel_io, format=format))
             self._features_changed = False
 
         if (peaks is None and self._peaks_changed) or peaks:
-            fs.extend(nexus.store_table(self.peaks, self.result_pattern + '/peaks', parallel=self.parallel_io))
+            fs.extend(nexus.store_table(self.peaks, self.result_pattern + '/peaks', parallel=self.parallel_io, format=format))
             self._peaks_changed = False
 
         if (predict is None and self._predict_changed) or predict:
-            fs.extend(nexus.store_table(self.predict, self.result_pattern + '/predict', parallel=self.parallel_io))
+            fs.extend(nexus.store_table(self.predict, self.result_pattern + '/predict', parallel=self.parallel_io, format=format))
             self._predict_changed = False
 
         if stacks_were_open:
@@ -353,7 +368,7 @@ class Dataset:
         lbls = ['_shots', '_peaks', '_predict', '_features']
         return {k: v for k, v in self.__dict__.items() if k in lbls}
 
-    def change_filenames(self, file_suffix: str = '.h5', file_prefix: str = '',
+    def change_filenames(self, file_suffix: Optional[str] = '.h5', file_prefix: str = '',
                          new_folder: Union[str, None] = None,
                          fn_map: Union[pd.DataFrame, None] = None,
                          keep_raw=True):
@@ -361,7 +376,7 @@ class Dataset:
         Change file names in all lists using some handy modifications. The old file names are copied to a "file_raw"
         column, if not already present (can be overriden with keep_raw).
         :param file_suffix: add suffix to file, INCLUDING file extension, e.g. '_modified.h5'
-        :param file_prefix: add suffix to actual filenames (not folder/full path!), e.g. 'aggregated_
+        :param file_prefix: add prefix to actual filenames (not folder/full path!), e.g. 'aggregated_
         :param new_folder: if not None, changes folder name to this path
         :param fn_map: if not None, gives an explicit table (pd.DataFrame) with columns 'file' and 'file_new'
             that manually maps old to new filenames. All other parameters are ignored, if provided
@@ -374,7 +389,10 @@ class Dataset:
             # name mangling pt. 1: make map of old names to new names
             fn_map = self._shots[['file']].drop_duplicates()
             folder_file = fn_map.file.str.rsplit('/', 1, expand=True)
-            new_fn = file_prefix + folder_file[1].str.rsplit('.', 1, expand=True)[0] + file_suffix
+            if file_suffix is not None:
+                new_fn = file_prefix + folder_file[1].str.rsplit('.', 1, expand=True)[0] + file_suffix
+            else:
+                new_fn = file_prefix + folder_file[1]
             if new_folder is not None:
                 new_fn = new_folder + '/' + new_fn
             else:
@@ -398,6 +416,9 @@ class Dataset:
 
             self.__dict__[lbl] = newtable
             self.__dict__[lbl + '_changed'] = True
+
+        # invalidate all the hdf file references (note that references into old files might still exist)
+        self._h5handles = {}
 
         return fn_map
 
@@ -428,23 +449,30 @@ class Dataset:
             self.__dict__[lbl] = newtable
             self.__dict__[lbl + '_changed'] = True
 
-    def init_files(self, overwrite=False, parallel=True):
+    def init_files(self, overwrite=False, keep_features=False, exclude_list=()):
         """
         Make new files corresponding to the shot list, by copying over instrument metadata and maps (but not
-        results, shot list, data arrays,...
+        results, shot list, data arrays,...) from the raw files (as stored in file_raw).
         :param overwrite: overwrite new files if not yet existing
         :param parallel: copy file data over in parallel. Can be way faster.
         :return:
         """
         fn_map = self.shots[['file', 'file_raw']].drop_duplicates()
 
-        if parallel:
+        exc = ('%/detector/data', self.data_pattern + '/%', 
+                        self.result_pattern + '/%', self.shots_pattern + '/%')
+        if not keep_features:
+            exc += (self.map_pattern + '/features', '%/ref/features')
+        if len(exclude_list) > 0:
+            exc += tuple(exclude_list)
+
+        if self.parallel_io:
             with ProcessPoolExecutor() as p:
                 futures = []
                 for _, filepair in fn_map.iterrows():
                     futures.append(p.submit(nexus.copy_h5,
                                  filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
-                                 exclude=('%/detector/data', self.data_pattern + '/%', self.result_pattern + '/%'),
+                                 exclude=exc,
                                  print_skipped=False))
 
                 wait(futures, return_when=FIRST_EXCEPTION)
@@ -456,10 +484,23 @@ class Dataset:
         else:
             for _, filepair in fn_map.iterrows():
                 nexus.copy_h5(filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
-                              exclude=('%/detector/data', self.data_pattern + '/%', self.result_pattern + '/%'),
+                              exclude=exc,
                               print_skipped=False)
 
             return None
+
+    def get_meta(self, path='%/instrument/detector/collection/shutter_time'):
+        meta = {}    
+        for lbl, _ in self.shots.groupby(['file', 'subset']):
+            with h5py.File(lbl[0]) as fh:
+                meta[tuple(lbl)] = fh[path.replace('%', lbl[1])][:]
+                if meta[tuple(lbl)].size == 1:
+                    meta[tuple(lbl)] = meta[tuple(lbl)][0]
+        return pd.Series(meta, name=path.rsplit('/',1)[-1])
+
+    def merge_meta(self, path='%/instrument/detector/collection/shutter_time'):
+        meta = self.get_meta(path)
+        self.shots = self.shots.join(meta, on=['file', 'subset'])
 
     def get_selection(self, query: Union[str, None] = None,
                       file_suffix: str = '_sel.h5', file_prefix: str = '',
@@ -583,7 +624,7 @@ class Dataset:
             agg_shots.append(newshots)
 
         newset._shots = pd.concat(agg_shots, axis=0, ignore_index=True)
-        print(f'{newset._shots.shape[0]} aggregated shots.')
+        #print(f'{newset._shots.shape[0]} aggregated shots.')
 
         # drop remaining columns that are inconsistent
         for col in cols_nonid:
@@ -683,8 +724,26 @@ class Dataset:
                             newstack = da.from_array(ds, chunks=ds.chunks)
                         stacks[dsname].append(newstack)
 
-        self._stacks.update({sn: da.concatenate(s, axis=0) for sn, s in stacks.items()})
+        for sn, s in stacks.items():
+            try:
+                self._stacks[sn] = da.concatenate(s, axis=0) 
+            except ValueError:
+                warn(f'Could not read stack {sn}')
+
         self._stacks_open = True
+
+    @contextmanager
+    def Stacks(self):
+        """Context manager to handle the opening and closing of stacks.
+        returns the opened data stacks, which are automatically closed
+        once the context is left. Example:
+            with ds.Stacks() as stk:
+                center = stk.beam_center.compute()
+            print('Have', center.shape[0], 'centers.')
+        """
+        self.open_stacks()
+        yield self.stacks
+        self.close_stacks()
 
     def add_stack(self, label: str, stack: Union[da.Array, np.array, h5py.Dataset], overwrite=False):
         """
@@ -727,14 +786,16 @@ class Dataset:
         if from_files:
             for _, address in self._shots[['file', 'subset']].iterrows():
                 path = self.data_pattern.replace('%', address.subset) + '/' + label
-                print(f'Deleting dataset {path}')
+                #print(f'Deleting dataset {path}')
                 try:
                     del self._h5handles[address['file']][path]
                 except KeyError:
-                    print(address['file'], path, 'not found!')
+                    pass
+                    #print(address['file'], path, 'not found!')
 
     def store_stacks(self, labels: Union[None, list] = None, overwrite=False,
-                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, **kwargs):
+                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, 
+                    progress_bar=True, **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
         typically not yet computed, so at this point the actual data crunching is done.
@@ -756,7 +817,7 @@ class Dataset:
             labels = self._stacks.keys()
 
         stacks = {k: v for k, v in self._stacks.items() if k in labels}
-        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(1,))})
+        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(self._zchunks,))})
 
         datasets = []
         arrays = []
@@ -783,6 +844,7 @@ class Dataset:
                 else:
                     path = data_pattern.replace('%', ssn) + '/' + label
 
+                #print('Writing to ', path)
                 try:
                     cs = tuple([c[0] for c in arr.chunks])
                     # print(path, cs, arr.shape)
@@ -795,6 +857,7 @@ class Dataset:
                                                 chunks=tuple([c[0] for c in arr.chunks]),
                                                 compression=compression, **kwargs)
                     else:
+                        print('Cannot write stack', label)
                         raise e
 
                 arrays.append(arr)
@@ -805,7 +868,10 @@ class Dataset:
 
         else:
             with catch_warnings():
-                with ProgressBar():
+                if progress_bar:
+                    with ProgressBar():
+                        da.store(arrays, datasets)
+                else:
                     da.store(arrays, datasets)
 
             for fh in self._h5handles.values():

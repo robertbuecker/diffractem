@@ -23,7 +23,31 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
             subsets = fh[identifiers[0]].keys()
 
         for subset in subsets:
-            newlist = pd.read_hdf(fn, path.replace('%', subset))
+            tbl_path = path.replace('%', subset)
+            if 'pandas_type' in fh[tbl_path].attrs:
+                print(f'Found list {tbl_path} in Pandas/PyTables format')
+                newlist = pd.read_hdf(fn, tbl_path)
+            else:
+                dt = {}
+                for key, val in fh[tbl_path].items():
+                    if val.ndim != 1:
+                        warn('Data fields in list group must be 1-D, {} is {}-D. Skipping.'.format(key, val.ndim))
+                        continue
+                    dt_field = val.dtype
+                    if 'label' in val.attrs:
+                        k = val.attrs['label']
+                    else:
+                        k = key
+                    if dt_field.type == np.string_:
+                        try:
+                            dt[k] = val[:].astype(np.str)
+                        except UnicodeDecodeError as err:
+                            print(f'Field {key} of type {dt_field} gave decoding trouble:')
+                            raise err
+                    else:
+                        dt[k] = val[:]              
+                newlist = pd.DataFrame().from_dict(dt)
+
             newlist['subset'] = subset
             newlist['file'] = fn
             lists.append(newlist)
@@ -32,7 +56,7 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
 
 
 
-def get_table(files: Union[list, str], path='/%/data/shots', parallel=True) -> pd.DataFrame:
+def get_table(files: Union[list, str], path='/%/shots', parallel=True) -> pd.DataFrame:
 
     files = expand_files(files)
 
@@ -45,19 +69,50 @@ def get_table(files: Union[list, str], path='/%/data/shots', parallel=True) -> p
     return pd.concat(out, ignore_index=True)
 
 
-def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset: str):
+def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset: str, format: str = 'nexus'):
     """
     Helper function. Internal use only.
     """
 
     tbl_path = path.replace('%', subset)
-    try:
-        tbl.to_hdf(fn, tbl_path, format='table', data_columns=True)
-    except ValueError:
-        tbl.to_hdf(fn, tbl_path, format='table')
+    if format == 'table':
+        try:
+            tbl.to_hdf(fn, tbl_path, format='table', data_columns=True)
+        except ValueError:
+            tbl.to_hdf(fn, tbl_path, format='table')
+
+    elif format == 'nexus':
+        with h5py.File(fn) as fh:
+            for key, val in tbl.iteritems():
+                #print(f'Storing {key} ({val.shape}, {val.dtype}) to {fn}: {path}')
+                grp = fh.require_group(tbl_path)
+                grp.attrs['NX_class'] = 'NXcollection'
+                k = key.replace('/', '_').replace('.', ' ')
+                try:
+                    if k not in grp:
+                        ds = grp.require_dataset(k, shape=val.shape, dtype=val.dtype, maxshape=(None,))
+                    else:
+                        ds = grp[k]
+                        if ds.shape[0] != val.shape[0]:
+                            ds.resize(val.shape[0], axis=0)
+                            #print('resizing', k)
+                    ds[:] = val
+                except (TypeError, OSError) as err:
+                    if val.dtype == 'O':                        
+                        val2 = val.astype('S')
+                        if k in grp:
+                            del grp[k]
+                        ds = grp.require_dataset(k, shape=val.shape, dtype=val2.dtype, maxshape=(None,))
+                        ds[:] = val2
+                    else:
+                        raise err
+
+                ds.attrs['label'] = key
+    else:
+        raise ValueError('Storage format must be "table" or "nexus".')
 
 
-def store_table(table: pd.DataFrame, path: str, parallel=True):
+def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: str = 'nexus'):
     """
     Stores a pandas DataFrame containing 'file' and 'subset' columns to multiple HDF5 files. Essentially a
     multi-file, multi-processed wrapper to pd.to_hdf
@@ -74,7 +129,7 @@ def store_table(table: pd.DataFrame, path: str, parallel=True):
         with ProcessPoolExecutor() as exec:
             futures = []
             for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
-                futures.append(exec.submit(_store_table_to_single_subset, ssdat, fn, path, ssn))
+                futures.append(exec.submit(_store_table_to_single_subset, ssdat, fn, path, ssn, format))
 
             wait(futures, return_when=FIRST_EXCEPTION)
 
@@ -89,7 +144,7 @@ def store_table(table: pd.DataFrame, path: str, parallel=True):
         #print(table.columns)
 
         for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
-            _store_table_to_single_subset(ssdat, fn, path, ssn)
+            _store_table_to_single_subset(ssdat, fn, path, ssn, format)
 
         return [None]
 
@@ -213,7 +268,7 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results
 
     # multi-file copy, using recursive call.
     if (isinstance(fn_from, str) and fn_from.endswith('.lst')) or isinstance(fn_from, list):
-        warning('Calling copy_h5 on a file list is not recommended anymore', DeprecationWarning)
+        warn('Calling copy_h5 on a file list is not recommended anymore', DeprecationWarning)
         old_files = expand_files(fn_from)
         new_files = []
 

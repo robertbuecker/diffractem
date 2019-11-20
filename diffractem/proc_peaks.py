@@ -2,7 +2,8 @@
 from scipy.optimize import least_squares, leastsq
 import numpy as np
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
+from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION, ALL_COMPLETED
+from multiprocessing import current_process
 
 
 def _ctr_from_pks(pkl: np.ndarray, p0: np.ndarray,
@@ -22,13 +23,29 @@ def _ctr_from_pks(pkl: np.ndarray, p0: np.ndarray,
         return p0, np.nan, label
     else:
         lsq = least_squares(fun, p0, bounds=(p0 - bound, p0 + bound))
-        return lsq.x, 1 / lsq.cost, label
+        return lsq.x - 0.5, 1 / lsq.cost, label # -0.5 changes from CrystFEL-like to pixel-center convention
 
 
 def center_friedel(peaks, shots=None, p0=(778, 308), colnames=('fs/px', 'ss/px'), sigma=2,
                    minpeaks=4, maxres=150):
+    """[summary]
+    
+    Arguments:
+        peaks {[type]} -- [description]
+    
+    Keyword Arguments:
+        shots {[type]} -- [description] (default: {None})
+        p0 {tuple} -- [description] (default: {(778, 308)})
+        colnames {tuple} -- [description] (default: {('fs/px', 'ss/px')})
+        sigma {int} -- [description] (default: {2})
+        minpeaks {int} -- [description] (default: {4})
+        maxres {int} -- [description] (default: {150})
+    """
     colnames = list(colnames)
     p0 = np.array(p0)
+
+    if current_process().daemon:
+        print('Danger, its a Daemon.')
 
     with ProcessPoolExecutor() as p:
         futures = []
@@ -40,11 +57,19 @@ def center_friedel(peaks, shots=None, p0=(778, 308), colnames=('fs/px', 'ss/px')
             if (minpeaks is None) or pkl.shape[0] > minpeaks:
                 futures.append(p.submit(_ctr_from_pks, pkl, p0, sigma=sigma, label=grp))
 
-    wait(futures, return_when=FIRST_EXCEPTION)
+    wait(futures, return_when=ALL_COMPLETED)
+    if len(futures) == 0:
+        cpos = shots[['file', 'Event']].copy()
+        cpos['beam_x'] = p0[0]
+        cpos['beam_y'] = p0[1]
+        cpos['friedel_cost'] = np.nan
+
+        return cpos
 
     # reformat result into a dataframe
-    cpos = pd.concat([pd.DataFrame(data=np.array([t.result()[2] for t in futures]), columns=['file', 'Event']),
-                      pd.DataFrame(data=np.array([t.result()[0] for t in futures]), columns=['beam_x', 'beam_y'])],
+    cpos = pd.concat([pd.DataFrame(data=np.array([t.result()[2] for t in futures if t.exception() is None]), columns=['file', 'Event']),
+                      pd.DataFrame(data=np.array([t.result()[0] for t in futures if t.exception() is None]), columns=['beam_x', 'beam_y']),
+                      pd.DataFrame(data=np.array([t.result()[1] for t in futures if t.exception() is None]), columns=['friedel_cost'])],
                      axis=1)
 
     if shots is not None:

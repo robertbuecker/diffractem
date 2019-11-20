@@ -22,8 +22,7 @@ import h5py
 import dask.array as da
 from warnings import warn
 
-import diffractem.nexus
-from diffractem import tools, io, normalize_keys
+from diffractem import tools, io, normalize_keys, nexus
 
 
 def align_ecc(img, img_ref, method='ecc', mode='affine',
@@ -131,7 +130,7 @@ class MapImage:
         self.labels = np.ndarray((0,0))
         self.transform_matrix = []
         self.mask = np.ndarray((0,0))
-        self._features = pd.DataFrame()
+        self.features = pd.DataFrame()
         self._shots = pd.DataFrame()
         self.reference = None
         self.coordinate_source = 'none'
@@ -161,7 +160,7 @@ class MapImage:
             return self._subset
         else:
             #TODO: shouldn't this be 'entry' now?
-            return 'overview_{:03d}_{:03d}'.format(self.region_id, self.run_id)
+            return 'entry'
 
     @subset.setter
     def subset(self, value):
@@ -335,8 +334,8 @@ class MapImage:
             sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(min(self.img.shape[0]/100, len(sh)-10)),
                                        max_rows=self.img.shape[0], inc=25)
         sh = tools.set_frames(sh, frames)
-        sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
-        #print(sh)
+        if predist is not None:
+            sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
         self.shots = sh
 
     def export_scan_list(self, filename, delim=' '):
@@ -484,7 +483,10 @@ class MapImage:
 
         # the NXS interface has way less logic attached to it... note that it does NOT support the mask mechanism
         # anymore. This is the future.
-        # NOTE: this function will NOT store diffraction acquisition data by default
+        # NOTE: this function will NOT store diffraction acquisition data by default, as this is now handled by the
+        # LambdaHost class itself
+
+        filename = filename.replace('\\', '/')
 
         if subset != self.subset:
             self._subset = subset
@@ -502,7 +504,7 @@ class MapImage:
         else:
             m = self._meta
 
-        diffractem.nexus.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument_{map_grp}',
+        nexus.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument_{map_grp}',
                                      data_location=f'/{subset}/instrument_{map_grp}/STEM_Image/data',
                                      data_grp=f'/{subset}/{map_grp}', data_field='image')
 
@@ -512,12 +514,14 @@ class MapImage:
             else:
                 m = self._meta_diff
 
-            diffractem.nexus.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument', data_grp=None)
+            nexus.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument', data_grp=None)
 
         # lists
-        self.features.to_hdf(filename, f'/{subset}/{map_grp}/features', format='table', data_columns=True)
+        nexus.store_table(self.features.assign(file=filename, subset=subset), path=f'/%/{map_grp}/features', format='nexus', parallel=False)
+
+        #self.features.to_hdf(filename, f'/{subset}/{map_grp}/features', format='table', data_columns=True)
         if self._shots.size:
-            self.shots.to_hdf(filename, f'/{subset}/{diffdata_grp}/shots', format='table', data_columns=True)
+            nexus.store_table(self.shots.assign(file=filename, subset=subset), path=f'/%/shots', format='nexus', parallel=False)            
 
     def find_particles(self, show_plot=True, show_segments=True, return_images = False,
                        thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49, two_pass=False, # thresholding

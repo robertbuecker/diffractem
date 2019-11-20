@@ -3,9 +3,12 @@
 from astropy.convolution import Gaussian2DKernel, convolve
 
 from . import gap_pixels
+from .stream_parser import StreamParser
+#from .dataset import Dataset
 from .io import *
 from .proc2d import correct_dead_pixels
-
+from typing import Union, Optional
+import os
 
 def strip_file_path(df: pd.DataFrame, add_folder=False):
     splt = df.file.str.rsplit('/', 1, True)
@@ -181,8 +184,9 @@ def call_partialator(input, symmetry, output='im_out.stream', model='unity', ite
     return make_command(exc, None, params, opts=opts)
 
 
-def call_indexamajig(input, geometry, output='im_out.stream', cell=None, im_params=None, index_params=None,
-                     procs=40, exc='indexamajig'):
+def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str] = None, 
+                        im_params: Optional[dict] = None, index_params: Optional[dict] = None,
+                        procs: Optional[int] = None, exc='indexamajig', **kwargs):
 
     '''Generates an indexamajig command from a dictionary of indexamajig parameters, a exc dictionary of files names and core number, and an indexer dictionary
 
@@ -203,30 +207,12 @@ def call_indexamajig(input, geometry, output='im_out.stream', cell=None, im_para
              'pinkIndexer-tolerance': 0.10}
              '''
 
-
-    exc_dic = {'g': geometry, 'i': input, 'o': output, 'j': procs}
-
-    for k, v in exc_dic.items():
-        exc += f' -{k} {v}'
-
+    exc_dic = {'g': geometry, 'i': input, 'o': output, 'j': os.cpu_count() if procs is None else procs}
     if cell is not None:
-        exc += f' -p {cell}'
+        exc_dic['p'] = cell
 
-    for kk, vv in im_params.items():
-        if vv is not None:
-            exc += f' --{kk}={vv}'
-        else:
-            exc += f' --{kk}'
-
-    # If the indexer dictionary is not empty
-    if index_params:
-        for kkk, vvv in index_params.items():
-            if vvv is not None:
-                exc += f' --{kkk}={vvv}'
-            else:
-                exc += f' --{kkk}'
-
-    return exc
+    return make_command(exc, None, params=exc_dic, 
+        opts=dict(im_params, **({} if index_params is None else index_params), **kwargs))
 
 
 def dict2file(file_name, file_dic, header=None):
@@ -246,13 +232,13 @@ def dict2file(file_name, file_dic, header=None):
 
 def make_geometry(parameters, file_name=None):
     par = {'photon_energy': 495937,
-           'adu_per_photon': 2,
+           'adu_per_photon': 1.9,
            'clen': 1.587900,
            'res': 18181.8181818181818181,
-           'mask': '/%/data/pxmask_centered_fr',
+           'mask': '/%/data/pxmask_centered',
            'mask_good': '0x01',
            'mask_bad': '0x00',
-           'data': '/%/data/centered_fr',
+           'data': '/%/data/centered',
            'dim0': '%',
            'dim1': 'ss',
            'dim2': 'fs',
@@ -272,3 +258,37 @@ def make_geometry(parameters, file_name=None):
 
     return par
 
+def chop_stream(streamfile: str, shots: pd.DataFrame, query='frame == 1', postfix='fr1'):
+    """Carve shots with a given frame number from a stream file
+    
+    Arguments:
+        streamfile {str} -- [stream file to open]
+        frame {int} -- [frame number to extract]
+    """
+    stream = StreamParser(streamfile)
+    skip = stream.shots[['frame','first_line', 'last_line']].merge(shots, on = ['file', 'Event']).\
+        query(query).sort_values(by='first_line', ascending=False)
+
+    start = list(skip.first_line)
+    stop = list(skip.last_line)
+
+    with open(streamfile, 'r') as fh_in, \
+        open(streamfile.rsplit('.',1)[0] + postfix + '.stream', 'w') as fh_out:
+        lstart = start.pop()
+        lstop = -1
+        exclude = False
+        for ln, l in enumerate(fh_in):
+            if exclude:
+                if ln == lstop:
+                    exclude = False
+                    try:
+                        lstart = start.pop()
+                    except IndexError:
+                        lstart = -1
+                        #print('Reached last exclusion')
+            else:
+                if ln == lstart:
+                    exclude = True
+                    lstop = stop.pop()
+                else:
+                    fh_out.write(l)

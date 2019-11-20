@@ -7,10 +7,15 @@ from numba import jit, prange, int64
 #import hyperspy.api as hs
 
 from . import gap_pixels
-from scipy import optimize, sparse, special
+from scipy import optimize, sparse, special, interpolate
+from scipy.ndimage.morphology import binary_dilation, generate_binary_structure
+from skimage.morphology import disk
 from astropy.convolution import Gaussian2DKernel, convolve
-
+from scipy.ndimage.filters import median_filter
+from scipy.signal import medfilt
 from functools import wraps
+from typing import Optional, Tuple, Union, List, Callable
+from warnings import warn
 #from itertools import repeat
 
 
@@ -46,7 +51,7 @@ def loop_over_stack(fun):
             kwargs = {k: a.squeeze() if isinstance(a, np.ndarray) else a for k, a in kwargs.items()}
             return np.expand_dims(fun(imgs.squeeze(), *args, **kwargs), axis=0)
 
-        # print('Applying {} to {} images'.format(fun, imgs.shape[0]))
+        #print('Applying {} to {} images of shape {}'.format(fun, imgs.shape[0], imgs.shape[1:]))
 
         def _isiterable(arg):
             try:
@@ -84,7 +89,16 @@ def loop_over_stack(fun):
             # print('KW Args:   ', theKwargs)
             out.append(fun(arg[0], *theArgs, **theKwargs))
 
-        return np.stack(out)
+        if not out:
+            # required for dask map_blocks init runs
+            # print('Looping of',fun,'requested for zero-size input.')
+            return np.ndarray(imgs.shape, dtype=imgs.dtype)
+
+        try:
+            return np.stack(out)
+        except ValueError as err:
+            print('Function',fun,'failed for output array construction.')
+            raise err
 
     return loop_fun
 
@@ -432,45 +446,60 @@ def center_of_mass2(img, threshold=None):
 
 
 @loop_over_stack
-def radial_proj(img, x0, y0, my_func=np.mean, max_size=850):
+def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=None, 
+    my_func: Union[Callable[[np.ndarray], np.ndarray], List[Callable[[np.ndarray], np.ndarray]]] = np.nanmean, 
+    min_size: int = 600, max_size: int = 850, filter_len: int = 1):
     """
     Applies the function to the azimuthal bins of the image around 
     the center (x0,y0) for each integer radius and returns the result 
-    in a np.array of size max_size. Skips values that are set to -1.
-    This is the split-apply-combine paradigm, done with a sparse matrix.
+    in a np.array of size max_size. Skips values that are set to -1 or nan.
     :param img: input image
     :param x0: x center of mass of image
     :param y0: y center of mass of image
-    :param function: function to be applied to the bins
-    :param max_size: size of returned np.array hyperspy requires all returned 
-                        arrays to be of the same size
+    :param my_func: function to be applied to the bins, or list thereof
+    :param min_size: minimum length of output array
+    :param max_size: maximum length of output array
+    :param filter_len: kernel size of median filter applied after profile calculation.
+        filter_len must be odd, and filtering is at the moment incompatible with multiple functions
     :return result: array of function returns on each radius.
-    TODO: allow my_func to be a list of functions, and return multiple outputs
     """
+    # BUG: median filter 
+
+    if isinstance(my_func, tuple) and (len(my_func) > 1) and (filter_len > 1):
+        raise ValueError('radial_proj with filtering only works if a single function is used. Sorry.')
+
+    if filter_len//2 == filter_len/2:
+        raise ValueError('filter_len must be odd.')
 
     if not (isinstance(my_func, list) or isinstance(my_func, tuple)):
-        my_func = (my_func, )
+        my_func = [my_func]
 
     (ylen,xlen) = img.shape
     (y,x) = np.ogrid[0:ylen,0:xlen]
+    #print(x0,y0)
+
+    x0 = img.shape[1]/2 if x0 is None else float(x0)
+    y0 = img.shape[0]/2 if y0 is None else float(y0)
+
     if np.isnan(x0) or np.isnan(y0) or x0<0 or x0>=xlen or y0<0 or y0>=ylen:
         result = np.empty(max_size*len(my_func))
         result.fill(np.nan)
         return result
 
-    radius = (np.rint(((x-x0.flatten())**2 + (y-y0.flatten())**2)**0.5)
+    radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5) # radius coordinate of each pixel
                 .astype(np.int32))
     center = img[int(np.round(y0)),int(np.round(x0))]
-    radius[np.where(img==-1)]=0
+    radius[np.where((img==-1) | np.isnan(img))]=0 # ignore bad pixels by setting radius to zero
     row = radius.flatten()
     col = np.arange(len(row))
     mat = sparse.csr_matrix((img.flatten(), (row, col)))
 
-    size = np.min([1+np.max(radius), max_size])
+    rng = np.min([1+np.max(radius), max_size])
+    size = np.max([rng, min_size])
     result = -1 * np.ones(size*len(my_func))
     fstart = np.arange(0, size*len(my_func), size)
 
-    for r in range(1, size):
+    for r in range(1, rng):
         rbin_data = mat[r].data
 
         if rbin_data.size:
@@ -479,46 +508,128 @@ def radial_proj(img, x0, y0, my_func=np.mean, max_size=850):
     if center > -1:
         result[fstart] = [fn(center)  for fn in my_func]
 
+    if filter_len > 1:       
+        result[filter_len//2:] = median_filter(result, filter_len)[filter_len//2:]
+
+    assert (result.size >= min_size) and (result.size <= max_size)
+
     return result
 
 
 @loop_over_stack
-def strip_img(img, x0, y0, prof, pxmask=None, truncate=True, offset=0, dtype=np.int16):
+def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray, peakYPosRaw: np.ndarray, radius=2, replaceval=-1):
+    """Cuts peaks out of an image and replaces them with replaceval.
+    Peak positions are provided in CXI format.
+    
+    Arguments:
+        img {np.array} -- Input image
+        nPeaks {np.array} -- Number of peaks
+        peakXPosRaw {np.array} -- X position of peaks
+        peakYPosRaw {np.array} -- Y position of peaks
+    
+    Keyword Arguments:
+        radius {int} -- Radius in pixel of peak cut-out region (default: {2})
+        replaceval {int} -- Value to change the cut pixels to (default: {-1})
+    
+    Returns:
+        [as img] -- Image with peaks cut out
     """
-    Given an image, coordinate(x0,y0) and a radial profile, removes the
+    #print(nPeaks)
+    nPeaks = nPeaks.squeeze()
+    peakXPosRaw = peakXPosRaw.squeeze()
+    peakYPosRaw = peakYPosRaw.squeeze()
+    #print(peakYPosRaw[:nPeaks.squeeze()])
+    mask = np.zeros_like(img).astype(np.bool)
+    #print(img.shape)
+    mask[(peakYPosRaw[:nPeaks]).round().astype(int), (peakXPosRaw[:nPeaks]).round().astype(int)] = True
+    mask = binary_dilation(mask,disk(radius),1)
+    img_nopeaks = np.where(mask,replaceval,img)
+    return img_nopeaks
+
+@loop_over_stack
+def strip_img(img, x0, y0, prof: np.ndarray, pxmask: Optional[np.ndarray]=None, truncate=False, 
+    offset=0, keep_edge_offset=False, replaceval: Optional[float]=None, interp=True, dtype=None):
+    """
+    Given an image, center coordinate(x0,y0) and a radial profile, removes the
     radial profile from the image.
     """
     if np.isnan(x0) or np.isnan(y0):
         return np.zeros(img.shape)
-    x0 = x0.flatten()
-    y0 = y0.flatten()
-    prof = prof.flatten()
+
+    prof = prof.flatten()   # background profile
     ylen,xlen = img.shape
     y,x = np.ogrid[0:ylen,0:xlen]
-    radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5)).astype(np.int32)
-    profile = np.zeros(1+np.max(radius))
-    np.copyto(profile[0:len(prof)], prof)
-    bkg = profile[radius]
 
-    img_out = img - bkg + offset
+    if interpolate:
+        iprof = interpolate.interp1d(range(len(prof)), prof, fill_value=0, bounds_error=False)
+        radius = ((x-x0)**2 + (y-y0)**2)**0.5
+        profile = np.zeros(1+np.floor(np.max(radius)).astype(np.int32))
+        bkg = iprof(radius)
+    else:
+        radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5)).astype(np.int32)
+        profile = np.zeros(1+np.max(radius))
+        comlen = min(len(profile), len(prof))
+        np.copyto(profile[:comlen], prof[:comlen])
+        bkg = profile[radius]
+
+    img_out = img - bkg + offset if keep_edge_offset else img - bkg
+
+    dtype = img_out.dtype if dtype is None else dtype
+
+    if replaceval is None:
+        replaceval = np.nan if np.issubdtype(dtype, np.floating) else -1
+
+    if truncate:
+        img_out[img_out < offset] = replaceval
 
     if pxmask is not None:
         img_out = correct_dead_pixels(img_out, pxmask, 'replace', 
-                                      replace_val=-1, mask_gaps=True)
-    if truncate:
-        img_out[img_out < offset] = -1
+                                      replace_val=replaceval, mask_gaps=False)
 
     if not dtype == img_out.dtype:
-        if issubclass(dtype, np.integer) or issubclass(dtype, int):
+        if np.issubdtype(dtype, np.integer):
             img_out = img_out.round()
         img_out = img_out.astype(dtype)
 
     return img_out
 
 
+@loop_over_stack
+def remove_background(img, x0: Optional[Union[float]] = None, y0: Optional[Union[float]] = None,
+    nPeaks: Optional[np.ndarray] = None, peakXPosRaw: Optional[np.ndarray] = None, peakYPosRaw: Optional[np.ndarray] = None, 
+    peak_radius=3, filter_len=5, rfunc: Callable[[np.ndarray], np.ndarray] = np.nanmean,
+    pxmask=None, truncate=False,  offset=0):
+
+    if np.issubdtype(img.dtype, np.integer) and offset == 0:
+        warn('Removing background on an integer image with zero offset will likely cause trouble later on.')
+
+    replace_val = np.nan if np.issubdtype(img.dtype, np.floating) else -1
+
+    x0 = img.shape[1]/2 if x0 is None else x0
+    y0 = img.shape[0]/2 if y0 is None else y0
+
+    pxmask = ((img == np.nan) | (img == -1)) if pxmask is None else pxmask
+    #print((pxmask == 0).sum())
+
+    #print(nPeaks)
+
+    if (nPeaks is not None) and (nPeaks > 0):
+        img_nopk = cut_peaks(img, nPeaks, peakXPosRaw, peakYPosRaw, radius=peak_radius, replaceval=replace_val)
+    else:
+        img_nopk = img
+
+    r0 = radial_proj(img_nopk, x0, y0, my_func=rfunc, filter_len=filter_len)
+    img_nobg = strip_img(img, x0, y0, r0, pxmask=pxmask, truncate=truncate, 
+        keep_edge_offset=True, interp=True, dtype=img.dtype)
+
+    return img_nobg
+
+
 @jit(['int32[:,:](int32[:,:], float64, float64, int64, int64, int64)',
       'int16[:,:](int16[:,:], float64, float64, int64, int64, int64)',
-      'int64[:,:](int64[:,:], float64, float64, int64, int64, int64)'],
+      'int64[:,:](int64[:,:], float64, float64, int64, int64, int64)',
+      'float64[:,:](float64[:,:], float64, float64, int64, int64, float64)',
+      'float32[:,:](float32[:,:], float64, float64, int64, int64, float64)'],
      nopython=True, nogil=True)  # ahead-of-time compilation using numba. Otherwise painfully slow.
 def _center_sgl_image(img, x0, y0, xsize, ysize, padval):
     """
@@ -597,6 +708,25 @@ def center_image(imgs, x0, y0, xsize, ysize, padval, parallel=True):
         simgs[ii, :, :] = simg
 
     return simgs
+
+
+def apply_saturation_correction(img: np.ndarray, exp_time: float, dead_time: float = 1.9e-3):
+    """Apply detector correction function to image. Should ideally be done even before flatfield.
+    Uses a 5th order polynomial approximation to the Lambert function, which is appropriate
+    for a paralyzable detector, up to the point where its signal starts inverting (which is where
+    nothing can be done anymore)
+    
+    Arguments:
+        img {np.ndarray} -- Input image or image stack
+        exp {float} -- Exposure time in ms
+    
+    Keyword Arguments:
+        dead_time {float} -- Dead time of detector in ms (default: {1.9e-3})
+    """
+    lambert = lambda x: x - x**2 + 3/2*x**3 - 8/3*x**4 + 125/24*x**5
+    satcorr = lambda y, sat: -lambert(-sat*y)/sat # saturation parameter: dead time/exposure time
+
+    return satcorr(img, dead_time/exp_time)
 
 
 def apply_flatfield(img, reference=None, keep_type=True, ref_smooth_range=None, 
