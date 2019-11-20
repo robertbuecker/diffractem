@@ -9,6 +9,7 @@ from .io import *
 from .proc2d import correct_dead_pixels
 from typing import Union, Optional
 import os
+from tifffile import imread, imsave
 
 def strip_file_path(df: pd.DataFrame, add_folder=False):
     splt = df.file.str.rsplit('/', 1, True)
@@ -59,11 +60,11 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
     reference = reference/np.nanmedian(reference)
 
     if not output_base_fn is None:
-        save_lambda_img(reference.astype(np.float32), output_base_fn + '_reference', formats=('tif', ))
-        save_lambda_img(255 * pxmask.astype(np.uint8), output_base_fn + '_pxmask', formats='tif')
+        imsave(output_base_fn + '_reference', reference.astype(np.float32))
+        imsave(output_base_fn + '_pxmask', 255 * pxmask.astype(np.uint8))
         if save_stat_imgs:
-            save_lambda_img(mimg.astype(np.float32), output_base_fn + '_mimg', formats=('tif', ))
-            save_lambda_img(vom.astype(np.float32), output_base_fn + '_vom', formats=('tif', ))
+            imsave(output_base_fn + '_mimg', mimg.astype(np.float32))
+            imsave(output_base_fn + '_vom', vom.astype(np.float32))
 
     return pxmask, reference
 
