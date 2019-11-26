@@ -4,22 +4,23 @@ from astropy.convolution import Gaussian2DKernel, convolve
 
 from . import gap_pixels
 from .stream_parser import StreamParser
-#from .dataset import Dataset
+# from .dataset import Dataset
 from .io import *
 from .proc2d import correct_dead_pixels
 from typing import Union, Optional
 import os
 from tifffile import imread, imsave
 
+
 def strip_file_path(df: pd.DataFrame, add_folder=False):
     splt = df.file.str.rsplit('/', 1, True)
     if add_folder:
         if splt.shape[1] == 2:
-            return df.assign(file=splt.iloc[:,-1], folder=splt.iloc[:,0])
+            return df.assign(file=splt.iloc[:, -1], folder=splt.iloc[:, 0])
         else:
-            return df.assign(file=splt.iloc[:,-1], folder='.')
+            return df.assign(file=splt.iloc[:, -1], folder='.')
     else:
-        return df.assign(file=splt.iloc[:,-1])
+        return df.assign(file=splt.iloc[:, -1])
 
 
 def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=None,
@@ -32,10 +33,10 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
 
     # Correct for sensor gaps.
     gap = gap_pixels()
-    mimg= mimg.copy()
+    mimg = mimg.copy()
     vimg = vimg.copy()
-    mimg[gap] = mimg[gap]*gap_factor
-    vimg[gap] = vimg[gap]*gap_factor*3.2
+    mimg[gap] = mimg[gap] * gap_factor
+    vimg[gap] = vimg[gap] * gap_factor * 3.2
 
     # Make mask
     zeropix = mimg == 0
@@ -55,9 +56,9 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
                              boundary='extend', nan_treatment='interpolate')
 
     # finally undo the gap correction
-    reference[gap] = reference[gap]/gap_factor
+    reference[gap] = reference[gap] / gap_factor
 
-    reference = reference/np.nanmedian(reference)
+    reference = reference / np.nanmedian(reference)
 
     if not output_base_fn is None:
         imsave(output_base_fn + '_reference.tif', reference.astype(np.float32))
@@ -67,6 +68,7 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
             imsave(output_base_fn + '_vom.tif', vom.astype(np.float32))
 
     return pxmask, reference
+
 
 # now some functions for mangling with scan lists...
 
@@ -95,7 +97,7 @@ def quantize_y_scan(shots, maxdev=1, min_rows=30, max_rows=500, inc=10, ycol='po
         kmf = KMeans(n_clusters=rows).fit(shots[ycol].values.reshape(-1, 1))
         ysc = kmf.cluster_centers_[kmf.labels_].squeeze()
         shots['y_dev'] = shots[ycol] - ysc
-        if np.sqrt(kmf.inertia_/len(shots)) <= maxdev:
+        if np.sqrt(kmf.inertia_ / len(shots)) <= maxdev:
             print('Reached y deviation goal with {} scan rows.'.format(rows))
             shots[ycol_to] = ysc
             shots.sort_values(by=[ycol, xcol], inplace=True)
@@ -150,7 +152,6 @@ def insert_init(shots, predist=100, dxmax=200, xcol='pos_x', initpoints=1):
 
 
 def make_command(program, arguments=None, params=None, opts=None, *args, **kwargs):
-
     exc = program
     if arguments is None:
         arguments = []
@@ -179,16 +180,14 @@ def make_command(program, arguments=None, params=None, opts=None, *args, **kwarg
 
 def call_partialator(input, symmetry, output='im_out.stream', model='unity', iterations=1, opts=None,
                      procs=40, exc='partialator'):
-
     params = {'y': symmetry, 'i': input, 'o': output, 'j': procs, 'n': iterations, 'm': model}
 
     return make_command(exc, None, params, opts=opts)
 
 
-def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str] = None, 
-                        im_params: Optional[dict] = None, index_params: Optional[dict] = None,
-                        procs: Optional[int] = None, exc='indexamajig', **kwargs):
-
+def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str] = None,
+                     im_params: Optional[dict] = None, index_params: Optional[dict] = None,
+                     procs: Optional[int] = None, exc='indexamajig', **kwargs):
     '''Generates an indexamajig command from a dictionary of indexamajig parameters, a exc dictionary of files names and core number, and an indexer dictionary
 
     e.g.
@@ -212,12 +211,11 @@ def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str
     if cell is not None:
         exc_dic['p'] = cell
 
-    return make_command(exc, None, params=exc_dic, 
-        opts=dict(im_params, **({} if index_params is None else index_params), **kwargs))
+    return make_command(exc, None, params=exc_dic,
+                        opts=dict(im_params, **({} if index_params is None else index_params), **kwargs))
 
 
 def dict2file(file_name, file_dic, header=None):
-
     fid = open(file_name, 'w')  # Open file
 
     if header is not None:
@@ -259,6 +257,7 @@ def make_geometry(parameters, file_name=None):
 
     return par
 
+
 def chop_stream(streamfile: str, shots: pd.DataFrame, query='frame == 1', postfix='fr1'):
     """Carve shots with a given frame number from a stream file
     
@@ -267,14 +266,14 @@ def chop_stream(streamfile: str, shots: pd.DataFrame, query='frame == 1', postfi
         frame {int} -- [frame number to extract]
     """
     stream = StreamParser(streamfile)
-    skip = stream.shots[['frame','first_line', 'last_line']].merge(shots, on = ['file', 'Event']).\
+    skip = stream.shots[['frame', 'first_line', 'last_line']].merge(shots, on=['file', 'Event']). \
         query(query).sort_values(by='first_line', ascending=False)
 
     start = list(skip.first_line)
     stop = list(skip.last_line)
 
     with open(streamfile, 'r') as fh_in, \
-        open(streamfile.rsplit('.',1)[0] + postfix + '.stream', 'w') as fh_out:
+            open(streamfile.rsplit('.', 1)[0] + postfix + '.stream', 'w') as fh_out:
         lstart = start.pop()
         lstop = -1
         exclude = False
@@ -286,7 +285,7 @@ def chop_stream(streamfile: str, shots: pd.DataFrame, query='frame == 1', postfi
                         lstart = start.pop()
                     except IndexError:
                         lstart = -1
-                        #print('Reached last exclusion')
+                        # print('Reached last exclusion')
             else:
                 if ln == lstart:
                     exclude = True

@@ -9,10 +9,10 @@ https://github.com/keitaroyam/yamtbx by Keitaro Yamashita (BSD license)
 import socket
 import subprocess
 import time
-import os
 import logging
 
 class Adxv:
+
     def __init__(self, adxv_bin=None, hdf5_path='/entry/data/raw_counts', **kwargs):
 
         self.logger = logging.getLogger()

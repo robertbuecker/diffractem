@@ -10,7 +10,9 @@ import warnings
 from typing import Union
 from glob import glob
 
+
 def expand_files(file_list: Union[str, list], scan_shots=False):
+
     def remove_bs(fns):
         return [fn.replace('\\', '/') for fn in fns]
     if isinstance(file_list, list) or isinstance(file_list, tuple):
@@ -46,6 +48,7 @@ def expand_files(file_list: Union[str, list], scan_shots=False):
 
     else:
         return fl
+
 
 def dict_to_h5(grp, data, exclude=()):
     """
@@ -96,7 +99,8 @@ def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
     :param lists: flat dict of lists. Does not handle subsets, so use flat=True when reading from file
     :param stacks: dict of arrays. Again, not accounting for subsets. Use flat=True for reading
     :param min_chunk: minimum chunk size of the output arrays along the stacked dimension
-    :param reset_index: if True, the returned shot list has its index reset, with correspondingly updated serial numbers in peak list. Recommended.
+    :param reset_shot_index: if True, the returned shot list has its index reset, with correspondingly updated serial
+            numbers in peak list. Recommended.
     :return new_lists, new_stacks: subselected lists and stacks
     """
     # n
@@ -199,7 +203,7 @@ def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
 
 def get_meta_lists(filename, base_path='/%/data', labels=None):
     warnings.warn('Please use get_meta_list instead if you know what you\'re looking for. It is WAY faster.',
-        DeprecationWarning)
+                  DeprecationWarning)
     fns = expand_files(filename)
     identifiers = base_path.rsplit('%', 1)
     lists = defaultdict(list)
@@ -245,6 +249,8 @@ def get_meta_lists(filename, base_path='/%/data', labels=None):
 
 
 def store_data_stacks(filename, stacks, shots=None, base_path='/%/data', store_shots=True, **kwargs):
+    warnings.warn('Direct accessors to NeXus files are deprecated. Use Dataset objects instead.',
+                  DeprecationWarning)
     if shots is None:
         print('No shot list provided; getting shots from data file(s).')
         shots = get_meta_lists(filename, base_path, 'shots')['shots']
@@ -344,48 +350,3 @@ def get_data_stacks(filename, base_path='/%/data', labels=None):
 
     stacks = {sn: da.concatenate(s, axis=0) for sn, s in stacks.items()}
     return stacks
-
-def filter_shots(filename_in, filename_out, query, min_chunk=None, shots=None, list_args=None, stack_args=None):
-    """
-    Macro function to apply filtering operation to an entire HDF file containing metadata lists and data stacks.
-    Shots are kept if the "selected" column in the shot list is True, and the query string (see below) is fulfilled.
-    :param filename_in: input HDF file
-    :param filename_out: output HDF file
-    :param query: criterion for inclusion of shots in output file, written as a string which can contain columns of the
-    shot list, and evaluates to a boolean. Shots evaluated as true are kept.
-    Example: 'peak_count >= 50 and region == 13'
-    :param min_chunk: minimum chunk size along stacked direction for the output stacks
-    :param shots: optional. shot list that overwrites the one from the input file. Can be useful to skip an intermediate
-    step when performing more complex subselections.
-    :return: none
-    """
-    lists = get_meta_lists(filename_in, flat=False)
-    if shots is not None:
-        lists['shots'] = shots
-    stacks = get_data_stacks(filename_in, flat=False)
-    new_lists = {}
-    new_stacks = {}
-
-    for ssn, ssl in lists.items():
-
-        if query is not None:
-
-            try:
-                ssl['shots'].loc[ssl['shots'].eval('not ({})'.format(query)), 'selected'] = False
-            except Exception as err:
-                print('Possibly you have used a column not present in the shot index in the query expression.')
-                print('The columns are: {}'.format(ssl['shots'].columns.values))
-                raise err
-
-        sss = stacks[ssn]
-        new_ssl, new_sss = apply_shot_selection(ssl, sss)
-        new_lists.update({ssn: new_ssl})
-        new_stacks.update({ssn: new_sss})
-
-    if list_args is None:
-        list_args = {}
-    store_meta_lists(filename_out, new_lists, flat=False, **list_args)
-
-    if stack_args is None:
-        stack_args = {}
-    store_data_stacks(filename_out, new_stacks, flat=False, **stack_args)

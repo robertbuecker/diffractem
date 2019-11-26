@@ -1,22 +1,16 @@
 import tifffile
-#import time
 import numpy as np
 import dask.array as da
 from numba import jit, prange, int64
-
-#import hyperspy.api as hs
-
 from . import gap_pixels
 from scipy import optimize, sparse, special, interpolate
-from scipy.ndimage.morphology import binary_dilation, generate_binary_structure
+from scipy.ndimage.morphology import binary_dilation
 from skimage.morphology import disk
 from astropy.convolution import Gaussian2DKernel, convolve
 from scipy.ndimage.filters import median_filter
-from scipy.signal import medfilt
 from functools import wraps
 from typing import Optional, Tuple, Union, List, Callable
 from warnings import warn
-#from itertools import repeat
 
 
 def loop_over_stack(fun):
@@ -28,7 +22,7 @@ def loop_over_stack(fun):
     as the image stack, it is distributed over the function calls for each 
     image.
     
-    :param func     : function to be decorated
+    :param fun     : function to be decorated
     :return         : decorated function
 
     """
@@ -760,7 +754,7 @@ def apply_flatfield(img, reference=None, keep_type=True, ref_smooth_range=None,
                              boundary='extend', nan_treatment='interpolate')
 
     if len(img.shape) > 2:
-        reference = reference.reshape(1,reference.shape[-2],reference.shape[-1])
+        reference = reference.reshape((1,reference.shape[-2],reference.shape[-1]))
 
     if keep_type:
         return (img/reference).astype(img.dtype)

@@ -1,10 +1,10 @@
 # Friedel-pair refinement
-from scipy.optimize import least_squares, leastsq
+from scipy.optimize import least_squares
 import numpy as np
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION, ALL_COMPLETED
+from concurrent.futures import ProcessPoolExecutor, wait, ALL_COMPLETED
 from multiprocessing import current_process
-from typing import Union, Dict, Optional
+from typing import Optional
 
 
 def _ctr_from_pks(pkl: np.ndarray, p0: np.ndarray,
@@ -85,9 +85,12 @@ def center_friedel(peaks: pd.DataFrame, shots: Optional[pd.DataFrame] = None,
         return cpos
 
     # reformat result into a dataframe
-    cpos = pd.concat([pd.DataFrame(data=np.array([t.result()[2] for t in futures if t.exception() is None]), columns=['file', 'Event']),
-                      pd.DataFrame(data=np.array([t.result()[0] for t in futures if t.exception() is None]), columns=['beam_x', 'beam_y']),
-                      pd.DataFrame(data=np.array([t.result()[1] for t in futures if t.exception() is None]), columns=['friedel_cost'])],
+    cpos = pd.concat([pd.DataFrame(data=np.array([t.result()[2] for t in futures if t.exception() is None]),
+                                   columns=['file', 'Event']),
+                      pd.DataFrame(data=np.array([t.result()[0] for t in futures if t.exception() is None]),
+                                   columns=['beam_x', 'beam_y']),
+                      pd.DataFrame(data=np.array([t.result()[1] for t in futures if t.exception() is None]),
+                                   columns=['friedel_cost'])],
                      axis=1)
 
     if shots is not None:

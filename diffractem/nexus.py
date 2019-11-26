@@ -55,7 +55,6 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
         return pd.concat(lists, axis=0, ignore_index=True)
 
 
-
 def get_table(files: Union[list, str], path='/%/shots', parallel=True) -> pd.DataFrame:
 
     files = expand_files(files)
@@ -119,6 +118,8 @@ def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: s
     :param table: DataFrame to be stored
     :param path: path in HDF5 files. % will be substituted by the respective subset name
     :param parallel: if True (default), writes files in parallel
+    :param format: can be 'nexus' to write columns of table in separate arrays, or 'tables' to use PyTables to write
+            a HDF5 table object.
     :return: list of futures (see documentation of concurrent.futures). [None] if parallel=False
     """
 
@@ -209,7 +210,8 @@ def get_meta_fields(files: Union[str, list], dataset_paths: Union[list, str, tup
     Get arbitrary meta data from files.
     :param files:
     :param dataset_paths: list of dataset paths, or dict of structure {dataset: default value}
-    :return:
+    :param shorten_labels: only use final section of labels for columns of returned DataFrame
+    :return: pandas DataFrame of metadata
     """
 
     if isinstance(dataset_paths, str):

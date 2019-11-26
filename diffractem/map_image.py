@@ -19,7 +19,6 @@ from skimage.transform import matrix_transform
 from tifffile import imread, imsave
 import os
 import h5py
-import dask.array as da
 from warnings import warn
 
 from diffractem import tools, io, normalize_keys, nexus
@@ -150,6 +149,7 @@ class MapImage:
     @property
     def features(self):
         return self._features
+
     @features.setter
     def features(self, value):
         self._features = value
@@ -517,13 +517,15 @@ class MapImage:
             nexus.meta_to_nxs(filename, m, meta_grp=f'/{subset}/instrument', data_grp=None)
 
         # lists
-        nexus.store_table(self.features.assign(file=filename, subset=subset), path=f'/%/{map_grp}/features', format='nexus', parallel=False)
+        nexus.store_table(self.features.assign(file=filename, subset=subset), path=f'/%/{map_grp}/features',
+                          format='nexus', parallel=False)
 
-        #self.features.to_hdf(filename, f'/{subset}/{map_grp}/features', format='table', data_columns=True)
+        # self.features.to_hdf(filename, f'/{subset}/{map_grp}/features', format='table', data_columns=True)
         if self._shots.size:
-            nexus.store_table(self.shots.assign(file=filename, subset=subset), path=f'/%/shots', format='nexus', parallel=False)            
+            nexus.store_table(self.shots.assign(file=filename, subset=subset), path=f'/%/shots', format='nexus',
+                              parallel=False)
 
-    def find_particles(self, show_plot=True, show_segments=True, return_images = False,
+    def find_particles(self, show_plot=True, show_segments=True, return_images=False,
                        thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49, two_pass=False, # thresholding
                        morph_method='legacy', morph_disk=2, remove_carbon_lacing=False,  # morphology
                        segmentation_method='distance-watershed', min_dist=8,  # segmentation
@@ -541,6 +543,8 @@ class MapImage:
             number of points derived from a typical spacing (beam radius)
 
         :param show_plot: show a plot in the end to assess the result
+        :param show_segments: show segments in the plot. Helps, but can be slow
+        :param return_images: return the intermediate-step images from the function
         :param thr_fun: function used for global thresholding. Anything that takes the image as only positional argument
             can be inserted here (e.g. those from skimage.filters.thresholding). Defaults to threshold_li
         :param thr_offset: additional offset for found global threshold. Note that the images are normalized to the
@@ -567,7 +571,7 @@ class MapImage:
             option.
         :param beam_radius: spacing between coordinates when using 'brute-force' acquisition
         :param kwargs:
-        :return:
+        :return: various intermediate images (img, binarized, morph, label_image, labels) if return_images=True
         """
 
         if 'intensity_centroid' in kwargs.keys():

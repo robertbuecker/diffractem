@@ -132,8 +132,11 @@ class Dataset:
         Creates a data set from a .lst file, which contains a simple list of H5 files (on separate lines).
         Alternatively, accepts a single filename, or even a python list of files. If the .lst file has CrystFEL-style
         event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.
-        :param listfile: list file name, H5 file name, or list
-        :param opts: attributes to be set right away
+        :param listfile: list file name, glob pattern, H5 file name, or list
+        :param init_stacks: initialize stacks, that is, briefly open the data stacks, check their lengths, and close
+                them again.
+        :param load_tables: load the additional tables stored in the files (features, peaks, predictions)
+        :param **kwargs: Dataset attributes to be set right away
         :return: dataset object
         """
 
@@ -183,10 +186,10 @@ class Dataset:
             try:
                 try:
                     self._shots = nexus.get_table(files, self.shots_pattern,
-                                              parallel=self.parallel_io).reset_index(drop=True)
+                                                  parallel=self.parallel_io).reset_index(drop=True)
                 except KeyError:
                     self._shots = nexus.get_table(files, self._fallback_shots_pattern,
-                                              parallel=self.parallel_io).reset_index(drop=True)
+                                                  parallel=self.parallel_io).reset_index(drop=True)
 
                 self._shots_changed = False
 
@@ -257,7 +260,7 @@ class Dataset:
         """
         fs = []
 
-        if self._stacks_open and (format=='tables'):
+        if self._stacks_open and (format == 'tables'):
             warn('Data stacks are open, and will be transiently closed. You will need to re-create derived stacks.',
                  RuntimeWarning)
             stacks_were_open = True
@@ -267,21 +270,24 @@ class Dataset:
 
         simplefilter('ignore', NaturalNameWarning)
         if (shots is None and self._shots_changed) or shots:
-            #sh = self.shots.drop(['Event', 'shot_in_subset'], axis=1)
-            #sh['id'] = sh[['sample', 'region', 'run', 'crystal_id']].apply(lambda x: '//'.join(x.astype(str)), axis=1)
+            # sh = self.shots.drop(['Event', 'shot_in_subset'], axis=1)
+            # sh['id'] = sh[['sample', 'region', 'run', 'crystal_id']].apply(lambda x: '//'.join(x.astype(str)), axis=1)
             fs.extend(nexus.store_table(self.shots, self.shots_pattern, parallel=self.parallel_io, format=format))
             self._shots_changed = False
 
         if (features is None and self._features_changed) or features:
-            fs.extend(nexus.store_table(self.features, self.map_pattern + '/features', parallel=self.parallel_io, format=format))
+            fs.extend(nexus.store_table(self.features, self.map_pattern + '/features', parallel=self.parallel_io,
+                                        format=format))
             self._features_changed = False
 
         if (peaks is None and self._peaks_changed) or peaks:
-            fs.extend(nexus.store_table(self.peaks, self.result_pattern + '/peaks', parallel=self.parallel_io, format=format))
+            fs.extend(
+                nexus.store_table(self.peaks, self.result_pattern + '/peaks', parallel=self.parallel_io, format=format))
             self._peaks_changed = False
 
         if (predict is None and self._predict_changed) or predict:
-            fs.extend(nexus.store_table(self.predict, self.result_pattern + '/predict', parallel=self.parallel_io, format=format))
+            fs.extend(nexus.store_table(self.predict, self.result_pattern + '/predict', parallel=self.parallel_io,
+                                        format=format))
             self._predict_changed = False
 
         if stacks_were_open:
@@ -302,9 +308,11 @@ class Dataset:
         else:
             stream = streamfile
 
-        cols = list(self.shots.columns.difference(stream.shots.columns)) + self._shot_id_cols + ['subset', 'shot_in_subset']
+        cols = list(self.shots.columns.difference(stream.shots.columns)) + self._shot_id_cols + ['subset',
+                                                                                                 'shot_in_subset']
         self.shots = self.shots[cols].merge(stream.shots,
-                                            on=self._shot_id_cols + ['subset', 'shot_in_subset'], how='left', validate='1:1')
+                                            on=self._shot_id_cols + ['subset', 'shot_in_subset'], how='left',
+                                            validate='1:1')
         self.shots['selected'] = self.shots['serial'].notna()
         self.peaks = stream.peaks.merge(self.shots[self._shot_id_cols + ['subset', 'shot_in_subset']],
                                         on=self._shot_id_cols, how='inner')
@@ -312,7 +320,8 @@ class Dataset:
                                             on=self._shot_id_cols, how='inner')
 
     def get_map(self, file, subset='entry') -> MapImage:
-        # get a MapImage from stored data, with tables filled in from dataset
+        # TODO: get a MapImage from stored data, with tables filled in from dataset
+        raise NotImplementedError('does not work yet, sorry.')
         map = MapImage()
         return map
 
@@ -454,13 +463,14 @@ class Dataset:
         Make new files corresponding to the shot list, by copying over instrument metadata and maps (but not
         results, shot list, data arrays,...) from the raw files (as stored in file_raw).
         :param overwrite: overwrite new files if not yet existing
-        :param parallel: copy file data over in parallel. Can be way faster.
+        :param keep_features: copy over the feature list from the files
+        :param exclude_list: custom list of HDF5 groups or datasets to exclude from copying
         :return:
         """
         fn_map = self.shots[['file', 'file_raw']].drop_duplicates()
 
-        exc = ('%/detector/data', self.data_pattern + '/%', 
-                        self.result_pattern + '/%', self.shots_pattern + '/%')
+        exc = ('%/detector/data', self.data_pattern + '/%',
+               self.result_pattern + '/%', self.shots_pattern + '/%')
         if not keep_features:
             exc += (self.map_pattern + '/features', '%/ref/features')
         if len(exclude_list) > 0:
@@ -471,9 +481,9 @@ class Dataset:
                 futures = []
                 for _, filepair in fn_map.iterrows():
                     futures.append(p.submit(nexus.copy_h5,
-                                 filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
-                                 exclude=exc,
-                                 print_skipped=False))
+                                            filepair['file_raw'], filepair['file'], mode='w' if overwrite else 'w-',
+                                            exclude=exc,
+                                            print_skipped=False))
 
                 wait(futures, return_when=FIRST_EXCEPTION)
                 for f in futures:
@@ -498,7 +508,7 @@ class Dataset:
                 #print(meta[tuple(lbl)].shape)
                 if meta[tuple(lbl)].ndim == 0:
                     meta[tuple(lbl)] = meta[tuple(lbl)][()]
-                elif (meta[tuple(lbl)].size == 1):
+                elif meta[tuple(lbl)].size == 1:
                     meta[tuple(lbl)] = meta[tuple(lbl)][0]
         return pd.Series(meta, name=path.rsplit('/',1)[-1])
 
@@ -507,7 +517,7 @@ class Dataset:
         self.shots = self.shots.join(meta, on=['file', 'subset'])
 
     def get_selection(self, query: Union[str, None] = None,
-                      file_suffix: str = '_sel.h5', file_prefix: str = '',
+                      file_suffix: Optional[str] = '_sel.h5', file_prefix: str = '',
                       new_folder: Union[str, None] = None) -> 'Dataset':
         """
         Returns a new dataset object by applying a selection. By default, returns all shots with selected == True.
@@ -810,6 +820,8 @@ class Dataset:
                         which can be used to later pass them to dask.array.store. Default False (store right away)
         :param data_pattern: store stacks to this data path (% is replaced by subset) instead of standard path.
                         Note that stacks stored this way will not be retrievable through Dataset objects.
+        :param progress_bar: show a progress bar during calculation/storing. Disable if you're running store_stacks
+                        in multiple processes simultaneously.
         :param **kwargs: will be forwarded to h5py.create_dataset
         :return:
         """

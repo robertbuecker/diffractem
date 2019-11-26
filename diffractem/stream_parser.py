@@ -1,7 +1,6 @@
 import pandas as pd
 from io import StringIO
 import numpy as np
-import subprocess
 import re
 
 BEGIN_GEOM = '----- Begin geometry file -----'
@@ -22,6 +21,7 @@ PEAK_COLUMNS = ['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'stream_l
 REFLECTION_COLUMNS = ['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel', 'stream_line']
 ID_FIELDS = ['file', 'Event', 'serial']
 
+
 def chop_stream(streamname: str, id_list: list, id_field='hdf5/%/shots/frame', id_appendix='frame'):
     """Chops a stream file into sub-streams containing only shots with a specific value of
     a defined field, which must be in the chunk header. Useful e.g. for chopping into aggregation
@@ -41,8 +41,8 @@ def chop_stream(streamname: str, id_list: list, id_field='hdf5/%/shots/frame', i
 
     outfiles = {}
     for fnum in id_list:
-        outfiles[fnum] = open(streamname.rsplit('.',1)[0] + f'-{id_appendix}{fnum}.stream', 'w')
-    
+        outfiles[fnum] = open(streamname.rsplit('.', 1)[0] + f'-{id_appendix}{fnum}.stream', 'w')
+
     chunk_init = False
     chunk_string = ''
     frame = -1
@@ -289,11 +289,14 @@ class StreamParser:
                             continue
                         crystal_info[k] = float(v)
                 elif 'astar' in l:
-                    crystal_info.update({k: float(v) for k, v in zip(['astar_x', 'astar_y', 'astar_z'], l.split(' ')[2:5])})
+                    crystal_info.update(
+                        {k: float(v) for k, v in zip(['astar_x', 'astar_y', 'astar_z'], l.split(' ')[2:5])})
                 elif 'bstar' in l:
-                    crystal_info.update({k: float(v) for k, v in zip(['bstar_x', 'bstar_y', 'bstar_z'], l.split(' ')[2:5])})
+                    crystal_info.update(
+                        {k: float(v) for k, v in zip(['bstar_x', 'bstar_y', 'bstar_z'], l.split(' ')[2:5])})
                 elif 'cstar' in l:
-                    crystal_info.update({k: float(v) for k, v in zip(['cstar_x', 'cstar_y', 'cstar_z'], l.split(' ')[2:5])})
+                    crystal_info.update(
+                        {k: float(v) for k, v in zip(['cstar_x', 'cstar_y', 'cstar_z'], l.split(' ')[2:5])})
                 elif 'diffraction_resolution_limit' in l:
                     crystal_info['diff_limit'] = float(l.rsplit(' nm', 1)[0].rsplit('= ', 1)[-1])
                 elif 'predict_refine/det_shift' in l:
@@ -330,19 +333,18 @@ class StreamParser:
                 else:
                     self._parsed_lines -= 1
 
-
         # Now convert to pandas data frames
 
         linedat_index.seek(0)
         linedat_peak.seek(0)
         self._peaks = pd.read_csv(linedat_peak, delim_whitespace=True, header=None,
-                              names=PEAK_COLUMNS + ['file', 'Event', 'serial']
-                              ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
+                                  names=PEAK_COLUMNS + ['file', 'Event', 'serial']
+                                  ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
             drop=True).drop('index', axis=1)
 
         self._indexed = pd.read_csv(linedat_index, delim_whitespace=True, header=None,
-                               names=REFLECTION_COLUMNS + ['file', 'Event', 'serial']
-                               ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
+                                    names=REFLECTION_COLUMNS + ['file', 'Event', 'serial']
+                                    ).sort_values('serial').reset_index().sort_values(['serial', 'index']).reset_index(
             drop=True).drop('index', axis=1)
 
         self._shots = pd.DataFrame(shotlist).sort_values('serial').reset_index(drop=True)
@@ -358,8 +360,8 @@ class StreamParser:
             if include_geom:
                 fh.write(BEGIN_GEOM+'\n'+'\n'.join(self._geometry_string)+'\n'+END_GEOM + '\n')
             if include_cell:
-                fh.write(BEGIN_CELL+'\n'+'\n'.join(self._cell_string)+'\n'+END_CELL + '\n')
-            
+                fh.write(BEGIN_CELL + '\n' + '\n'.join(self._cell_string) + '\n' + END_CELL + '\n')
+
             for ii, shot in self._shots.iterrows():
                 fh.write(BEGIN_CHUNK + '\n')
                 fh.write(f'Image filename: {shot.file}\n')
@@ -371,11 +373,11 @@ class StreamParser:
                     fh.write(f'{k} = {shot[k]}\n')
                 if include_peaks:
                     fh.write(BEGIN_PEAKS + '\n')
-                    self._peaks.loc[self._peaks.serial==shot.serial, PEAK_COLUMNS].to_csv(
+                    self._peaks.loc[self._peaks.serial == shot.serial, PEAK_COLUMNS].to_csv(
                         fh, sep=' ', index=False, na_rep='-nan')
                     fh.write(END_PEAKS + '\n')
 
-                crystals = self._crystals.loc[self._crystals.serial==shot.serial,:]
+                crystals = self._crystals.loc[self._crystals.serial == shot.serial, :]
 
                 for cid, crs in crystals.iterrows():
                     fh.write(BEGIN_CRYSTAL + '\n')
@@ -383,37 +385,35 @@ class StreamParser:
                     fh.write(f'astar = {crs.astar_x} {crs.astar_y} {crs.astar_z} nm^-1\n')
                     fh.write(f'bstar = {crs.bstar_x} {crs.bstar_y} {crs.bstar_z} nm^-1\n')
                     fh.write(f'cstar = {crs.cstar_x} {crs.cstar_y} {crs.cstar_z} nm^-1\n')
-                    fh.write(f'diffraction_resolution_limit = {crs.diff_limit} nm^-1 or {10/crs.diff_limit} A\n')
+                    fh.write(f'diffraction_resolution_limit = {crs.diff_limit} nm^-1 or {10 / crs.diff_limit} A\n')
                     fh.write(f'predict_refine/det_shift x = {crs.xshift} y = {crs.yshift} mm\n')
                     keys = set(crs.keys()).difference(
                         {'Event', 'file', 'serial', 'shot_in_subset', 'subset',
-                        'a', 'b', 'c', 'al', 'be', 'ga', 
-                        'astar_x', 'astar_y', 'astar_z',
-                        'bstar_x', 'bstar_y', 'bstar_z',
-                        'cstar_x', 'cstar_y', 'cstar_z',
-                        'diff_limit', 'xshift', 'yshift'})    
+                         'a', 'b', 'c', 'al', 'be', 'ga',
+                         'astar_x', 'astar_y', 'astar_z',
+                         'bstar_x', 'bstar_y', 'bstar_z',
+                         'cstar_x', 'cstar_y', 'cstar_z',
+                         'diff_limit', 'xshift', 'yshift'})
                     for k in keys:
-                        fh.write(f'{k} = {crs[k]}\n') 
+                        fh.write(f'{k} = {crs[k]}\n')
                     if include_indexed:
                         fh.write(BEGIN_REFLECTIONS + '\n')
-                        self._indexed.loc[self._indexed.serial==shot.serial, REFLECTION_COLUMNS].to_csv(
+                        self._indexed.loc[self._indexed.serial == shot.serial, REFLECTION_COLUMNS].to_csv(
                             fh, sep=' ', index=False, na_rep='-nan')
                         fh.write(END_REFLECTIONS + '\n')
-                    fh.write(END_CRYSTAL + '\n')                    
+                    fh.write(END_CRYSTAL + '\n')
                 fh.write(END_CHUNK + '\n')
 
-
     def change_path(self, new_folder=None, old_pattern=None, new_pattern=None):
-        
+
         for df in [self._crystals, self._shots, self._indexed, self._peaks]:
             if (new_folder is not None) and (old_pattern is not None):
                 df.file = new_folder + '/' + \
-                    df.file.str.rsplit('/', 1, True).iloc[:,-1].str.replace(old_pattern, new_pattern)
+                          df.file.str.rsplit('/', 1, True).iloc[:, -1].str.replace(old_pattern, new_pattern)
             elif old_pattern is not None:
                 df.file = df.file.str.replace(old_pattern, new_pattern)
             elif new_folder is not None:
-                df.file = new_folder + '/' + df.file.str.rsplit('/', 1, True).iloc[:,-1]
-
+                df.file = new_folder + '/' + df.file.str.rsplit('/', 1, True).iloc[:, -1]
 
     def get_cxi_format(self, what='peaks', shots=None, half_pixel_shift=True):
 

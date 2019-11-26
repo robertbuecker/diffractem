@@ -1,15 +1,11 @@
 import hdf5plugin # required to access LZ4-encoded HDF5 data sets
-import matplotlib.pyplot as plt
-#%matplotlib ipympl
 import dask.array as da
 from diffractem import io, tools, proc2d, compute, nexus, proc_peaks
 from diffractem.dataset import Dataset
 from diffractem.stream_parser import StreamParser
 import numpy as np
-from tifffile import imread, imsave
-import pandas as pd
+from tifffile import imread
 import os
-from glob import glob
 from time import time
 import json
 import subprocess
@@ -17,10 +13,8 @@ import datetime
 from typing import Union, Optional, Callable
 from random import randrange
 from shutil import copyfile
-from concurrent.futures import ProcessPoolExecutor, FIRST_EXCEPTION, as_completed, wait
+from concurrent.futures import ProcessPoolExecutor, FIRST_EXCEPTION, wait
 import dask
-from itertools import repeat
-from functools import wraps
 import yaml
 import pprint
 
@@ -33,6 +27,7 @@ in the options directly)
 
 Mostly, the functions here call functions from proc2d in a more or less smart sequence.
 """
+
 
 def run_mp(func, fns: Union[str, list], 
     opts, wait_until_done=True):
@@ -48,7 +43,8 @@ def run_mp(func, fns: Union[str, list],
             return [ft.result for ft in ftr]
         else:
             return ftr
-            
+
+
 class PreProcOpts:
     def __init__(self, fn=None):  
 
@@ -78,16 +74,16 @@ class PreProcOpts:
         self.scratch_dir = '/scratch/diffractem'
         self.proc_dir = 'proc_data'
         self.rechunk = None
-        self.peak_search_params = {'min-res': 5, 'max-res': 600, 
-                    'local-bg-radius': 3, 'threshold': 8, 
-                    'min-pix-count': 3,
-                    'min-snr': 3, 'int-radius': '3,4,5'}
+        self.peak_search_params = {'min-res': 5, 'max-res': 600,
+                                   'local-bg-radius': 3, 'threshold': 8,
+                                   'min-pix-count': 3,
+                                   'min-snr': 3, 'int-radius': '3,4,5'}
         self.indexing_params = {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
-                    'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
-                    'peaks': 'peakfinder8', 'indexing': 'none'}
+                                'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
+                                'peaks': 'peakfinder8', 'indexing': 'none'}
         self.integration_params = {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
-                    'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
-                    'peaks': 'peakfinder8', 'indexing': 'none'}                    
+                                   'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
+                                   'peaks': 'peakfinder8', 'indexing': 'none'}
         self.peak_search_params.update({'temp-dir': self.scratch_dir})
         self.indexing_params.update({'temp-dir': self.scratch_dir})
         self.crystfel_procs = 40 # number of processes
@@ -131,29 +127,32 @@ class PreProcOpts:
             raise ValueError('Please set the option file name first')
 
         if fn.endswith('json'):
-            config = json.load(open(fn,'r'))
+            config = json.load(open(fn, 'r'))
         elif fn.endswith('yaml'):
-            config = yaml.safe_load(open(fn,'r'))
+            config = yaml.safe_load(open(fn, 'r'))
+        else:
+            raise ValueError('File extension must be .yaml or .json.')
 
         for k, v in config.items():
             if k in self.__dict__:
                 setattr(self, k, v)
             else:
-                print('Option',k,'in',fn,'unknown.')
+                print('Option', k, 'in', fn, 'unknown.')
 
         self._filename = fn
 
     def save(self, fn: str):
         if fn.endswith('json'):
-            json.dump(self.__dict__, open(fn,'w'), skipkeys=True, indent=4)
+            json.dump(self.__dict__, open(fn, 'w'), skipkeys=True, indent=4)
         elif fn.endswith('yaml'):
-            yaml.dump(self.__dict__, open(fn,'w'), sort_keys=False)
+            yaml.dump(self.__dict__, open(fn, 'w'), sort_keys=False)
 
 
-def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None, 
-                from_cxi=False, return_cxi=True, revalidate_cxi=False, merge_peaks=True,
-                params: Optional[dict] = None, geo_params: Optional[dict] = None, procs: Optional[int] = None, 
-                exc='indexamajig', stream_out: Optional[str] = None, parse=True, **kwargs) -> Union[dict, pd.DataFrame]:
+def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None,
+               from_cxi=False, return_cxi=True, revalidate_cxi=False, merge_peaks=True,
+               params: Optional[dict] = None, geo_params: Optional[dict] = None, procs: Optional[int] = None,
+               exc='indexamajig', stream_out: Optional[str] = None, parse=True, **kwargs) \
+        -> Union[dict, StreamParser]:
     """Handy function to find peaks using peakfinder8
     
     Arguments:
@@ -181,16 +180,17 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None,
         cfpars = opt.peak_search_params
         exc = opt.im_exc
     else:
-        cfpars = {'min-res': 5, 'max-res': 600, 
-        'local-bg-radius': 3, 'threshold': 8, 
-        'min-pix-count': 3,
-        'min-snr': 3, 'int-radius': '3,4,5', 'peaks': 'peakfinder8'}
+        cfpars = {'min-res': 5, 'max-res': 600,
+                  'local-bg-radius': 3, 'threshold': 8,
+                  'min-pix-count': 3,
+                  'min-snr': 3, 'int-radius': '3,4,5', 'peaks': 'peakfinder8'}
 
     params = {} if params is None else params
     
     if from_cxi:
-        cfpars.update(dict({'indexing': 'none', 'peaks': 'cxi', 'hdf5-peaks': '/%/data', 'no-revalidate': not revalidate_cxi},
-                    **params, **kwargs))
+        cfpars.update(
+            dict({'indexing': 'none', 'peaks': 'cxi', 'hdf5-peaks': '/%/data', 'no-revalidate': not revalidate_cxi},
+                 **params, **kwargs))
     else:
         cfpars.update(dict({'indexing': 'none'},
                     **params, **kwargs))
@@ -208,14 +208,14 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None,
         outfile = stream_out
     if isinstance(ds, Dataset):
         ds.write_list(infile)
-        #print('Wrote', infile)
+        # print('Wrote', infile)
     elif isinstance(ds, str) and ds.endswith('.lst'):
         copyfile(ds, infile)
     elif isinstance(ds, str):
-        with open(infile,'w') as fh:
+        with open(infile, 'w') as fh:
             fh.write(ds)
     elif isinstance(ds, list):
-        with open(infile,'w') as fh:
+        with open(infile, 'w') as fh:
             fh.writelines([l + '\n' for l in ds])
     else:
         raise ValueError('ds must be a list, string or Dataset.')
@@ -287,7 +287,7 @@ def from_raw(fn, opt: PreProcOpts):
     
     if opt.rechunk is not None:
         dsagg.rechunk_stacks(opt.rechunk)
-    
+
     # Saturation, flat-field and dead-pixel correction
     if opt.correct_saturation:
         stack_ff = proc2d.apply_flatfield(proc2d.apply_saturation_correction(
@@ -298,32 +298,32 @@ def from_raw(fn, opt: PreProcOpts):
     stack = proc2d.correct_dead_pixels(stack_ff, pxmask, strategy='replace', replace_val=-1, mask_gaps=True)
 
     # Stack in central region along x (note that the gaps are not masked this time)
-    xrng = slice((opt.xsize-opt.com_xrng)//2,(opt.xsize+opt.com_xrng)//2)
-    stack_ct = proc2d.correct_dead_pixels(stack_ff[:,:,xrng], pxmask[:,xrng], 
+    xrng = slice((opt.xsize - opt.com_xrng) // 2, (opt.xsize + opt.com_xrng) // 2)
+    stack_ct = proc2d.correct_dead_pixels(stack_ff[:, :, xrng], pxmask[:, xrng],
                                           strategy='replace', replace_val=-1, mask_gaps=False)
 
     # Define COM threshold as fraction of highest pixel (after discarding some too high ones)
-    thr = stack_ct.max(axis=1).topk(10,axis=1)[:,9].reshape((-1,1,1))*opt.com_threshold
-    com = proc2d.center_of_mass2(stack_ct, threshold=thr) + [[(opt.xsize-opt.com_xrng)//2, 0]]
+    thr = stack_ct.max(axis=1).topk(10, axis=1)[:, 9].reshape((-1, 1, 1)) * opt.com_threshold
+    com = proc2d.center_of_mass2(stack_ct, threshold=thr) + [[(opt.xsize - opt.com_xrng) // 2, 0]]
 
     # Lorentzian fit in region around the found COM
-    lorentz = compute.map_reduction_func(stack, proc2d.lorentz_fast, com[:,0], com[:,1], radius=opt.lorentz_radius, 
-            limit=opt.lorentz_maxshift, scale=7, threads=False, output_len=4) 
-    ctr = lorentz[:,1:3]
+    lorentz = compute.map_reduction_func(stack, proc2d.lorentz_fast, com[:, 0], com[:, 1], radius=opt.lorentz_radius,
+                                         limit=opt.lorentz_maxshift, scale=7, threads=False, output_len=4)
+    ctr = lorentz[:, 1:3]
 
     # calculate the centered image by shifting and padding with -1
-    centered = proc2d.center_image(stack, ctr[:,0], ctr[:,1], opt.xsize, opt.ysize, -1, parallel=True)
+    centered = proc2d.center_image(stack, ctr[:, 0], ctr[:, 1], opt.xsize, opt.ysize, -1, parallel=True)
 
     # add the new stacks to the aggregated dataset
-    alldata = {'center_of_mass': com, 
-                'lorentz_fit': lorentz, 
-                'beam_center': ctr, 
-                'centered': centered, 
-               'pxmask_centered': (centered != -1).astype(np.uint16), 
-               'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]), 
+    alldata = {'center_of_mass': com,
+               'lorentz_fit': lorentz,
+               'beam_center': ctr,
+               'centered': centered,
+               'pxmask_centered': (centered != -1).astype(np.uint16),
+               'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]),
                'adf2': proc2d.apply_virtual_detector(centered, opt.r_adf2[0], opt.r_adf2[1])}
     for lbl, stk in alldata.items():
-        print('adding',lbl,stk.shape)
+        print('adding', lbl, stk.shape)
         dsagg.add_stack(lbl, stk, overwrite=True)
 
     # make the files and crunch the data
@@ -345,6 +345,7 @@ def from_raw(fn, opt: PreProcOpts):
         dsraw.close_stacks()
 
     return dsagg.files
+
 
 def refine_center(fn, opt: PreProcOpts):
     """Refines the centering of diffraction patterns based on Friedel mate positions.
@@ -380,24 +381,25 @@ def refine_center(fn, opt: PreProcOpts):
     p0 = [opt.xsize//2, opt.ysize//2]
 
     # get Friedel-refined center from stream file
-    ctr = proc_peaks.center_friedel(stream.peaks, ds.shots, 
-                                p0=p0, 
-                                sigma=opt.peak_sigma, minpeaks=opt.min_peaks, 
-                                maxres=opt.friedel_max_radius)
+    ctr = proc_peaks.center_friedel(stream.peaks, ds.shots,
+                                    p0=p0,
+                                    sigma=opt.peak_sigma, minpeaks=opt.min_peaks,
+                                    maxres=opt.friedel_max_radius)
 
     maxcorr = ctr['friedel_cost'].values
     changed = np.logical_not(np.isnan(maxcorr))
 
     with ds.Stacks() as stk:
-        beam_center_old = stk['beam_center'].compute() # previous beam center
+        beam_center_old = stk['beam_center'].compute()  # previous beam center
 
     beam_center_new = beam_center_old.copy()
-    beam_center_new[changed,:] = np.ceil(beam_center_old[changed,:]) + ctr.loc[changed,['beam_x', 'beam_y']].values - p0
+    beam_center_new[changed, :] = np.ceil(beam_center_old[changed, :]) + ctr.loc[
+        changed, ['beam_x', 'beam_y']].values - p0
     if (np.abs(np.mean(beam_center_new - beam_center_old, axis=0) > .5)).any():
         log('WARNING: average shift is larger than 0.5!')
 
     # visualization
-    log('{:g}% of shots refined. \n'.format((1-np.isnan(maxcorr).sum()/len(maxcorr))*100),
+    log('{:g}% of shots refined. \n'.format((1 - np.isnan(maxcorr).sum() / len(maxcorr)) * 100),
         'Shift standard deviation: {} \n'.format(np.std(beam_center_new - beam_center_old, axis=0)),
         'Average shift: {} \n'.format(np.mean(beam_center_new - beam_center_old, axis=0)))
 
@@ -423,8 +425,8 @@ def refine_center(fn, opt: PreProcOpts):
         ds.close_stacks()
 
     # run peak finder again, this time on the refined images
-    pks_cxi = find_peaks(ds, opt=opt, merge_peaks=opt.peaks_nexus, 
-        return_cxi=True, geo_params={'clen': opt.cam_length}, exc=opt.im_exc)
+    pks_cxi = find_peaks(ds, opt=opt, merge_peaks=opt.peaks_nexus,
+                         return_cxi=True, geo_params={'clen': opt.cam_length}, exc=opt.im_exc)
 
     # export peaks to CXI-format arrays
     if opt.peaks_cxi:
@@ -461,24 +463,23 @@ def subtract_bg(fn, opt: PreProcOpts):
         idstring = '[{} - {} - subtract_bg] '.format(datetime.datetime.now().time(), dispfn) 
         print(idstring, *args)
 
-
     ds = Dataset().from_list(fn)
     ds.open_stacks()
 
     if opt.rerun_peak_finder:
         pks = find_peaks(ds, opt=opt)
-        nPeaks = da.from_array(pks['nPeaks'][:,np.newaxis,np.newaxis], chunks=(ds.centered.chunks[0],1,1))
-        peakX = da.from_array(pks['peakXPosRaw'][:,:,np.newaxis], chunks=(ds.centered.chunks[0],-1,1))
-        peakY = da.from_array(pks['peakYPosRaw'][:,:,np.newaxis], chunks=(ds.centered.chunks[0],-1,1))
+        nPeaks = da.from_array(pks['nPeaks'][:, np.newaxis, np.newaxis], chunks=(ds.centered.chunks[0], 1, 1))
+        peakX = da.from_array(pks['peakXPosRaw'][:, :, np.newaxis], chunks=(ds.centered.chunks[0], -1, 1))
+        peakY = da.from_array(pks['peakYPosRaw'][:, :, np.newaxis], chunks=(ds.centered.chunks[0], -1, 1))
     else:
-        nPeaks = ds.nPeaks[:,np.newaxis,np.newaxis]
-        peakX = ds.peakXPosRaw[:,:,np.newaxis]
-        peakY = ds.peakYPosRaw[:,:,np.newaxis]
+        nPeaks = ds.nPeaks[:, np.newaxis, np.newaxis]
+        peakX = ds.peakXPosRaw[:, :, np.newaxis]
+        peakY = ds.peakYPosRaw[:, :, np.newaxis]
 
     original = ds.centered
-    bg_corrected = da.map_blocks(proc2d.remove_background, original, original.shape[2]/2, original.shape[1]/2,
-                                     nPeaks, peakX, peakY, peak_radius=opt.peak_radius, filter_len=opt.filter_len, 
-                                     dtype=np.float32 if opt.float else np.int32, chunks=original.chunks)
+    bg_corrected = da.map_blocks(proc2d.remove_background, original, original.shape[2] / 2, original.shape[1] / 2,
+                                 nPeaks, peakX, peakY, peak_radius=opt.peak_radius, filter_len=opt.filter_len,
+                                 dtype=np.float32 if opt.float else np.int32, chunks=original.chunks)
 
     ds.add_stack('centered', bg_corrected, overwrite=True)
     ds.change_filenames(opt.nobg_file_suffix)
@@ -486,7 +487,7 @@ def subtract_bg(fn, opt: PreProcOpts):
     ds.store_tables(shots=True, features=True, peaks=False)
     ds.open_stacks()
 
-    #for lbl in ['nPeaks', 'peakTotalIntensity', 'peakXPosRaw', 'peakYPosRaw']:
+    # for lbl in ['nPeaks', 'peakTotalIntensity', 'peakXPosRaw', 'peakYPosRaw']:
     #    if lbl in ds.stacks:
     #        ds.delete_stack(lbl, from_files=False)
 
@@ -498,7 +499,7 @@ def subtract_bg(fn, opt: PreProcOpts):
     finally:
         ds.close_stacks()
 
-    return ds.files    
+    return ds.files
 
 
 def broadcast(fn, opt: PreProcOpts):
@@ -526,7 +527,7 @@ def broadcast(fn, opt: PreProcOpts):
             dispfn = os.path.basename(fn[0]) + ' etc.'
         else:
             dispfn = os.path.basename(fn)
-        idstring = '[{} - {} - broadcast] '.format(datetime.datetime.now().time(), dispfn) 
+        idstring = '[{} - {} - broadcast] '.format(datetime.datetime.now().time(), dispfn)
         print(idstring, *args)
 
     t0 = time()
@@ -537,43 +538,43 @@ def broadcast(fn, opt: PreProcOpts):
     dssel = dsraw.get_selection(opt.select_query, file_suffix=opt.single_suffix, new_folder=opt.proc_dir)
 
     reference = imread(opt.reference)
-    pxmask = imread(opt.pxmask)   
+    pxmask = imread(opt.pxmask)
 
     log(f'{dsraw.shots.shape[0]} raw, {dssel.shots.shape[0]} selected, {dsagg.shots.shape[0]} aggregated.')
 
     # And now: the interesting part...
     dsagg.shots['from_id'] = range(dsagg.shots.shape[0])
     shots = dssel.shots.merge(dsagg.shots[opt.idfields + ['from_id']], on=opt.idfields, validate='m:1')
-    
+
     # get the broadcasted image centers
-    ctr = dsagg.stacks[opt.center_stack][shots.from_id.values,:]  
-   
+    ctr = dsagg.stacks[opt.center_stack][shots.from_id.values, :]
+
     # Flat-field and dead-pixel correction
-    stack_rechunked = dssel.raw_counts.rechunk({0: ctr.chunks[0]}) # re-chunk the raw data
+    stack_rechunked = dssel.raw_counts.rechunk({0: ctr.chunks[0]})  # re-chunk the raw data
     if opt.correct_saturation:
         stack_ff = proc2d.apply_flatfield(proc2d.apply_saturation_correction(
-            stack_rechunked, opt.shutter_time, opt.dead_time), reference)  
+            stack_rechunked, opt.shutter_time, opt.dead_time), reference)
     else:
         stack_ff = proc2d.apply_flatfield(stack_rechunked, reference)
     stack = proc2d.correct_dead_pixels(stack_ff, pxmask, strategy='replace', replace_val=-1, mask_gaps=True)
-    centered = proc2d.center_image(stack, ctr[:,0], ctr[:,1], opt.xsize, opt.ysize, -1, parallel=True)
-    
+    centered = proc2d.center_image(stack, ctr[:, 0], ctr[:, 1], opt.xsize, opt.ysize, -1, parallel=True)
+
     # add the new stacks to the aggregated dataset
-    alldata = {'center_of_mass': dsagg.stacks['center_of_mass'][shots.from_id.values,...], 
-               'lorentz_fit': dsagg.stacks['lorentz_fit'][shots.from_id.values,...], 
-               'beam_center': ctr, 
-               'centered': centered.astype(np.float32) if opt.float else centered.astype(np.int16), 
-               'pxmask_centered': (centered != -1).astype(np.uint16), 
-               'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]), 
+    alldata = {'center_of_mass': dsagg.stacks['center_of_mass'][shots.from_id.values, ...],
+               'lorentz_fit': dsagg.stacks['lorentz_fit'][shots.from_id.values, ...],
+               'beam_center': ctr,
+               'centered': centered.astype(np.float32) if opt.float else centered.astype(np.int16),
+               'pxmask_centered': (centered != -1).astype(np.uint16),
+               'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]),
                'adf2': proc2d.apply_virtual_detector(centered, opt.r_adf2[0], opt.r_adf2[1])
-              }
-    
+               }
+
     if opt.broadcast_peaks:
         alldata.update({
-            'nPeaks': dsagg.stacks['nPeaks'][shots.from_id.values,...],
-            'peakTotalIntensity': dsagg.stacks['peakTotalIntensity'][shots.from_id.values,...],
-            'peakXPosRaw': dsagg.stacks['peakXPosRaw'][shots.from_id.values,...],
-            'peakYPosRaw': dsagg.stacks['peakYPosRaw'][shots.from_id.values,...],
+            'nPeaks': dsagg.stacks['nPeaks'][shots.from_id.values, ...],
+            'peakTotalIntensity': dsagg.stacks['peakTotalIntensity'][shots.from_id.values, ...],
+            'peakXPosRaw': dsagg.stacks['peakXPosRaw'][shots.from_id.values, ...],
+            'peakYPosRaw': dsagg.stacks['peakYPosRaw'][shots.from_id.values, ...],
         })
         
     for lbl, stk in alldata.items():
@@ -622,9 +623,9 @@ def cumulate(fn, opt: PreProcOpts):
             dispfn = os.path.basename(fn[0]) + ' etc.'
         else:
             dispfn = os.path.basename(fn)
-        idstring = '[{} - {} - cumulate] '.format(datetime.datetime.now().time(), dispfn) 
+        idstring = '[{} - {} - cumulate] '.format(datetime.datetime.now().time(), dispfn)
         print(idstring, *args)
-    
+
     dssel = Dataset().from_list(fn)
     log('Cumulating from frame', opt.cum_first_frame)
     dssel.open_stacks()
@@ -635,26 +636,26 @@ def cumulate(fn, opt: PreProcOpts):
         if stk.chunks[0] != chunks:
             if k == 'index':
                 continue
-            log(k,'needs rechunking...')
+            log(k, 'needs rechunking...')
             dssel.add_stack(k, stk.rechunk({0: chunks}), overwrite=True)
     dssel._zchunks = chunks
 
     def cumfunc(movie):
         movie_out = movie
-        movie_out[opt.cum_first_frame:,...] = np.cumsum(movie[opt.cum_first_frame:,...], axis=0)
+        movie_out[opt.cum_first_frame:, ...] = np.cumsum(movie[opt.cum_first_frame:, ...], axis=0)
         return movie_out
 
     for k in opt.cum_stacks:
         dssel.stacks[k] = dssel.stacks[k].map_blocks(cumfunc, dtype=dssel.stacks[k].dtype)
 
-    dssel.change_filenames(opt.cum_file_suffix)    
+    dssel.change_filenames(opt.cum_file_suffix)
     dssel.init_files(overwrite=True, keep_features=False)
     log('File initialized, writing tables...')
     dssel.store_tables(shots=True, features=True, peaks=False)
-    
+
     try:
-        dssel.open_stacks()    
-        log('Writing stack data...')    
+        dssel.open_stacks()
+        log('Writing stack data...')
         dssel.store_stacks(overwrite=True, progress_bar=False)
 
     except Exception as err:
@@ -664,5 +665,5 @@ def cumulate(fn, opt: PreProcOpts):
     finally:
         dssel.close_stacks()
         log('Cumulation done.')
-    
+
     return dssel.files
