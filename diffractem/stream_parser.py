@@ -248,7 +248,7 @@ class StreamParser:
                 elif 'Event:' in l:
                     shotdat['Event'] = l.split(': ')[-1].strip()
                     dummy_shot = shotdat['Event'].split('//')[-1]
-                    if dummy_shot == '_':
+                    if dummy_shot in ['_', '']:
                         shotdat['shot_in_subset'] = 0
                     else:
                         shotdat['shot_in_subset'] = int(shotdat['Event'].split('//')[-1])
