@@ -22,7 +22,7 @@ PEAK_COLUMNS = ['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel', 'stream_l
 REFLECTION_COLUMNS = ['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel', 'stream_line']
 ID_FIELDS = ['file', 'Event', 'serial']
 
-def chop_stream(streamname: str, id_list: str, id_field='hdf5/%/shots/frame', id_appendix='frame'):
+def chop_stream(streamname: str, id_list: list, id_field='hdf5/%/shots/frame', id_appendix='frame'):
     """Chops a stream file into sub-streams containing only shots with a specific value of
     a defined field, which must be in the chunk header. Useful e.g. for chopping into aggregation
     frames.
