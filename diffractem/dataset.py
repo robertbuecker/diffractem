@@ -518,7 +518,8 @@ class Dataset:
 
     def get_selection(self, query: Union[str, None] = None,
                       file_suffix: Optional[str] = '_sel.h5', file_prefix: str = '',
-                      new_folder: Union[str, None] = None) -> 'Dataset':
+                      new_folder: Union[str, None] = None,
+                      reset_id: bool = True) -> 'Dataset':
         """
         Returns a new dataset object by applying a selection. By default, returns all shots with selected == True.
         Optionally, a different query string can be supplied (which leaves the selection unaffected).
@@ -546,7 +547,8 @@ class Dataset:
             newset._stacks = {}
 
             newset.change_filenames(file_suffix, file_prefix, new_folder)
-            newset.reset_id()
+            if reset_id:
+                newset.reset_id()
             newset._h5handles = {}
 
             if not self._stacks_open:

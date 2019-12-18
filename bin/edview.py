@@ -87,11 +87,12 @@ class EDViewer(QWidget):
         if args.geometry is not None:
             raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')
 
-        if args.query:
-            print('Only showing shots with', args.query)
-            #self.dataset = self.dataset.get_selection(args.query, file_suffix=None)
-            print('cutting shot list only')
-            self.dataset.shots = self.dataset.shots.query(args.query)
+        if self.args.query:
+            print('Only showing shots with', self.args.query)
+            #self.dataset.select(self.args.query)
+            self.dataset = self.dataset.get_selection(self.args.query, file_suffix=None, reset_id=False)
+            #print('cutting shot list only')
+            #self.dataset.shots = self.dataset.shots.query(args.query)
 
         if not self.args.internal:
             #adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}

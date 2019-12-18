@@ -45,7 +45,7 @@ def chop_stream(streamname: str, id_list: list, id_field='hdf5/%/shots/frame', i
 
     chunk_init = False
     chunk_string = ''
-    frame = -1
+    value = -1
     
     with open(streamname, 'r') as fh_in:
         for ln, l in enumerate(fh_in):
@@ -53,20 +53,21 @@ def chop_stream(streamname: str, id_list: list, id_field='hdf5/%/shots/frame', i
             if not chunk_init and l.startswith(BEGIN_CHUNK):
                 chunk_init = True
                 chunk_string += l
-                frame = -1
+                value = None
                 
             elif chunk_init and l.startswith(id_field):
-                found_frame = int(l.rsplit('=',1)[-1].strip())
+                found_value = l.rsplit('=',1)[-1].strip()
+                found_value = parse_str_val(found_value)
                 chunk_string += l
-                frame = found_frame if found_frame in id_list else -1
+                value = found_value if found_value in id_list else None
         
             elif chunk_init and l.startswith(END_CHUNK):
                 chunk_init = False
                 chunk_string += l
                 #print(frame)
-                if frame != -1:
+                if value is not None:
                     #print(chunk_string)
-                    outfiles[frame].write(chunk_string)
+                    outfiles[value].write(chunk_string)
                 chunk_string = ''
                 
             elif chunk_init:
