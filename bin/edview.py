@@ -89,7 +89,9 @@ class EDViewer(QWidget):
 
         if args.query:
             print('Only showing shots with', args.query)
-            self.dataset = self.dataset.get_selection(args.query, file_suffix=None)
+            #self.dataset = self.dataset.get_selection(args.query, file_suffix=None)
+            print('cutting shot list only')
+            self.dataset.shots = self.dataset.shots.query(args.query)
 
         if not self.args.internal:
             #adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}
