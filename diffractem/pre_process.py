@@ -77,7 +77,8 @@ class PreProcOpts:
         self.peak_search_params = {'min-res': 5, 'max-res': 600,
                                    'local-bg-radius': 3, 'threshold': 8,
                                    'min-pix-count': 3,
-                                   'min-snr': 3, 'int-radius': '3,4,5'}
+                                   'min-snr': 3, 'int-radius': '3,4,5',
+                                   'peaks': 'peakfinder8'}
         self.indexing_params = {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
                                 'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
                                 'peaks': 'peakfinder8', 'indexing': 'none'}
