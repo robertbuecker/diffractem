@@ -9,5 +9,7 @@ if len(sys.argv) > 2:
     fn = sys.argv[2]
 else:
     fn = sys.argv[1].rsplit('.', 1)[0] + '.tif'
-imsave(fn, ds[:, :, :].astype(np.int16))
+if ds.dtype == np.int32:
+    ds = ds.astype(float)
+imsave(fn, ds[:, :, :])
 print('Wrote ' + fn)
