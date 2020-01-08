@@ -12,7 +12,7 @@ setup(
     description='Some tools for working with serial electron microscopy data.',
     install_requires=['h5py', 'numpy', 'pandas', 'tables', 'hdf5plugin',
                       'dask', 'tifffile', 'scipy', 'astropy', 'matplotlib', 'numba',
-                      'pyqtgraph', 'PyQt', 'opencv', 'pyyaml', 'scikit-learn', 'ruamel.yaml'],
+                      'pyqtgraph', 'pyqt', 'opencv', 'pyyaml', 'scikit-learn', 'ruamel.yaml'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
