@@ -49,6 +49,7 @@ class PreProcOpts:
     def __init__(self, fn=None):  
 
         self._filename = None
+        self._help = {}
 
         # raw-image corrections
         self.verbose = True
@@ -221,7 +222,7 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None,
     else:
         raise ValueError('ds must be a list, string or Dataset.')
 
-    geom = tools.make_geometry({} if geo_params is None else geo_params, gfile)
+    geom = tools.make_geometry({'clen': opt.cam_length} if geo_params is None else geo_params, gfile)
     numprocs = os.cpu_count() if procs is None else procs
     callstr = tools.call_indexamajig(infile, gfile, outfile, im_params=cfpars, procs=procs, exc=exc)
     #print(callstr)
@@ -533,55 +534,61 @@ def broadcast(fn, opt: PreProcOpts):
 
     t0 = time()
     dsagg = Dataset.from_list(fn, load_tables=False)
-    dsagg.open_stacks()
     dsraw = Dataset.from_list(list(dsagg.shots.file_raw.unique()))
-    dsraw.open_stacks()
-    dssel = dsraw.get_selection(opt.select_query, file_suffix=opt.single_suffix, new_folder=opt.proc_dir)
+    dsraw.shots['file_raw'] = dsraw.shots['file'] # required for association later
 
     reference = imread(opt.reference)
     pxmask = imread(opt.pxmask)
 
-    log(f'{dsraw.shots.shape[0]} raw, {dssel.shots.shape[0]} selected, {dsagg.shots.shape[0]} aggregated.')
-
     # And now: the interesting part...
-    dsagg.shots['from_id'] = range(dsagg.shots.shape[0])
-    shots = dssel.shots.merge(dsagg.shots[opt.idfields + ['from_id']], on=opt.idfields, validate='m:1')
+    dsagg.shots['from_id'] = range(dsagg.shots.shape[0])    # label original (aggregated shots)
 
-    # get the broadcasted image centers
-    ctr = dsagg.stacks[opt.center_stack][shots.from_id.values, :]
+    in_agg = dsraw.shots[opt.idfields].merge(dsagg.shots[opt.idfields + ['selected']], on=opt.idfields, how='left')['selected'].fillna(False)
+    dsraw.shots['selected'] = in_agg
 
-    # Flat-field and dead-pixel correction
-    stack_rechunked = dssel.raw_counts.rechunk({0: ctr.chunks[0]})  # re-chunk the raw data
-    if opt.correct_saturation:
-        stack_ff = proc2d.apply_flatfield(proc2d.apply_saturation_correction(
-            stack_rechunked, opt.shutter_time, opt.dead_time), reference)
-    else:
-        stack_ff = proc2d.apply_flatfield(stack_rechunked, reference)
-    stack = proc2d.correct_dead_pixels(stack_ff, pxmask, strategy='replace', replace_val=-1, mask_gaps=True)
-    centered = proc2d.center_image(stack, ctr[:, 0], ctr[:, 1], opt.xsize, opt.ysize, -1, parallel=True)
-
-    # add the new stacks to the aggregated dataset
-    alldata = {'center_of_mass': dsagg.stacks['center_of_mass'][shots.from_id.values, ...],
-               'lorentz_fit': dsagg.stacks['lorentz_fit'][shots.from_id.values, ...],
-               'beam_center': ctr,
-               'centered': centered.astype(np.float32) if opt.float else centered.astype(np.int16),
-               'pxmask_centered': (centered != -1).astype(np.uint16),
-               'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]),
-               'adf2': proc2d.apply_virtual_detector(centered, opt.r_adf2[0], opt.r_adf2[1])
-               }
-
-    if opt.broadcast_peaks:
-        alldata.update({
-            'nPeaks': dsagg.stacks['nPeaks'][shots.from_id.values, ...],
-            'peakTotalIntensity': dsagg.stacks['peakTotalIntensity'][shots.from_id.values, ...],
-            'peakXPosRaw': dsagg.stacks['peakXPosRaw'][shots.from_id.values, ...],
-            'peakYPosRaw': dsagg.stacks['peakYPosRaw'][shots.from_id.values, ...],
-        })
-        
-    for lbl, stk in alldata.items():
-        dssel.add_stack(lbl, stk, overwrite=True)
-    
     try:
+
+        dsraw.open_stacks()
+        dssel = dsraw.get_selection(f'({opt.select_query}) and selected', file_suffix=opt.single_suffix, new_folder=opt.proc_dir)
+        shots = dssel.shots.merge(dsagg.shots[opt.idfields + ['from_id']], on=opt.idfields, validate='m:1') # _inner_ merge
+        
+        log(f'{dsraw.shots.shape[0]} raw, {dssel.shots.shape[0]} selected, {dsagg.shots.shape[0]} aggregated.')
+
+        # get the broadcasted image centers
+        dsagg.open_stacks()
+        ctr = dsagg.stacks[opt.center_stack][shots.from_id.values, :]
+
+        # Flat-field and dead-pixel correction
+        stack_rechunked = dssel.raw_counts.rechunk({0: ctr.chunks[0]})  # select and re-chunk the raw data
+        if opt.correct_saturation:
+            stack_ff = proc2d.apply_flatfield(proc2d.apply_saturation_correction(
+                stack_rechunked, opt.shutter_time, opt.dead_time), reference)
+        else:
+            stack_ff = proc2d.apply_flatfield(stack_rechunked, reference)
+        stack = proc2d.correct_dead_pixels(stack_ff, pxmask, strategy='replace', replace_val=-1, mask_gaps=True)
+        centered = proc2d.center_image(stack, ctr[:, 0], ctr[:, 1], opt.xsize, opt.ysize, -1, parallel=True)
+
+        # add the new stacks to the aggregated dataset
+        alldata = {'center_of_mass': dsagg.stacks['center_of_mass'][shots.from_id.values, ...],
+                'lorentz_fit': dsagg.stacks['lorentz_fit'][shots.from_id.values, ...],
+                'beam_center': ctr,
+                'centered': centered.astype(np.float32) if opt.float else centered.astype(np.int16),
+                'pxmask_centered': (centered != -1).astype(np.uint16),
+                'adf1': proc2d.apply_virtual_detector(centered, opt.r_adf1[0], opt.r_adf1[1]),
+                'adf2': proc2d.apply_virtual_detector(centered, opt.r_adf2[0], opt.r_adf2[1])
+                }
+
+        if opt.broadcast_peaks:
+            alldata.update({
+                'nPeaks': dsagg.stacks['nPeaks'][shots.from_id.values, ...],
+                'peakTotalIntensity': dsagg.stacks['peakTotalIntensity'][shots.from_id.values, ...],
+                'peakXPosRaw': dsagg.stacks['peakXPosRaw'][shots.from_id.values, ...],
+                'peakYPosRaw': dsagg.stacks['peakYPosRaw'][shots.from_id.values, ...],
+            })
+            
+        for lbl, stk in alldata.items():
+            dssel.add_stack(lbl, stk, overwrite=True)
+
         dssel.init_files(overwrite=True)
         dssel.store_tables(shots=True, features=True)
         dssel.open_stacks()
