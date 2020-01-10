@@ -155,7 +155,7 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None,
                params: Optional[dict] = None, geo_params: Optional[dict] = None, procs: Optional[int] = None,
                exc='indexamajig', stream_out: Optional[str] = None, parse=True, **kwargs) \
         -> Union[dict, StreamParser]:
-    """Handy function to find peaks using peakfinder8
+    """Handy function to find peaks using peakfinder8 or extract a stream/pandas list from CXI-format stored peaks
     
     Arguments:
         ds {Union[Dataset, list, str]} -- dataset, list file, single nexus file, or list of files.
@@ -432,11 +432,12 @@ def refine_center(fn, opt: PreProcOpts):
 
     # export peaks to CXI-format arrays
     if opt.peaks_cxi:
-        ds.open_stacks()
-        for k, v in pks_cxi.items():
-            ds.add_stack(k, v, overwrite=True)
-        ds.store_stacks(list(pks_cxi.keys()), progress_bar=False)
-        ds.close_stacks()
+        with ds.Stacks() as stk:
+            for k, v in pks_cxi.items():
+                if k in stk:
+                    ds.delete_stack(k, from_files=True)
+                ds.add_stack(k, v, overwrite=True)
+            ds.store_stacks(list(pks_cxi.keys()), progress_bar=True, overwrite=True)
 
     return ds.files
 
