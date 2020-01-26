@@ -12,6 +12,9 @@ from PyQt5.QtWidgets import (QPushButton, QSpinBox, QCheckBox,
 from diffractem.adxv import Adxv
 from warnings import warn
 from typing import Optional, Union
+import os
+from cfelpyutils.crystfel_utils import load_crystfel_geometry
+from cfelpyutils.geometry_utils import apply_geometry_to_data, compute_visualization_pix_maps
 
 pg.setConfigOptions(imageAxisOrder='row-major')
 
@@ -30,6 +33,7 @@ class EDViewer(QWidget):
         self.map_image = np.empty((0,0))
         self.init_widgets()
         self.adxv = None
+        self.geom = None
 
         self.read_files()
         self.switch_shot(0)
@@ -53,7 +57,20 @@ class EDViewer(QWidget):
         if file_type == 'stream':
             print(f'Parsing stream file {args.filename}...')
             stream = StreamParser(args.filename)
-            self.data_path = stream.geometry['data']
+            with open('tmp.geom', 'w') as fh:
+                fh.write('\n'.join(stream._geometry_string))
+            self.geom = load_crystfel_geometry('tmp.geom')
+            os.remove('tmp.geom')
+            if len(self.geom['panels']) == 1:
+                print('Single-panel geometry, so ignoring transforms for now.')
+                #TODO make this more elegant, e.g. by overwriting image transform func with identity
+                self.geom = None
+            try:
+                self.data_path = stream.geometry['data']
+            except KeyError:
+                if args.geometry is None:
+                    raise ValueError('No data location specified in geometry file. Please use -d parameter.')
+
             files = list(stream.shots['file'].unique())
             try:
                 self.dataset = Dataset.from_list(files, load_tables=False, init_stacks=False)
@@ -68,8 +85,12 @@ class EDViewer(QWidget):
                 self.dataset._shots = stream.shots
                 self.dataset._peaks = stream.peaks
                 self.dataset._predict = stream.indexed
+                self.dataset._shots['selected'] = True
                 print('Could not load shot lists from H5 files, but have that from the stream file.')
                 print(f'Reason: {err}')
+
+        if args.geometry is not None:
+            self.geom = load_crystfel_geometry(args.geometry)
 
         if file_type in ['lst', 'h5', 'hdf', 'nxs']:
             self.dataset = Dataset.from_list(args.filename, load_tables=True)
@@ -84,15 +105,12 @@ class EDViewer(QWidget):
             # data path neither set via stream file, nor explicitly. We have to guess.
             self.data_path = '/%/data/centered'
 
-        if args.geometry is not None:
-            raise NotImplementedError('Explicit geometry files are not allowed yet. Sry.')
-
         if self.args.query:
             print('Only showing shots with', self.args.query)
             #self.dataset.select(self.args.query)
-            self.dataset = self.dataset.get_selection(self.args.query, file_suffix=None, reset_id=False)
+            #self.dataset = self.dataset.get_selection(self.args.query, file_suffix=None, reset_id=False)
             #print('cutting shot list only')
-            #self.dataset.shots = self.dataset.shots.query(args.query)
+            self.dataset._shots = self.dataset._shots.query(args.query)
 
         if not self.args.internal:
             #adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}
@@ -109,11 +127,18 @@ class EDViewer(QWidget):
 
             if self.args.internal:
                 path = self.data_path.replace('%', self.current_shot.subset)
-                self.diff_image = f[path][int(self.current_shot['shot_in_subset']), ...]
-                self.diff_image[np.isnan(self.diff_image)] = 0
                 print('Loading {}:{} from {}'.format(path,
-                                                     self.current_shot['shot_in_subset'], self.current_shot['file']))
+                                                     self.current_shot['shot_in_subset'], self.current_shot['file']))                
+                if len(f[path].shape) == 3:
+                    self.diff_image = f[path][int(self.current_shot['shot_in_subset']), ...]
+                elif len(f[path].shape) == 2:
+                    self.diff_image = f[path][:]
+
+                self.diff_image[np.isnan(self.diff_image)] = 0
+
                 levels = self.hist_img.getLevels()
+                if self.geom is not None:
+                    self.diff_image = apply_geometry_to_data(self.diff_image, self.geom)
                 self.img.setImage(self.diff_image, autoRange=False)
                 self.img.setLevels(levels)
                 self.hist_img.setLevels(levels[0], levels[1])
@@ -139,10 +164,22 @@ class EDViewer(QWidget):
             peaks = self.dataset.peaks.loc[(self.dataset.peaks.file == self.current_shot.file)
                                            & (self.dataset.peaks.Event == self.current_shot.Event),
                                            ['fs/px', 'ss/px']] - 0.5
+
+            if self.geom is not None:
+                print('Projecting peaks...')
+                maps = compute_visualization_pix_maps(self.geom)
+                x = maps.x[peaks.loc[:,'ss/px'].astype(int),
+                    peaks.loc[:,'fs/px'].astype(int)]
+                y = maps.y[peaks.loc[:,'ss/px'].astype(int),
+                    peaks.loc[:,'fs/px'].astype(int)]
+            else:
+                x = peaks.loc[:,'fs/px']
+                y = peaks.loc[:,'ss/px']
+
             if self.args.internal:
                 ring_pen = pg.mkPen('g', width=0.8)
-                self.found_peak_canvas.setData(peaks['fs/px'], peaks['ss/px'],
-                                          symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), antialias=True)
+                self.found_peak_canvas.setData(x, y,
+                symbol='o', size=13, pen=ring_pen, brush=(0, 0, 0, 0), antialias=True)
             else:
                 allpk.append(peaks.assign(group=0))
 
@@ -150,15 +187,28 @@ class EDViewer(QWidget):
             self.found_peak_canvas.clear()
 
         if self.b_pred.isChecked() and (self.dataset.predict.shape[0] > 0):
-            predict = self.dataset.predict.loc[(self.dataset.predict.file == self.current_shot.file)
-                                               & (self.dataset.predict.Event == self.current_shot.Event),
-                                               ['fs/px', 'ss/px']] - 0.5
+            
+            pred = self.dataset.predict.loc[(self.dataset.predict.file == self.current_shot.file)
+                                           & (self.dataset.predict.Event == self.current_shot.Event),
+                                           ['fs/px', 'ss/px']] - 0.5
+
+            if self.geom is not None:
+                print('Projecting predictions...')
+                maps = compute_visualization_pix_maps(self.geom)
+                x = maps.x[pred.loc[:,'ss/px'].astype(int),
+                    pred.loc[:,'fs/px'].astype(int)]
+                y = maps.y[pred.loc[:,'ss/px'].astype(int),
+                    pred.loc[:,'fs/px'].astype(int)]
+            else:
+                x = pred.loc[:,'fs/px']
+                y = pred.loc[:,'ss/px']
+
             if self.args.internal:
                 square_pen = pg.mkPen('r', width=0.8)
-                self.predicted_peak_canvas.setData(predict['fs/px'], predict['ss/px'],
+                self.predicted_peak_canvas.setData(x, y,
                                               symbol='s', size=13, pen=square_pen, brush=(0, 0, 0, 0), antialias=True)
             else:
-                allpk.append(predict.assign(group=1))
+                allpk.append(pred.assign(group=1))
 
         else:
             self.predicted_peak_canvas.clear()
@@ -245,10 +295,14 @@ class EDViewer(QWidget):
         self.meta_table.resizeRowsToContents()
 
         shot = self.current_shot
-        self.setWindowTitle(
-            '{} Reg {} Run {} Feat {} Frame {} ({}//{} in {}, {} out of {}) '.format(shot['sample'],
-            shot['region'], shot['run'], shot['crystal_id'], shot['frame'], shot['subset'], shot['shot_in_subset'],
-            shot['file'], shot.name, self.dataset.shots.shape[0]))
+        title = {'sample': '', 'region': 'Reg', 'feature': 'Feat', 'frame': 'Frame', 'event': 'Ev', 'file': ''}
+        titlestr = ''
+        for k, v in title.items():
+            titlestr += f'{v} {shot[k]}' if k in shot.keys() else ''
+        titlestr += f'({shot.name} of f{self.dataset.shots.shape[0]})'
+        print(titlestr)
+
+        self.setWindowTitle(titlestr)
 
         self.b_goto.blockSignals(True)
         self.b_goto.setValue(self.shot_id)
@@ -391,12 +445,12 @@ if __name__ == '__main__':
     parser.add_argument('-q', '--query', type=str, help='Query string to filter shots by column values')
     parser.add_argument('-d', '--data_path', type=str, help='Data field in HDF5 file(s). Defaults to stream file or tries a few.')
     parser.add_argument('--internal', help='Use internal diffraction viewer instead of adxv', action='store_true')
-    parser.add_argument('--adxv_bin', help='Location/command string of adxv binary', default='adxv')
-    parser.add_argument('--map_path', type=str, help='Path to map image', default='/%/map/image')
-    parser.add_argument('--feature_path', type=str, help='Path to map feature table', default='/%/map/features')
-    parser.add_argument('--peaks_path', type=str, help='Path to peaks table', default='/%/results/peaks')
-    parser.add_argument('--predict_path', type=str, help='Path to prediction table', default='/%/results/predict')
-    parser.add_argument('--no_map', help='Hide map, even if we had it', action='store_true')
+    parser.add_argument('--adxv-bin', help='Location/command string of adxv binary', default='adxv')
+    parser.add_argument('--map-path', type=str, help='Path to map image', default='/%/map/image')
+    parser.add_argument('--feature-path', type=str, help='Path to map feature table', default='/%/map/features')
+    parser.add_argument('--peaks-path', type=str, help='Path to peaks table', default='/%/results/peaks')
+    parser.add_argument('--predict-path', type=str, help='Path to prediction table', default='/%/results/predict')
+    parser.add_argument('--no-map', help='Hide map, even if we had it', action='store_true')
     parser.add_argument('--beam_diam', type=int, help='Beam size displayed in real space, in pixels', default=5)
 
     args = parser.parse_args()

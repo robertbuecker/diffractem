@@ -2,6 +2,7 @@ import pandas as pd
 from io import StringIO
 import numpy as np
 import re
+from typing import Union, Optional
 
 BEGIN_GEOM = '----- Begin geometry file -----'
 END_GEOM = '----- End geometry file -----'
@@ -21,6 +22,56 @@ PEAK_COLUMNS = ['fs/px', 'ss/px', '(1/d)/nm^-1', 'Intensity', 'Panel']
 REFLECTION_COLUMNS = ['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/px', 'ss/px', 'Panel']
 ID_FIELDS = ['file', 'Event', 'serial']
 
+
+def augment_stream(streamname: str, outfile:str, new_fields: Union[pd.DataFrame, dict], where: str = 'chunk'):
+    """IDEA: add new fields to stream headers, which can then be used for chopping or filtering.
+    
+    Arguments:
+        streamname {str} -- [description]
+        new_fields {Union[pd.DataFrame, dict]} -- [description]
+    
+    Raises:
+        NotImplementedError: [description]
+    """
+
+    chunk_init = False
+    found_fn = ''
+    found_event = ''
+    
+    with open(streamname, 'r') as fh_in, open(outfile, 'w') as fh:
+        for ln, l in enumerate(fh_in):
+        
+            if not chunk_init and l.startswith(BEGIN_CHUNK):
+                chunk_init = True
+                file_init = False
+                event_init = False
+                value = None
+                found_fn = ''
+                found_event = ''
+                cols = list(new_fields.keys())
+
+            elif chunk_init and l.startswith('Image filename:'):
+                found_fn = l.split(': ')[-1].strip()
+                #print(found_fn)
+                file_init = True
+                
+            elif chunk_init and l.startswith('Event:'):
+                found_event = l.split(': ')[-1].strip()
+                #print(found_event)
+                event_init = True
+
+            elif chunk_init and event_init and file_init and \
+                l.startswith(BEGIN_REFLECTIONS if where=='crystal' else BEGIN_CHUNK):
+                # now is the time to insert the new stuff
+                # print(found_fn, found_event)
+               
+                for k, v in new_fields.loc[(found_fn, found_event),:].iteritems():
+                    fh.write(f'{k} = {v}\n')
+
+            elif chunk_init and l.startswith(END_CHUNK):
+                chunk_init = False
+                
+            fh.write(l)
 
 def chop_stream(streamname: str, id_list: list, id_field='hdf5/%/shots/frame', id_appendix='frame', fn_contains=None):
     """Chops a stream file into sub-streams containing only shots with a specific value of
@@ -125,9 +176,11 @@ class StreamParser:
 
         g = {}
         for l in self._geometry_string:
+            if l.startswith(';'):
+                continue
             if '=' not in l:
                 continue
-            k, v = l.split('=', 1)
+            k, v = l.split(';')[0].split('=', 1)
             g[k.strip()] = parse_str_val(v)
 
         return g
