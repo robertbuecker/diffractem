@@ -88,6 +88,7 @@ class PreProcOpts:
                                    'peaks': 'peakfinder8', 'indexing': 'none'}
         self.peak_search_params.update({'temp-dir': self.scratch_dir})
         self.indexing_params.update({'temp-dir': self.scratch_dir})
+        self.max_peaks = 500
         self.crystfel_procs = 40 # number of processes
         self.im_exc = 'indexamajig'
         self.geometry = 'calibrated.geom'

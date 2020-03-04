@@ -11,7 +11,7 @@ from scipy.ndimage.filters import median_filter
 from functools import wraps
 from typing import Optional, Tuple, Union, List, Callable
 from warnings import warn
-
+from onda.algorithms.crystallography_algorithms import Peakfinder8PeakDetection
 
 def loop_over_stack(fun):
     """
@@ -367,11 +367,16 @@ def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limi
     try:
         if threads:
             # new algorithm: uses multithreaded evaluation sometimes, which is not always desired!
-            out = optimize.least_squares(error, param, jac=jacobian, loss='linear',
-                                         max_nfev=1000, method='lm', verbose=0).x
+            # out = optimize.least_squares(error, param, jac=jacobian, loss='linear',
+            #                             max_nfev=1000, method='lm', verbose=0,
+            #                             x_scale=(amp, 1, 1, 5)).x
+            out = optimize.least_squares(error, param, loss='linear',
+                                        max_nfev=1000, method='lm', verbose=0,
+                                        x_scale=(amp, 1, 1, 5),xtol=1e-6).x
         else:
             # old algorithm never uses multithreading. May be better.
-            out = optimize.leastsq(error, param, Dfun=jacobian)[0]
+            # out = optimize.leastsq(error, param, Dfun=jacobian)[0]
+            out = optimize.leastsq(error, param, xtol=1e-6)[0]
 
     except Exception as err:
         # print(param)
@@ -438,6 +443,56 @@ def center_of_mass2(img, threshold=None):
 
     return com
 
+
+@loop_over_stack
+def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500, 
+            pxmask: Optional[np.ndarray] = None, min_snr: float = 4., threshold: float = 8,
+              min_pix_count: int = 2, max_pix_count: int = 20, local_bg_radius: int = 3,
+             min_res: int = 0, max_res: int = 500) -> np.ndarray:
+    """Find peaks in diffraction pattern using the peakfinder8 algorithm as used in
+    CrystFEL, OnDA and Cheetah. Requires installation of OnDA.
+    
+    Arguments:
+        img -- Input image or stack
+        x0 -- Beam center along x
+        y0 -- Beam center along y
+    
+    Keyword Arguments:
+        max_peaks {int} -- Maximum number of peaks (default: {500})
+        pxmask {float} -- Pixel mask. Pixels with value greater than 0 are ignored. (default: {None})
+        min_snr {float} -- minimum signal-to-noise ratio for peak detection (default: {4})
+        threshold {float} -- minimum pixel value for peak detection (default: {8})
+        min_pix_count {int} -- minimum size of a peak in pixels (default: {2})
+        max_pix_count {int} -- maximum size of a peak in pixels (default: {20})
+        local_bg_radius {int} -- radius for the estimation of the local background in pixels (default: {3})
+        min_res {int} --  minimum resolution for a peak in pixels (default: {0})
+        max_res {int} -- maximum resolution for a peak in pixels (default: {500})
+    
+    Returns:
+        [ndarray] -- Vector of shape (3 * pkmax) + 1, or stack thereof (matrix). First {pkmax} entries are peak
+        x postions, then {pkmax} y positions, {pkmax} intensities, and finally the number of peaks.
+    """
+
+    X, Y = np.meshgrid(range(img.shape[1]), range(img.shape[0]))
+    R = (((X-x0)**2 + (Y-y0)**2)**.5).astype(np.float32)
+    
+    pf = Peakfinder8PeakDetection(max_num_peaks=max_peaks,
+                              asic_nx=img.shape[1], asic_ny=img.shape[0],
+                              nasics_x=1, nasics_y=1,
+                              adc_threshold=threshold, minimum_snr=min_snr,
+                              min_pixel_count=min_pix_count, max_pixel_count=max_pix_count,
+                              local_bg_radius=local_bg_radius,
+                              min_res=min_res, max_res=max_res,
+                              bad_pixel_map_filename=None,
+                              bad_pixel_map_hdf5_path=None,
+                              radius_pixel_map=R)
+    
+    if pxmask is not None:
+        pf._mask = (pxmask == 0).astype(np.int8)
+
+    pks = pf.find_peaks(img)
+    fill = [0]*(max_peaks-len(pks.fs))
+    return np.array(pks.fs + fill + pks.ss + fill + pks.intensity + fill + [len(pks.fs)])
 
 @loop_over_stack
 def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=None, 
