@@ -189,6 +189,7 @@ class Dataset:
                     sss['subset'] = subset
                     sss['file'] = fn
                     sss['Event'] = subset + '//' + sss['shot_in_subset'].astype(str)
+                    sss['frame'] = 0
                     sss['selected'] = True
                     file_shots.append(sss)
                     
@@ -735,7 +736,8 @@ class Dataset:
             f.close()
         self._stacks_open = False
 
-    def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False, readonly=False, swmr=False):
+    def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False, 
+        readonly=False, swmr=False, chunking: Union[int, str] = 'dataset'):
         """
         Opens data stacks from HDF5 (NeXus) files (found by the "data_pattern" attribute), and assigns dask array
         objects to them. After opening, the arrays or parts of them can be accessed through the stacks attribute,
@@ -747,13 +749,31 @@ class Dataset:
         :param init: do not load stacks, just make empty dask arrays. Usually the init_stacks method is more useful.
         :param readonly: open HDF5 files in read-only mode
         :param swmr: open HDF5 files in SWMR mode
+        :param chunking: how should the dask arrays be chunked. Options are an integer number for a defined (approximate) chunk size,
+            'dataset' to use the chunksize of the dataset, and 'auto' to use the dask automatic. Generally, a fixed number is
+            recommended for initial loading of data from the camera (raw_counts), and 'dataset' for processed data that has
+            already been chunked before. For a fixed number, the chunks are done such that after filtering of frame == -1 shots,
+            a constant chunk size is achieved.
         :return:
         """
-        sets = self._shots[['file', 'subset', 'shot_in_subset']].drop_duplicates()
+        # TODO offer even more sophisticated chunking which always aligns with frames
+        sets = self._shots[['file', 'subset', 'shot_in_subset', 'frame']].drop_duplicates() # TODO why is the drop duplicates required?
         stacks = defaultdict(list)
 
         for (fn, subset), subgrp in sets.groupby(['file', 'subset']):
             self._h5handles[fn] = fh = h5py.File(fn, swmr=swmr, mode='r' if readonly else 'a')
+
+            if isinstance(chunking, int):
+                if (subgrp.frame == -1).any():
+                    print('Found auxiliary frames, adjusting chunking...')
+                    # frames = subgrp[['frame']].copy()
+                    blocks = ((subgrp['frame'] != -1).astype(int).cumsum()-1) // chunking
+                    zchunks = tuple(subgrp.groupby(blocks)['frame'].count())
+                else:
+                    zchunks = chunking
+            else:
+                zchunks = None
+
             grp = fh[self.data_pattern.replace('%', subset)]
             if isinstance(grp, h5py.Group):
                 for dsname, ds in grp.items():
@@ -767,11 +787,21 @@ class Dataset:
                         if checklen and (ds.shape[0] != subgrp.shape[0]):
                             raise ValueError(f'Stack height mismatch in f{fn}:{subset}. ' +
                                              f'Expected {subgrp.shape[0]} shots, found {ds.shape[0]}.')
+                        
+                        if zchunks is not None:
+                            chunks = (zchunks,) + ds.chunks[1:]
+                        elif chunking == 'dataset':
+                            chunks = ds.chunks
+                        elif chunking == 'auto':
+                            chunks = 'auto'
+                        else:
+                            raise ValueError('chunking must be an integer, "dataset", or "auto".')
+
                         if init:
-                            newstack = da.empty(shape=ds.shape, dtype=ds.dtype, chunks=-1)
+                            newstack = da.empty(shape=ds.shape, dtype=ds.dtype, chunks=chunks)
                         else:
                             # print('adding stack: '+ds.name)
-                            newstack = da.from_array(ds, chunks=ds.chunks)
+                            newstack = da.from_array(ds, chunks=chunks)
                         stacks[dsname].append(newstack)
 
         for sn, s in stacks.items():
@@ -783,15 +813,15 @@ class Dataset:
         self._stacks_open = True
 
     @contextmanager
-    def Stacks(self):
+    def Stacks(self, **kwargs):
         """Context manager to handle the opening and closing of stacks.
         returns the opened data stacks, which are automatically closed
-        once the context is left. Example:
-            with ds.Stacks() as stk:
+        once the context is left. Arguments are passed to open_stacks Example:
+            with ds.Stacks(readonly=True, chunking='dataset') as stk:
                 center = stk.beam_center.compute()
             print('Have', center.shape[0], 'centers.')
         """
-        self.open_stacks()
+        self.open_stacks(**kwargs)
         yield self.stacks
         self.close_stacks()
 
