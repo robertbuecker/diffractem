@@ -600,7 +600,7 @@ class Dataset:
     def aggregate(self, by: Union[list, tuple] = ('sample', 'region', 'run', 'crystal_id'),
                   how: Union[dict, str] = 'mean',
                   file_suffix: str = '_agg.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
-                  query: Union[str, None] = None) -> 'Dataset':
+                  query: Union[str, None] = None, force_commensurate: bool = True) -> 'Dataset':
         """
         Aggregate sub-sets of stacks using different aggregation functions. Typical application: sum sub-stacks of
         dose fractionation movies, or shots with different tilt angles (quasi-precession)
@@ -615,6 +615,15 @@ class Dataset:
         :return: a new data set with aggregation applied
         """
 
+        def _check_commensurate(init, final):
+            fin = list(final)[::-1]
+            for s0 in init:
+                for _ in range(s0 // fin[-1]):
+                    if (s0 % fin.pop()) != 0:
+                        return False
+            assert len(fin) == 0
+            return True
+
         by = list(by)
         # aggregate shots
         newset = copy.copy(self)
@@ -625,9 +634,9 @@ class Dataset:
             raise RuntimeError('Stacks are not open.')
 
         if query is None:
-            gb = self.shots.reset_index(drop=True).groupby(by)
+            gb = self.shots.reset_index(drop=True).groupby(by, sort=False)
         else:
-            gb = self.shots.reset_index(drop=True).query(query).groupby(by)
+            gb = self.shots.reset_index(drop=True).query(query).groupby(by, sort=False)
 
         agglist = gb.apply(lambda x: x.index.tolist())  # Series of indices in stack corresponding to each stack
         idcs = np.concatenate([np.array(x) for x in agglist.values])  # indices of required stack in proper order
@@ -684,7 +693,17 @@ class Dataset:
 
         for sn, s in self.stacks.items():
 
-            reorder = s[idcs, ...].rechunk({0: chunks})
+            reorder = s[idcs,...]
+            initial_chunks = reorder.chunks[0]
+
+            if force_commensurate and (not _check_commensurate(initial_chunks, chunks)):
+                raise ValueError('Chunks of initial array and aggregation are incommensurate. '
+                                'If you really want that, set force_commensurate=False.')
+                
+            if initial_chunks != chunks:
+    #             print('Rechunking, this might be very inefficient. Please check the dask graph.')            
+                reorder = reorder.rechunk({0: chunks})
+
             c_final = list(s.chunks)
             c_final[0] = final_zchunk
 
