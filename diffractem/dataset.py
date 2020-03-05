@@ -127,7 +127,7 @@ class Dataset:
         self._features_changed = True
 
     @classmethod
-    def from_list(cls, listfile: Union[list, str], init_stacks=True, load_tables=True, **kwargs):
+    def from_list(cls, listfile: Union[list, str], init_stacks=True, load_tables=True, stack_label='raw_counts', **kwargs):
         """
         Creates a data set from a .lst file, which contains a simple list of H5 files (on separate lines).
         Alternatively, accepts a single filename, or even a python list of files. If the .lst file has CrystFEL-style
@@ -136,12 +136,13 @@ class Dataset:
         :param init_stacks: initialize stacks, that is, briefly open the data stacks, check their lengths, and close
                 them again.
         :param load_tables: load the additional tables stored in the files (features, peaks, predictions)
+        :param stack_label: name of stack to be used for generating the shot table, if it's not stored in the files
         :param **kwargs: Dataset attributes to be set right away
         :return: dataset object
         """
 
         file_list = io.expand_files(listfile, scan_shots=True)
-        # print(file_list)
+        # print(list(file_list))
         self = cls()
 
         for k, v in kwargs.items():
@@ -152,6 +153,8 @@ class Dataset:
             self.parallel_io = False
 
         self.load_tables(shots=True, files=list(file_list.file.unique()))
+        if self.shots.shape[0] == 0:
+            self.init_shot_table(file_list['file'], stack_label=stack_label)
 
         # now set selected property...
         if 'Event' in file_list.columns:
@@ -164,6 +167,35 @@ class Dataset:
             self.load_tables(features=True, peaks=True, predict=True)
 
         return self
+
+    def init_shot_table(self, files: list, stack_label: str = 'raw_counts'):
+        identifiers = self.data_pattern.rsplit('%', 1)
+        shots = []
+        for fn in files:
+            with h5py.File(fn, 'r') as fh:
+
+                if len(identifiers) == 1:
+                    subsets = ['']
+                else:
+                    subsets = fh[identifiers[0]].keys()
+
+                file_shots = []
+                for subset in subsets:
+                    tbl_path = self.shots_pattern.replace('%', subset)
+                    stk_path = (self.data_pattern + '/' + stack_label).replace('%', subset)
+                    
+                    stk_height = fh[stk_path].shape[0]
+                    sss = pd.DataFrame(range(stk_height), columns=['shot_in_subset'])
+                    sss['subset'] = subset
+                    sss['file'] = fn
+                    sss['Event'] = subset + '//' + sss['shot_in_subset'].astype(str)
+                    sss['selected'] = True
+                    file_shots.append(sss)
+                    
+            shots.append(pd.concat(file_shots, axis=0).reset_index(drop=True))
+
+        self._shots = pd.concat(shots, axis=0).reset_index(drop=True)
+        print(f'Found {self.shots.shape[0]} shots, initialized shot table.')
 
     def load_tables(self, shots=False, features=False, peaks=False, predict=False, files=None):
         """
