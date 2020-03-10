@@ -15,6 +15,7 @@ from warnings import warn, catch_warnings, simplefilter
 from tables import NaturalNameWarning
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
 from contextlib import contextmanager
+import os
 
 
 class Dataset:
@@ -615,20 +616,12 @@ class Dataset:
         :return: a new data set with aggregation applied
         """
 
-        def _check_commensurate(init, final):
-            fin = list(final)[::-1]
-            for s0 in init:
-                for _ in range(s0 // fin[-1]):
-                    if (s0 % fin.pop()) != 0:
-                        return False
-            assert len(fin) == 0
-            return True
-
         by = list(by)
         # aggregate shots
         newset = copy.copy(self)
         newset._stacks = {}
         agg_shots = []
+        final_zchunk = 1
 
         if not self._stacks_open:
             raise RuntimeError('Stacks are not open.')
@@ -638,19 +631,16 @@ class Dataset:
         else:
             gb = self.shots.reset_index(drop=True).query(query).groupby(by, sort=False)
 
-        agglist = gb.apply(lambda x: x.index.tolist())  # Series of indices in stack corresponding to each stack
-        idcs = np.concatenate([np.array(x) for x in agglist.values])  # indices of required stack in proper order
+        # SHOT TABLE AND CHUNKING ----
+        initial_chunks = {label: stack.chunks[0] for label, stack in self.stacks.items()}
+        # chunk_id
 
-        chunks = tuple([len(x) for x in agglist.values])  # size of each aggregation group
-        final_zchunk = 1
-
-        # SHOT TABLE ----
-
-        for _, grp in gb:
+        for ii, (_, grp) in enumerate(gb):
 
             newshots = grp.copy()
+            newshots['agg_grp_id'] = ii
 
-            # find columns with non-identical entries in the aggregation group
+            # find columns with non-identical entries in the aggregation group (typically frame and ID fields)
             nunique = newshots.apply(pd.Series.nunique)
             cols_nonid = nunique[nunique > 1].index
 
@@ -674,14 +664,14 @@ class Dataset:
             newshots['aggregation'] = newshots.iloc[0]['file'] + ':' + newshots.iloc[0]['Event'] + '->' + \
                                       newshots.iloc[-1]['file'] + ':' + newshots.iloc[-1]['Event']
 
-            if final_zchunk > 1:
+            if final_zchunk > 1: # TODO this will never happen (at the moment)
                 newshots = pd.concat([newshots.iloc[0:1, :]] * final_zchunk, axis=0, ignore_index=True)
             else:
-                newshots = newshots.iloc[0:1, :]
+                newshots = newshots.iloc[0:1, :] # keep shot data of _first_ shot within the aggregation group
 
             agg_shots.append(newshots)
 
-        newset._shots = pd.concat(agg_shots, axis=0, ignore_index=True)
+        newset._shots = pd.concat(agg_shots, axis=0) # NOT using ignore_index, so the index still points into the first dat stack pos
         #print(f'{newset._shots.shape[0]} aggregated shots.')
 
         # drop remaining columns that are inconsistent
@@ -689,33 +679,73 @@ class Dataset:
             if col not in self._shot_id_cols + ['shot_in_subset']:
                 newset._shots.drop(col, axis=1)
 
+        agglist = gb.apply(lambda x: x.index.tolist())  # Series of indices in stack corresponding to each aggregation group
+        # agglist = gb.indices
+        # print(agglist)
+        idcs_to_keep = np.concatenate([np.array(x) for x in agglist.values])  # indices of required stack in proper order
+        # print(idcs_to_keep)
+
+        chunks = tuple([len(x) for x in agglist.values])  # size of each aggregation group
+
         # DATA STACKS ------
+
+        def _check_commensurate(init, final):
+            fin = list(final)[::-1]
+            blocksize = []
+            for s0 in init:
+                n_final = s0 // fin[-1]
+                for _ in range(n_final):
+                    if (s0 % fin.pop()) != 0:
+                        return False, None
+                blocksize.append(n_final)
+            assert len(fin) == 0
+            return True, blocksize
+
+        def _map_blocks_inner(stack: np.ndarray, labels: np.ndarray, agg_function: callable):
+            res_list = []
+            labels = labels.squeeze()
+            print(labels[0],labels.shape[0], stack.shape[0])
+            for lbl in np.unique(labels):
+                res_list.append(agg_function(stack[labels == lbl,...]))
+            return np.concatenate(res_list)
+
+        def _map_blocks(func: callable, stack: da.Array, labels: np.ndarray, **kwargs):
+            chunked_labels = da.from_array(labels.values.reshape((-1,1,1)), chunks=(stack.chunks[0],-1,-1), name='agg_group_label')
+            final_chunks = (tuple(_check_commensurate(stack.chunks[0], np.unique(labels, return_counts=True)[1])[1]), ) + stack.chunks[1:]
+            print(stack.chunks[0])
+            print(final_chunks[0])
+            print(chunked_labels.chunks[0])
+            print(len(labels), stack.shape[0])
+            return da.map_blocks(_map_blocks_inner, stack, chunked_labels, 
+                agg_function=func, chunks=final_chunks, name='aggregate', dtype=stack.dtype, **kwargs)
 
         for sn, s in self.stacks.items():
 
-            reorder = s[idcs,...]
-            initial_chunks = reorder.chunks[0]
-
-            if force_commensurate and (not _check_commensurate(initial_chunks, chunks)):
-                raise ValueError('Chunks of initial array and aggregation are incommensurate. '
-                                'If you really want that, set force_commensurate=False.')
-                
-            if initial_chunks != chunks:
-    #             print('Rechunking, this might be very inefficient. Please check the dask graph.')            
-                reorder = reorder.rechunk({0: chunks})
-
-            c_final = list(s.chunks)
-            c_final[0] = final_zchunk
-
             method = how if isinstance(how, str) else how.get(sn, 'mean')
 
+            reorder = s[idcs_to_keep,...]
+            initial_chunks = reorder.chunks[0]
+                
+            if initial_chunks != chunks:
+                if force_commensurate and (not _check_commensurate(initial_chunks, chunks)[0]):
+                    raise ValueError('Chunks of initial array and aggregation are incommensurate. '
+                                    'If you really want that, set force_commensurate=False.') 
+                # TODO: fast should _only_ work with commensurate, otherwise raise error
+                reorder = reorder.rechunk({0: chunks}) if ('fast' not in method) else reorder
+
+            c_final = list(s.chunks)
+            c_final[0] = final_zchunk     
+            print(sn, method)
             if method == 'sum':
                 newset.add_stack(sn, reorder.map_blocks(lambda x: np.sum(x, axis=0, keepdims=True),
-                                                      chunks=c_final, dtype=s.dtype))
+                                                      chunks=c_final, dtype=s.dtype, name='aggregate'))
+
+            elif method == 'fastsum':
+                newset.add_stack(sn, _map_blocks(lambda x: np.sum(x, axis=0, keepdims=True), stack=reorder, labels=gb.ngroup()))
 
             elif method == 'mean':
-                newset.add_stack(sn, reorder.map_blocks(lambda x: np.sum(x, axis=0, keepdims=True),
-                                                      chunks=c_final, dtype=s.dtype))
+                newset.add_stack(sn, reorder.map_blocks(lambda x: np.mean(x, axis=0, keepdims=True),
+                                                      chunks=c_final, dtype=s.dtype, name='aggregate'))
 
             elif method == 'cumsum':
                 raise NotImplementedError('cumsum not working yet.')
@@ -815,12 +845,15 @@ class Dataset:
                             chunks = 'auto'
                         else:
                             raise ValueError('chunking must be an integer, "dataset", or "auto".')
+                        
+                        stackname = '_'.join([os.path.basename(fn).rsplit('.', 1)[0],
+                                                subset, dsname])
 
                         if init:
-                            newstack = da.empty(shape=ds.shape, dtype=ds.dtype, chunks=chunks)
+                            newstack = da.empty(shape=ds.shape, dtype=ds.dtype, chunks=chunks, name=stackname)
                         else:
                             # print('adding stack: '+ds.name)
-                            newstack = da.from_array(ds, chunks=chunks)
+                            newstack = da.from_array(ds, chunks=chunks, name=stackname)
                         stacks[dsname].append(newstack)
 
         for sn, s in stacks.items():
