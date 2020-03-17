@@ -361,5 +361,6 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results
             copy_exclude('/', f, f2)
 
     except Exception as err:
-        os.remove(fn_to)
+        if os.path.exists(fn_to):
+            os.remove(fn_to)
         raise err

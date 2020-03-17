@@ -281,7 +281,7 @@ def from_raw(fn, opt: PreProcOpts):
     dsraw.open_stacks()
 
     if opt.aggregate:
-        dsagg = dsraw.aggregate(file_suffix=opt.agg_file_suffix, new_folder=opt.proc_dir, 
+        dsagg = dsraw.aggregate(file_suffix=opt.agg_file_suffix, new_folder=opt.proc_dir, force_commensurate=False,
                             how={'raw_counts': 'sum'}, query=opt.agg_query)
     else:
         dsagg = dsraw.get_selection(opt.agg_query, new_folder=opt.proc_dir, file_suffix=opt.agg_file_suffix)

@@ -11,10 +11,11 @@ from typing import Union
 from glob import glob
 
 
-def expand_files(file_list: Union[str, list], scan_shots=False):
+def expand_files(file_list: Union[str, list], scan_shots=False, validate=False):
 
     def remove_bs(fns):
         return [fn.replace('\\', '/') for fn in fns]
+    
     if isinstance(file_list, list) or isinstance(file_list, tuple):
         fl = remove_bs(file_list)
         if scan_shots:
@@ -45,6 +46,23 @@ def expand_files(file_list: Union[str, list], scan_shots=False):
 
     if (not scan_shots) and (not len(fl) == len(set(fl))):
         raise ValueError('File identifiers are not unique, most likely because the file names are not.')
+        
+    if validate:
+        if scan_shots:
+            raise ValueError('Validation is only allowed if scan_shot=False.')
+        valid_files = []
+        for r in fl:
+            with h5py.File(r, 'r') as fh:
+                
+                for k in fh.keys():
+                
+                    if (f'/{k}/shots' in fh) and (f'/{k}/map/features' in fh) and (f'/{k}/data' in fh):
+                        # print(r,': file validated!')
+                        valid_files.append(r)
+                    else:
+                        print(r, k, ': invalid file/subset!')       
+                    
+        return valid_files
 
     else:
         return fl

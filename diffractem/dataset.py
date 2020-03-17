@@ -510,6 +510,8 @@ class Dataset:
         if len(exclude_list) > 0:
             exc += tuple(exclude_list)
 
+        print(fn_map)
+
         if self.parallel_io:
             with ProcessPoolExecutor() as p:
                 futures = []
@@ -671,7 +673,7 @@ class Dataset:
 
             agg_shots.append(newshots)
 
-        newset._shots = pd.concat(agg_shots, axis=0) # NOT using ignore_index, so the index still points into the first dat stack pos
+        newset._shots = pd.concat(agg_shots, axis=0, ignore_index=True) # NOT using ignore_index, so the index still points into the first dat stack pos
         #print(f'{newset._shots.shape[0]} aggregated shots.')
 
         # drop remaining columns that are inconsistent
@@ -738,14 +740,21 @@ class Dataset:
             print(sn, method)
             if method == 'sum':
                 newset.add_stack(sn, reorder.map_blocks(lambda x: np.sum(x, axis=0, keepdims=True),
-                                                      chunks=c_final, dtype=s.dtype, name='aggregate'))
+                                                      chunks=c_final, dtype=s.dtype, name='aggregate_sum'))
 
             elif method == 'fastsum':
-                newset.add_stack(sn, _map_blocks(lambda x: np.sum(x, axis=0, keepdims=True), stack=reorder, labels=gb.ngroup()))
+                newset.add_stack(sn, _map_blocks(lambda x: np.sum(x, axis=0, keepdims=True),
+                                                 stack=reorder, labels=gb.ngroup(), dtype=s.dtype,
+                                                 name='aggregate_sum'))
 
             elif method == 'mean':
-                newset.add_stack(sn, reorder.map_blocks(lambda x: np.mean(x, axis=0, keepdims=True),
-                                                      chunks=c_final, dtype=s.dtype, name='aggregate'))
+                newset.add_stack(sn, reorder.map_blocks(lambda x: np.mean(x, axis=0, keepdims=True), 
+                                                        chunks=c_final, dtype=s.dtype, name='aggregate_mean'))
+
+            elif method == 'fastmean':
+                newset.add_stack(sn, _map_blocks(lambda x: np.mean(x, axis=0, keepdims=True), 
+                                                 stack=reorder, labels=gb.ngroup(), dtype=s.dtype,
+                                                 name='aggregate_mean'))
 
             elif method == 'cumsum':
                 raise NotImplementedError('cumsum not working yet.')
