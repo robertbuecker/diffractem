@@ -10,6 +10,24 @@ from .proc2d import correct_dead_pixels
 from typing import Union, Optional
 import os
 from tifffile import imread, imsave
+import hashlib
+
+def dataframe_hash(df, signed=True):
+    """
+    Generate int32 (or uint32 if signed=False) hashes from a pandas data frame and return as a pandas Series.
+    The hash is generated with md5 from a whitespace-delimited string representation from each data frame row, 
+    such as e.g.:
+    "data/file_a.h5 entry//0" (so similar to CrystFEL's list syntax).
+    """
+    
+    hfunc = lambda s: int(hashlib.md5(s.encode('utf-8')).hexdigest()[:8], 16)
+    
+    str_series = None
+    for lbl, s in df.astype(str).items():
+        str_series = s if str_series is None else str_series + ' ' + s
+        
+    hashes = str_series.apply(hfunc)
+    return (hashes - 2e32//2).astype(np.int32) if signed else hashes.astype(np.uint32)
 
 
 def strip_file_path(df: pd.DataFrame, add_folder=False):
@@ -187,7 +205,7 @@ def call_partialator(input, symmetry, output='im_out.stream', model='unity', ite
 
 def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str] = None,
                      im_params: Optional[dict] = None, index_params: Optional[dict] = None,
-                     procs: Optional[int] = None, exc='indexamajig', **kwargs):
+                     procs: Optional[int] = None, exc='indexamajig', copy_fields: list = (), **kwargs):
     '''Generates an indexamajig command from a dictionary of indexamajig parameters, a exc dictionary of files names and core number, and an indexer dictionary
 
     e.g.
@@ -211,8 +229,15 @@ def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str
     if cell is not None:
         exc_dic['p'] = cell
 
-    return make_command(exc, None, params=exc_dic,
-                        opts=dict(im_params, **({} if index_params is None else index_params), **kwargs))
+    options = dict(im_params if im_params is not None else {}, **({} if index_params is None else index_params), **kwargs)
+    options = {k.replace('_', '-'): v for k, v  in options.items()}
+
+    cmd = make_command(exc, None, params=exc_dic, opts=options)
+    
+    for f in copy_fields:
+        cmd += f' --copy-hdf5-field={f}'
+
+    return cmd
 
 
 def dict2file(file_name, file_dic, header=None):
