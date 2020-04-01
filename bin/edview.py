@@ -160,21 +160,29 @@ class EDViewer(QWidget):
         allpk = []
 
         if self.b_peaks.isChecked() and (self.dataset.peaks.shape[0] > 0):
+            
+            if args.cxi_peaks:
+                path = args.peaks_path.replace('%', self.current_shot.subset)
+                print('Loading CXI peaks of {}:{} from {}'.format(path,
+                                                        self.current_shot['shot_in_subset'], self.current_shot['file']))     
+                with h5py.File(self.current_shot.file) as fh:
+                    ii = int(self.current_shot['shot_in_subset'])
+                    Npk = fh[path + '/nPeaks'][ii]
+                    x = fh[path + '/peakXPosRaw'][ii, :Npk]
+                    y = fh[path + '/peakYPosRaw'][ii, :Npk]
 
-            peaks = self.dataset.peaks.loc[(self.dataset.peaks.file == self.current_shot.file)
+            else:
+                peaks = self.dataset.peaks.loc[(self.dataset.peaks.file == self.current_shot.file)
                                            & (self.dataset.peaks.Event == self.current_shot.Event),
                                            ['fs/px', 'ss/px']] - 0.5
+                x = peaks.loc[:,'fs/px']
+                y = peaks.loc[:,'ss/px']
 
             if self.geom is not None:
                 print('Projecting peaks...')
                 maps = compute_visualization_pix_maps(self.geom)
-                x = maps.x[peaks.loc[:,'ss/px'].astype(int),
-                    peaks.loc[:,'fs/px'].astype(int)]
-                y = maps.y[peaks.loc[:,'ss/px'].astype(int),
-                    peaks.loc[:,'fs/px'].astype(int)]
-            else:
-                x = peaks.loc[:,'fs/px']
-                y = peaks.loc[:,'ss/px']
+                x = maps.x[y.astype(int), x.astype(int)]
+                y = maps.y[y.astype(int), x.astype(int)]
 
             if self.args.internal:
                 ring_pen = pg.mkPen('g', width=0.8)
@@ -449,6 +457,7 @@ if __name__ == '__main__':
     parser.add_argument('--map-path', type=str, help='Path to map image', default='/%/map/image')
     parser.add_argument('--feature-path', type=str, help='Path to map feature table', default='/%/map/features')
     parser.add_argument('--peaks-path', type=str, help='Path to peaks table', default='/%/results/peaks')
+    parser.add_argument('--cxi-peaks', help='Read peaks in CXI format instead of table.', action='store_true')
     parser.add_argument('--predict-path', type=str, help='Path to prediction table', default='/%/results/predict')
     parser.add_argument('--no-map', help='Hide map, even if we had it', action='store_true')
     parser.add_argument('--beam_diam', type=int, help='Beam size displayed in real space, in pixels', default=5)

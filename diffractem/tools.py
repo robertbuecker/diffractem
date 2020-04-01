@@ -11,8 +11,9 @@ from typing import Union, Optional
 import os
 from tifffile import imread, imsave
 import hashlib
+import pandas as pd
 
-def dataframe_hash(df, signed=True):
+def dataframe_hash(df: pd.DataFrame, signed: bool = True) -> pd.Series:
     """
     Generate int32 (or uint32 if signed=False) hashes from a pandas data frame and return as a pandas Series.
     The hash is generated with md5 from a whitespace-delimited string representation from each data frame row, 
@@ -23,11 +24,11 @@ def dataframe_hash(df, signed=True):
     hfunc = lambda s: int(hashlib.md5(s.encode('utf-8')).hexdigest()[:8], 16)
     
     str_series = None
-    for lbl, s in df.astype(str).items():
+    for _, s in df.astype(str).items():
         str_series = s if str_series is None else str_series + ' ' + s
         
     hashes = str_series.apply(hfunc)
-    return (hashes - 2e32//2).astype(np.int32) if signed else hashes.astype(np.uint32)
+    return (hashes - 2**32//2).astype(np.int32) if signed else hashes.astype(np.uint32)
 
 
 def strip_file_path(df: pd.DataFrame, add_folder=False):
@@ -187,6 +188,7 @@ def make_command(program, arguments=None, params=None, opts=None, *args, **kwarg
     if opts is None:
         opts = {}
     opts.update(kwargs)
+    opts = {k.replace('_', '-'): v for k, v  in opts.items()}
     for o, v in opts.items():
         if (v is not None) and not isinstance(v, bool):
             exc += f' --{o}={v}'
