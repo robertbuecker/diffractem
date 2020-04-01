@@ -17,6 +17,36 @@ from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
 from contextlib import contextmanager
 import os
 
+# top-level helper functions
+def _check_commensurate(init, final):
+    fin = list(final)[::-1]
+    blocksize = []
+    for s0 in init:
+        n_final = s0 // fin[-1]
+        for _ in range(n_final):
+            if (s0 % fin.pop()) != 0:
+                return False, None
+        blocksize.append(n_final)
+    assert len(fin) == 0
+    return True, blocksize
+
+def _map_blocks_inner(stack: np.ndarray, labels: np.ndarray, agg_function: callable):
+    res_list = []
+    labels = labels.squeeze()
+    # print(labels[0],labels.shape[0], stack.shape[0])
+    for lbl in np.unique(labels):
+        res_list.append(agg_function(stack[labels == lbl,...]))
+    return np.concatenate(res_list)
+
+def _map_blocks_agg(func: callable, stack: da.Array, labels: np.ndarray, **kwargs):
+    chunked_labels = da.from_array(labels.values.reshape((-1,1,1)), chunks=(stack.chunks[0],-1,-1), name='agg_group_label')
+    final_chunks = (tuple(_check_commensurate(stack.chunks[0], np.unique(labels, return_counts=True)[1])[1]), ) + stack.chunks[1:]
+    # print(stack.chunks[0])
+    # print(final_chunks[0])
+    # print(chunked_labels.chunks[0])
+    # print(len(labels), stack.shape[0])
+    return da.map_blocks(_map_blocks_inner, stack, chunked_labels, 
+        agg_function=func, chunks=final_chunks, **kwargs)
 
 class Dataset:
 
@@ -690,36 +720,6 @@ class Dataset:
         chunks = tuple([len(x) for x in agglist.values])  # size of each aggregation group
 
         # DATA STACKS ------
-
-        def _check_commensurate(init, final):
-            fin = list(final)[::-1]
-            blocksize = []
-            for s0 in init:
-                n_final = s0 // fin[-1]
-                for _ in range(n_final):
-                    if (s0 % fin.pop()) != 0:
-                        return False, None
-                blocksize.append(n_final)
-            assert len(fin) == 0
-            return True, blocksize
-
-        def _map_blocks_inner(stack: np.ndarray, labels: np.ndarray, agg_function: callable):
-            res_list = []
-            labels = labels.squeeze()
-            # print(labels[0],labels.shape[0], stack.shape[0])
-            for lbl in np.unique(labels):
-                res_list.append(agg_function(stack[labels == lbl,...]))
-            return np.concatenate(res_list)
-
-        def _map_blocks_agg(func: callable, stack: da.Array, labels: np.ndarray, **kwargs):
-            chunked_labels = da.from_array(labels.values.reshape((-1,1,1)), chunks=(stack.chunks[0],-1,-1), name='agg_group_label')
-            final_chunks = (tuple(_check_commensurate(stack.chunks[0], np.unique(labels, return_counts=True)[1])[1]), ) + stack.chunks[1:]
-            # print(stack.chunks[0])
-            # print(final_chunks[0])
-            # print(chunked_labels.chunks[0])
-            # print(len(labels), stack.shape[0])
-            return da.map_blocks(_map_blocks_inner, stack, chunked_labels, 
-                agg_function=func, chunks=final_chunks, **kwargs)
 
         for sn, s in self.stacks.items():
 
