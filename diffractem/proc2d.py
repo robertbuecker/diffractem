@@ -89,7 +89,16 @@ def loop_over_stack(fun):
             return np.ndarray(imgs.shape, dtype=imgs.dtype)
 
         try:
-            return np.stack(out)
+            print(type(out), type(out[0]))
+            if isinstance(out[0], np.ndarray):
+                return np.stack(out)
+            elif isinstance(out[0], tuple):
+                return tuple(np.stack(arr) for arr in zip(*out))
+            elif isinstance(out[0], list):
+                return list(np.stack(arr) for arr in zip(*out))
+            elif isinstance(out[0], dict):
+                return {k: np.stack(list(o[k] for o in out)) for k in out[0].keys()}
+                
         except ValueError as err:
             print('Function',fun,'failed for output array construction.')
             raise err
@@ -448,7 +457,7 @@ def center_of_mass2(img, threshold=None):
 def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500, 
             pxmask: Optional[np.ndarray] = None, min_snr: float = 4., threshold: float = 8,
               min_pix_count: int = 2, max_pix_count: int = 20, local_bg_radius: int = 3,
-             min_res: int = 0, max_res: int = 500) -> np.ndarray:
+             min_res: int = 0, max_res: int = 500, as_dict=False) -> np.ndarray:
     """Find peaks in diffraction pattern using the peakfinder8 algorithm as used in
     CrystFEL, OnDA and Cheetah. Requires installation of OnDA.
     
@@ -492,7 +501,14 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
 
     pks = pf.find_peaks(img)
     fill = [0]*(max_peaks-len(pks.fs))
-    return np.array(pks.fs + fill + pks.ss + fill + pks.intensity + fill + [len(pks.fs)])
+    
+    if as_dict:
+        return {'peakXPosRaw': np.array(pks.fs + fill),
+                'peakYPosRaw': np.array(pks.ss + fill),
+                'peakTotalIntensity': np.array(pks.intensity + fill),
+                'nPeaks': np.array(len(pks.fs))}
+    else:
+        return np.array(pks.fs + fill + pks.ss + fill + pks.intensity + fill + [len(pks.fs)])
 
 @loop_over_stack
 def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=None, 
