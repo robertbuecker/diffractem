@@ -1,4 +1,5 @@
 import tifffile
+
 import numpy as np
 import dask.array as da
 from numba import jit, prange, int64
@@ -13,15 +14,17 @@ from typing import Optional, Tuple, Union, List, Callable
 from warnings import warn
 from onda.algorithms.crystallography_algorithms import Peakfinder8PeakDetection
 
-def stack_nested(data_list, concat=False):    
+def stack_nested(data_list, fun=np.stack): 
+    if np.ndim(data_list) == 0:
+        data_list = [data_list]
     if isinstance(data_list[0], tuple):
-        return tuple(stack_nested(arr, concat) for arr in zip(*data_list))
+        return tuple(stack_nested(arr, fun) for arr in zip(*data_list))
     elif isinstance(data_list[0], list):
-        return list(stack_nested(arr, concat) for arr in zip(*data_list))
+        return list(stack_nested(arr, fun) for arr in zip(*data_list))
     elif isinstance(data_list[0], dict):
-        return {k: stack_nested(list(o[k] for o in data_list), concat) for k in data_list[0].keys()}
+        return {k: stack_nested(list(o[k] for o in data_list), fun) for k in data_list[0].keys()}
     else:
-        return np.concatenate(data_list) if concat else np.stack(data_list)
+        return fun(data_list)
 
 def loop_over_stack(fun):
     """
@@ -49,11 +52,11 @@ def loop_over_stack(fun):
         if imgs.ndim == 2:
             return fun(imgs, *args, **kwargs)
 
-        # elif imgs.shape[0] == 1:
-        #     # some gymnastics if arrays are on weird dimensions (often after map_blocks)
-        #     args = [a.squeeze() if isinstance(a, np.ndarray) else a for a in args]
-        #     kwargs = {k: a.squeeze() if isinstance(a, np.ndarray) else a for k, a in kwargs.items()}
-        #     return np.expand_dims(fun(imgs.squeeze(), *args, **kwargs), axis=0)
+        elif imgs.shape[0] == 1:
+            # some gymnastics if arrays are on weird dimensions (often after map_blocks)
+            args = [a.squeeze() if isinstance(a, np.ndarray) else a for a in args]
+            kwargs = {k: a.squeeze() if isinstance(a, np.ndarray) else a for k, a in kwargs.items()}
+            return stack_nested([fun(imgs.squeeze(), *args, **kwargs)])
 
         #print('Applying {} to {} images of shape {}'.format(fun, imgs.shape[0], imgs.shape[1:]))
 
@@ -101,15 +104,6 @@ def loop_over_stack(fun):
         try:
             # print(type(out), type(out[0]))
             return stack_nested(out)
-
-            if isinstance(out[0], np.ndarray):
-                return np.stack(out)
-            elif isinstance(out[0], tuple):
-                return tuple(np.stack(arr) for arr in zip(*out))
-            elif isinstance(out[0], list):
-                return list(np.stack(arr) for arr in zip(*out))
-            elif isinstance(out[0], dict):
-                return {k: np.stack(list(o[k] for o in out)) for k in out[0].keys()}
                 
         except ValueError as err:
             print('Function',fun,'failed for output array construction.')
