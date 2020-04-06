@@ -159,7 +159,7 @@ class EDViewer(QWidget):
 
         allpk = []
 
-        if self.b_peaks.isChecked() and (self.dataset.peaks.shape[0] > 0):
+        if self.b_peaks.isChecked():
             
             if args.cxi_peaks:
                 path = args.peaks_path.replace('%', self.current_shot.subset)
@@ -170,6 +170,8 @@ class EDViewer(QWidget):
                     Npk = fh[path + '/nPeaks'][ii]
                     x = fh[path + '/peakXPosRaw'][ii, :Npk]
                     y = fh[path + '/peakYPosRaw'][ii, :Npk]
+
+                peaks = pd.DataFrame((x, y), index=['fs/px', 'ss/px']).T
 
             else:
                 peaks = self.dataset.peaks.loc[(self.dataset.peaks.file == self.current_shot.file)
