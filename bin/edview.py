@@ -15,6 +15,7 @@ from typing import Optional, Union
 import os
 from cfelpyutils.crystfel_utils import load_crystfel_geometry
 from cfelpyutils.geometry_utils import apply_geometry_to_data, compute_visualization_pix_maps
+from time import sleep
 
 pg.setConfigOptions(imageAxisOrder='row-major')
 
@@ -282,7 +283,10 @@ class EDViewer(QWidget):
         self.predicted_peak_canvas.clear()
         app.processEvents()
 
-        self.update_image()
+        self.update_image()   
+        if args.cxi_peaks and not args.internal:
+            # give adxv some time to display the image before accessing the CXI data
+            sleep(0.2)
         self.update_plot()
 
         print(self.current_shot)
