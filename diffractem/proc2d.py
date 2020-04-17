@@ -434,23 +434,13 @@ def center_of_mass2(img, threshold=None):
     vec = np.stack(np.meshgrid(np.arange(0, img.shape[-1]), 
                                np.arange(0, img.shape[-2])), axis=-1)
 
-    if isinstance(img, np.ndarray):
-        if threshold is not None:
-            imgt = np.where(img >= threshold, img, 0)
-        else:
-            imgt = img
+    if threshold is not None:
+        imgt = np.where(img >= threshold, img, 0)
+    else:
+        imgt = img
 
-        com = (np.tensordot(imgt, vec, 2)
-                /imgt.sum(axis=(-2, -1)).reshape(-1, 1))
-
-    elif isinstance(img, da.core.Array):
-        if threshold is not None:
-            imgt = da.where(img >= threshold, img, 0)
-        else:
-            imgt = img
-        # dask array tensordot requires a different axes convention. Whatever.
-        com = (da.tensordot(imgt, vec.transpose((1, 0, 2)), 2) 
-                / imgt.sum(axis=(-2, -1)).reshape(-1, 1))
+    com = (np.tensordot(imgt, vec, 2)
+            /imgt.sum(axis=(-2, -1)).reshape(-1, 1))
 
     #if img.ndim < 3:
     #   com = com.squeeze()

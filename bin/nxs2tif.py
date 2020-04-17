@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 from tifffile import imsave
 import h5py
 import sys

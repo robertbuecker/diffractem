@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 import hdf5plugin
 from diffractem.stream_parser import StreamParser
 from diffractem.dataset import Dataset
