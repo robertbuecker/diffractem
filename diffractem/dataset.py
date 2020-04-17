@@ -701,7 +701,8 @@ class Dataset:
             f.close()
         self._stacks_open = False
 
-    def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False):
+    def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False, 
+        readonly=False, swmr=False):
         """
         Opens data stacks from HDF5 (NeXus) files (found by the "data_pattern" attribute), and assigns dask array
         objects to them. After opening, the arrays or parts of them can be accessed through the stacks attribute,
@@ -711,13 +712,15 @@ class Dataset:
         :param labels: list of stacks to open. Default: None -> opens all stacks
         :param checklen: check if stack heights (first dimension) is equal to shot list length
         :param init: do not load stacks, just make empty dask arrays. Usually the init_stacks method is more useful.
+        :param readonly: open HDF5 files in read-only mode
+        :param swmr: open HDF5 files in SWMR mode        
         :return:
         """
         sets = self._shots[['file', 'subset', 'shot_in_subset']].drop_duplicates()
         stacks = defaultdict(list)
 
         for (fn, subset), subgrp in sets.groupby(['file', 'subset']):
-            self._h5handles[fn] = fh = h5py.File(fn, swmr=True)
+            self._h5handles[fn] = fh = h5py.File(fn, swmr=swmr, mode='r' if readonly else 'a')
             grp = fh[self.data_pattern.replace('%', subset)]
             if isinstance(grp, h5py.Group):
                 for dsname, ds in grp.items():
