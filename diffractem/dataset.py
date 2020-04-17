@@ -628,7 +628,8 @@ class Dataset:
     def aggregate(self, by: Union[list, tuple] = ('sample', 'region', 'run', 'crystal_id'),
                   how: Union[dict, str] = 'mean',
                   file_suffix: str = '_agg.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
-                  query: Union[str, None] = None, force_commensurate: bool = True) -> 'Dataset':
+                  query: Union[str, None] = None, force_commensurate: bool = True,
+                  exclude_stacks: Optional[list] = None) -> 'Dataset':
         """
         Aggregate sub-sets of stacks using different aggregation functions. Typical application: sum sub-stacks of
         dose fractionation movies, or shots with different tilt angles (quasi-precession)
@@ -643,12 +644,15 @@ class Dataset:
         :return: a new data set with aggregation applied
         """
 
+        #TODO: fast agg only works on 3D arrays currently!
+
         by = list(by)
         # aggregate shots
         newset = copy.copy(self)
         newset._stacks = {}
         agg_shots = []
         final_zchunk = 1
+        exclude_stacks = [] if exclude_stacks is None else exclude_stacks
 
         if not self._stacks_open:
             raise RuntimeError('Stacks are not open.')
@@ -717,6 +721,9 @@ class Dataset:
         # DATA STACKS ------
 
         for sn, s in self.stacks.items():
+
+            if sn in exclude_stacks:
+                continue
 
             method = how if isinstance(how, str) else how.get(sn, 'mean')
 
