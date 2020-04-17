@@ -60,6 +60,7 @@ class PreProcOpts:
         self.shutter_time = 2
         self.float = False
         self.cam_length = 2
+        self.y_scale = 0.98 #TODO: extend to full ellipticity handling
         self.pixel_size = 55e-6
         self.com_threshold = 0.9
         self.com_xrng = 800
