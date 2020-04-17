@@ -81,7 +81,7 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
             tbl.to_hdf(fn, tbl_path, format='table')
 
     elif format == 'nexus':
-        with h5py.File(fn) as fh:
+        with h5py.File(fn, 'a') as fh:
             for key, val in tbl.iteritems():
                 #print(f'Storing {key} ({val.shape}, {val.dtype}) to {fn}: {path}')
                 grp = fh.require_group(tbl_path)
@@ -225,7 +225,7 @@ def get_meta_fields(files: Union[str, list], dataset_paths: Union[list, str, tup
     fns = expand_files(files)
 
     for fn in fns:
-        with h5py.File(fn) as fh:
+        with h5py.File(fn, mode='r') as fh:
             for field, default in dataset_paths.items():
 
                 identifiers = field.rsplit('%', 1)
@@ -357,7 +357,7 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results
                 #         continue
                 #     copy_exclude(k, v, new_grp)
 
-        with h5py.File(fn_from) as f, h5py.File(fn_to, mode=mode) as f2:
+        with h5py.File(fn_from, mode='r') as f, h5py.File(fn_to, mode=mode) as f2:
             copy_exclude('/', f, f2)
 
     except Exception as err:
