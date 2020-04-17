@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='diffractem',
-    version='0.3.0',
+    version='0.3.1',
     packages=['diffractem'],
     url='https://github.com/robertbuecker/diffractem',
     license='',
