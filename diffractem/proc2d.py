@@ -12,7 +12,6 @@ from scipy.ndimage.filters import median_filter
 from functools import wraps
 from typing import Optional, Tuple, Union, List, Callable
 from warnings import warn
-from onda.algorithms.crystallography_algorithms import Peakfinder8PeakDetection
 
 def stack_nested(data_list, fun=np.stack): 
     if np.ndim(data_list) == 0:
@@ -487,6 +486,8 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
         [ndarray] -- Vector of shape (3 * pkmax) + 1, or stack thereof (matrix). First {pkmax} entries are peak
         x postions, then {pkmax} y positions, {pkmax} intensities, and finally the number of peaks.
     """
+
+    from onda.algorithms.crystallography_algorithms import Peakfinder8PeakDetection
 
     X, Y = np.meshgrid(range(img.shape[1]), range(img.shape[0]))
     R = (((X-x0)**2 + (Y-y0)**2)**.5).astype(np.float32)

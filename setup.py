@@ -11,8 +11,10 @@ setup(
     author_email='robert.buecker@mpsd.mpg.de',
     description='Some tools for working with serial electron microscopy data.',
     install_requires=['h5py', 'numpy', 'pandas', 'tables', 'hdf5plugin',
-                      'dask', 'tifffile', 'scipy', 'astropy', 'matplotlib', 'numba',
-                      'pyqtgraph', 'pyyaml', 'scikit-learn', 'ruamel.yaml'],
+                      'dask[complete]', 'tifffile', 'scipy', 'astropy', 
+                      'matplotlib', 'numba', 'pyqtgraph', 'pyyaml', 'scikit-learn', 
+                      'scikit-image', 'ruamel.yaml', 'opencv-python-headless', 'PyQt5',
+                      'cfelpyutils'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
