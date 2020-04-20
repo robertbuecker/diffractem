@@ -913,7 +913,7 @@ class Dataset:
 
         self._stacks[label] = stack
 
-    def delete_stack(self, label: str, from_files: bool = True):
+    def delete_stack(self, label: str, from_files: bool = False):
         """
         Delete a data stack
         :param label: stack label
