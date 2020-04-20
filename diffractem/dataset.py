@@ -17,31 +17,76 @@ from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
 from contextlib import contextmanager
 import os
 
-# top-level helper functions
-def _check_commensurate(init, final):
-    fin = list(final)[::-1]
+# top-level helper functions for chunking operations
+# ...to be refactored into tools or compute later...
+def _check_commensurate(init: Union[list, tuple, np.ndarray], final: Union[list, tuple, np.ndarray], 
+                        equal_size: bool = True):
+    '''check if blocks with sizes in init are commensurate with (i.e. have boundaries aligned with)
+    blocks in final, and (optionally) if final blocks in final are equally-sized within each block in initial.
+    Useful to check if a dask rechunk operation will act across boundaries of existing chunks,
+    which is often something you'll want to try to avoid (and might be a sign that something is going wrong).
+    Blocks in final must hence be smaller than those in init, i.e. len(final) >= len(init), 
+    and of course: sum(final) == sum(init).
+    Returns whether the blocks are commensurate, and (if so), the number of  
+    final blocks in each of the initial block.'''
+
+    assert sum(init) == sum(final)
+    final_inv = list(final)[::-1] # invert for faster popping
     blocksize = []
-    for s0 in init:
-        n_final = s0 // fin[-1]
-        for _ in range(n_final):
-            if (s0 % fin.pop()) != 0:
-                return False, None
-        blocksize.append(n_final)
-    assert len(fin) == 0
+    if equal_size:
+        for s0 in init:
+            # iterate over initial blocks
+            n_final_in_initial = s0 // final_inv[-1]
+            for _ in range(n_final_in_initial):
+                # iterate over final blocks within initial
+                if (s0 % final_inv.pop()) != 0:
+                    return False, None
+            blocksize.append(n_final_in_initial)
+    else:
+        for s0 in init:
+            # iterate over initial blocks
+            # n_rem = copy.copy(s0)
+            n_rem = s0
+            b_num = 0
+            while n_rem != 0:
+                n_rem -= final_inv.pop()
+                b_num += 1
+                if n_rem < 0:
+                    # incommensurate block found!
+                    return False, None
+            blocksize.append(b_num)
+    assert len(final_inv) == 0
     return True, blocksize
 
-def _map_blocks_inner(stack: np.ndarray, labels: np.ndarray, agg_function: callable):
+def _agg_groups(stack: np.ndarray, labels: Union[np.ndarray, list, tuple], agg_function: callable, *args, **kwargs):
+    '''Apply aggregating function to a numpy stack group-by-group, with groups defined by unique labels,
+    and return the concatenated results; i.e., the length of the result along the aggregation
+    axis equals the number of unique labels.
+    '''
+
     res_list = []
     labels = labels.squeeze()
     for lbl in np.unique(labels):
-        res_list.append(agg_function(stack[labels == lbl,...]))
+        res_list.append(agg_function(stack[labels == lbl,...], *args, **kwargs))
     return np.concatenate(res_list)
 
-def _map_blocks_agg(func: callable, stack: da.Array, labels: np.ndarray, **kwargs):
-    chunked_labels = da.from_array(labels.values.reshape((-1,1,1)), chunks=(stack.chunks[0],-1,-1), name='agg_group_label')
-    final_chunks = (tuple(_check_commensurate(stack.chunks[0], np.unique(labels, return_counts=True)[1])[1]), ) + stack.chunks[1:]
-    return da.map_blocks(_map_blocks_inner, stack, chunked_labels, 
-        agg_function=func, chunks=final_chunks, **kwargs)
+def _map_sub_blocks(stack: da.Array, labels: Union[np.ndarray, list, tuple], func: callable, aggregating: bool = True,
+                     *args, **kwargs):
+    '''Wrapper for da.map_blocks, which instead of applying the function chunk-by-chunk can apply it also to sub-groups
+    within each chunk, as identified by unique labels (e.g. integers). Useful if you want to use large chunks to have fast computation, but
+    want to apply the function to smaller blocks. Obvious example: you want to sum frames from a diffraction
+    movie, but have many diffraction movies stored in each single chunk, as otherwise the chunk number would be too large.
+    The input stack must be chunked along its 0th axis only, and len(labels) must equal the height of the stack. 
+    If aggregating=True, func is assumed to reduce the sub-block height to 1 (like summing all stack frames), whereas
+    aggregating=False assumes func to leave the sub-block sizes as is (e.g. for cumulative summing).'''
+
+    chunked_labels = da.from_array(labels.values.reshape((-1,1,1)), chunks=(stack.chunks[0],-1,-1), name='sub_block_label')
+    cc_out = _check_commensurate(stack.chunks[0], np.unique(labels, return_counts=True)[1], equal_size=False)
+    if not cc_out[0]:
+        raise ValueError('Cannot use _mab_sub_blocks: mapping groups are not within single chunk each')
+    final_chunks = (tuple(cc_out[1]), ) + stack.chunks[1:] if aggregating else stack.chunks
+    return da.map_blocks(_agg_groups, stack, chunked_labels, 
+        agg_function=func, chunks=final_chunks, *args, **kwargs)
 
 class Dataset:
 
@@ -745,18 +790,20 @@ class Dataset:
                                                       chunks=c_final, dtype=s.dtype, name='aggregate_sum'))
 
             elif method == 'fastsum':
-                newset.add_stack(sn, _map_blocks_agg(lambda x: np.sum(x, axis=0, keepdims=True),
-                                                 stack=reorder, labels=gb.ngroup(), dtype=s.dtype,
-                                                 name='aggregate_sum'))
+                newset.add_stack(sn, _map_sub_blocks(stack=reorder, labels=gb.ngroup(), 
+                                                    func=lambda x: np.sum(x, axis=0, keepdims=True),
+                                                    dtype=s.dtype,
+                                                    name='aggregate_sum'))
 
             elif method == 'mean':
                 newset.add_stack(sn, reorder.map_blocks(lambda x: np.mean(x, axis=0, keepdims=True), 
                                                         chunks=c_final, dtype=s.dtype, name='aggregate_mean'))
 
             elif method == 'fastmean':
-                newset.add_stack(sn, _map_blocks_agg(lambda x: np.mean(x, axis=0, keepdims=True), 
-                                                 stack=reorder, labels=gb.ngroup(), dtype=s.dtype,
-                                                 name='aggregate_mean'))
+                newset.add_stack(sn, _map_sub_blocks(stack=reorder, labels=gb.ngroup(), 
+                                                    func=lambda x: np.mean(x, axis=0, keepdims=True), 
+                                                    dtype=s.dtype,
+                                                    name='aggregate_mean'))
 
             elif method == 'cumsum':
                 raise NotImplementedError('cumsum not working yet.')
@@ -797,7 +844,7 @@ class Dataset:
         self._stacks_open = False
 
     def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False, 
-        readonly=False, swmr=False, chunking: Union[int, str] = 'dataset'):
+        readonly=True, swmr=False, chunking: Union[int, str] = 'dataset'):
         """
         Opens data stacks from HDF5 (NeXus) files (found by the "data_pattern" attribute), and assigns dask array
         objects to them. After opening, the arrays or parts of them can be accessed through the stacks attribute,
