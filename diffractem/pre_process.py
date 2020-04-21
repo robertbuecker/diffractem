@@ -28,23 +28,6 @@ in the options directly)
 Mostly, the functions here call functions from proc2d in a more or less smart sequence.
 """
 
-
-def run_mp(func, fns: Union[str, list], 
-    opts, wait_until_done=True):
-
-    fns = io.expand_files(fns)
-    with ProcessPoolExecutor() as exc, \
-        dask.config.set(scheduler='single-threaded'):
-        ftr = []
-        for fn in fns:
-            ftr.append(exc.submit(func, fn, opts))
-        if wait_until_done:
-            wait(ftr, FIRST_EXCEPTION)
-            return [ft.result for ft in ftr]
-        else:
-            return ftr
-
-
 class PreProcOpts:
     def __init__(self, fn=None):  
 
