@@ -856,7 +856,11 @@ class Dataset:
         :return:
         """
         # TODO offer even more sophisticated chunking which always aligns with frames
-        sets = self._shots[['file', 'subset', 'shot_in_subset', 'frame']].drop_duplicates() # TODO why is the drop duplicates required?
+        if 'frame' in self._shots.columns:
+            sets = self._shots[['file', 'subset', 'shot_in_subset', 'frame']].drop_duplicates() # TODO why is the drop duplicates required?
+        else:
+            sets = self._shots[['file', 'subset', 'shot_in_subset']].drop_duplicates()
+            sets['frame'] = 0
         stacks = defaultdict(list)
 
         if isinstance(chunking, (list, tuple)):
@@ -937,6 +941,7 @@ class Dataset:
                 center = stk.beam_center.compute()
             print('Have', center.shape[0], 'centers.')
         """
+        warn('Use of the Stacks context manager is deprecated and may cause pain and sorrow.', DeprecationWarning)
         self.open_stacks(**kwargs)
         yield self.stacks
         self.close_stacks()
