@@ -25,7 +25,7 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
         for subset in subsets:
             tbl_path = path.replace('%', subset)
             if 'pandas_type' in fh[tbl_path].attrs:
-                print(f'Found list {tbl_path} in Pandas/PyTables format')
+                # print(f'Found list {tbl_path} in Pandas/PyTables format')
                 newlist = pd.read_hdf(fn, tbl_path)
             else:
                 dt = {}

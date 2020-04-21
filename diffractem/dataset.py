@@ -114,8 +114,7 @@ class Dataset:
         self.parallel_io = True
 
         # internal stuff
-        self._h5handles = {}
-        self._zchunks = 1
+        self._file_handles = {}
         self._stacks = {}
         self._shot_id_cols = ['file', 'Event']
         self._feature_id_cols = ['crystal_id', 'region', 'sample']
@@ -146,6 +145,11 @@ class Dataset:
             return self._stacks[attr]
         else:
             raise AttributeError(f'{attr} is neither a dataset attribute, nor a stack name.')
+
+    @property
+    def file_handles(self):
+        # handles to HDF5 files, if open. Otherwise None.
+        return {fn: self._file_handles[fn] if fn in self._file_handles else None for fn in self.files}
 
     @property
     def stacks(self):
@@ -182,6 +186,15 @@ class Dataset:
     @property
     def peaks(self):
         return self.get_peaks(False)
+    
+    @property
+    def zchunks(self):
+        # z chunks of dataset stacks
+        allchk = [stk.chunks[0] for stk in self.stacks.values()]
+        if allchk and all([chk == allchk[0] for chk in allchk]):
+            return allchk[0]
+        else:
+            return None        
 
     @peaks.setter
     def peaks(self, value):
@@ -205,21 +218,24 @@ class Dataset:
         self._features_changed = True
 
     @classmethod
-    def from_list(cls, listfile: Union[list, str], init_stacks=True, load_tables=True, stack_label='raw_counts', **kwargs):
+    def from_files(cls, files: Union[list, str, tuple], init_stacks=True, load_tables=True, stack_label='raw_counts', **kwargs):
         """
-        Creates a data set from a .lst file, which contains a simple list of H5 files (on separate lines).
-        Alternatively, accepts a single filename, or even a python list of files. If the .lst file has CrystFEL-style
-        event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.
-        :param listfile: list file name, glob pattern, H5 file name, or list
+        Creates a data set from:
+            * a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style
+                event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.
+            * a glob pattern (like: 'data/*.h5')
+            * a python iterable of files. 
+            * a simple HDF5 file path
+        :param files: see above
         :param init_stacks: initialize stacks, that is, briefly open the data stacks, check their lengths, and close
-                them again.
+                them again. Does not hurt usually.
         :param load_tables: load the additional tables stored in the files (features, peaks, predictions)
         :param stack_label: name of stack to be used for generating the shot table, if it's not stored in the files
         :param **kwargs: Dataset attributes to be set right away
         :return: dataset object
         """
 
-        file_list = io.expand_files(listfile, scan_shots=True)
+        file_list = io.expand_files(files, scan_shots=True)
         # print(list(file_list))
         self = cls()
 
@@ -245,6 +261,8 @@ class Dataset:
             self.load_tables(features=True, peaks=True, predict=True)
 
         return self
+    
+    from_list = from_files # for compatibility
 
     def init_shot_table(self, files: list, stack_label: str = 'raw_counts'):
         identifiers = self.data_pattern.rsplit('%', 1)
@@ -433,8 +451,6 @@ class Dataset:
     def get_map(self, file, subset='entry') -> MapImage:
         # TODO: get a MapImage from stored data, with tables filled in from dataset
         raise NotImplementedError('does not work yet, sorry.')
-        map = MapImage()
-        return map
 
     def _sel(self, obj: Union[None, pd.DataFrame, da.Array, np.array, h5py.Dataset, list, dict] = None):
         """
@@ -478,15 +494,6 @@ class Dataset:
             raise ValueError('query must return a boolean!')
         self._shots.selected = selection
         print(f'{self._shots.selected.sum()} shots out of {self._shots.shape[0]} selected.')
-
-    @property
-    def _tables(self) -> Dict[str, pd.DataFrame]:
-        """
-        Returns the raw tables (_shots, _peaks, _predict, _features) as dict. Mostly for internal or very careful use.
-        :return: dict with raw tables
-        """
-        lbls = ['_shots', '_peaks', '_predict', '_features']
-        return {k: v for k, v in self.__dict__.items() if k in lbls}
 
     def change_filenames(self, file_suffix: Optional[str] = '.h5', file_prefix: str = '',
                          new_folder: Union[str, None] = None,
@@ -538,7 +545,7 @@ class Dataset:
             self.__dict__[lbl + '_changed'] = True
 
         # invalidate all the hdf file references (note that references into old files might still exist)
-        self._h5handles = {}
+        self._file_handles = {}
 
         return fn_map
 
@@ -662,7 +669,7 @@ class Dataset:
             newset.change_filenames(file_suffix, file_prefix, new_folder)
             if reset_id:
                 newset.reset_id()
-            newset._h5handles = {}
+            newset._file_handles = {}
 
             if not self._stacks_open:
                 warn('Getting selection, but stacks are not open -> not taking over stacks.')
@@ -697,8 +704,8 @@ class Dataset:
         """
 
         #TODO: fast agg only works on 3D arrays currently!
-        from time import time
-        T0 = time()
+        # from time import time
+        # T0 = time()
         by = list(by)
         newset = copy.copy(self)
         newset._stacks = {}
@@ -748,8 +755,6 @@ class Dataset:
         # compute final shot list
         sh_final = pd.concat([gb[cols_id + ['shot_in_subset', 'Event']].aggregate(lambda x: x.iloc[0]), gb.size().rename('agg_len'), ssfields], axis=1)
         newset._shots = sh_final.reset_index()
-
-        print('Time elapsed:', time()-T0)
         
         # PART 2: DATA STACKS ---
             
@@ -801,7 +806,7 @@ class Dataset:
         except Exception as e:
             warn('Could not aggregate features. Leaving them all in.')
 
-        newset._h5handles = {}
+        newset._file_handles = {}
         newset.change_filenames(file_suffix, file_prefix, new_folder, keep_raw=True)
         newset.reset_id(keep_raw=True)
 
@@ -818,13 +823,12 @@ class Dataset:
 
     def close_stacks(self):
         """
-        Close the stacks by closing the HDF5 data file handles. Technically, this does not delete the dask arrays,
-        but you are blocked from accessing them. Any changes made to the arrays _and_ anything derived from them
-        are discarded, so handle with great care.
+        Close the stacks by closing the HDF5 data file handles.
         :return:
         """
-        for f in self._h5handles.values():
+        for f in self._file_handles.values():
             f.close()
+        self._file_handles = {}
         self._stacks_open = False
 
     def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False, 
@@ -859,7 +863,7 @@ class Dataset:
             chunking = list(chunking)[::-1]
 
         for (fn, subset), subgrp in sets.groupby(['file', 'subset']):
-            self._h5handles[fn] = fh = h5py.File(fn, swmr=swmr, mode='r' if readonly else 'a')
+            self._file_handles[fn] = fh = h5py.File(fn, swmr=swmr, mode='r' if readonly else 'a')
 
             if isinstance(chunking, int) and (subgrp.frame == -1).any():
                 # print('Found auxiliary frames, adjusting chunking...')
@@ -957,7 +961,7 @@ class Dataset:
 
         if not isinstance(stack, da.Array):
             ch = stack.ndim * [-1]
-            ch[0] = self._zchunks
+            ch[0] = self.zchunks
             stack = da.from_array(stack, chunks=tuple(ch))
 
         self._stacks[label] = stack
@@ -980,7 +984,7 @@ class Dataset:
                 path = self.data_pattern.replace('%', address.subset) + '/' + label
                 #print(f'Deleting dataset {path}')
                 try:
-                    del self._h5handles[address['file']][path]
+                    del self._file_handles[address['file']][path]
                 except KeyError:
                     pass
                     #print(address['file'], path, 'not found!')
@@ -1011,7 +1015,7 @@ class Dataset:
             labels = self._stacks.keys()
 
         stacks = {k: v for k, v in self._stacks.items() if k in labels}
-        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(self._zchunks,))})
+        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(self.zchunks,))})
 
         datasets = []
         arrays = []
@@ -1019,7 +1023,7 @@ class Dataset:
         shots = self._shots.reset_index()  # just to be safe
 
         for (fn, ssn), sss in shots.groupby(['file', 'subset']):
-            fh = self._h5handles[fn]
+            fh = self.file_handles[fn]
 
             if not all(np.diff(sss.shot_in_subset) == 1):
                 raise ValueError(f'Non-continuous shot_in_subset in {fn}: {ssn}. Please sort out this mess.')
@@ -1068,7 +1072,7 @@ class Dataset:
                 else:
                     da.store(arrays, datasets)
 
-            for fh in self._h5handles.values():
+            for fh in self.file_handles.values():
                 fh.flush()
 
     def rechunk_stacks(self, chunk_height: int):
@@ -1078,7 +1082,6 @@ class Dataset:
         assert zchunks.sum() == self.shots.shape[0]
         for sn, s in self.stacks.items():
             self.add_stack(sn, s.rechunk({0: tuple(zchunks)}), overwrite=True)
-        self._zchunks = zchunks
 
     def stacks_to_shots(self, stack_labels: Union[str, list], shot_labels: Optional[Union[str, list]] = None):
         if isinstance(stack_labels, str):
