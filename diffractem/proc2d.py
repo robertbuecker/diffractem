@@ -1,7 +1,9 @@
 import tifffile
-
+from tifffile import imread
 import numpy as np
 import dask.array as da
+import dask
+from dask.distributed import Client
 from numba import jit, prange, int64
 from . import gap_pixels
 from scipy import optimize, sparse, special, interpolate
@@ -12,6 +14,7 @@ from scipy.ndimage.filters import median_filter
 from functools import wraps
 from typing import Optional, Tuple, Union, List, Callable
 from warnings import warn
+import pandas as pd
 
 def stack_nested(data_list, fun=np.stack): 
     if np.ndim(data_list) == 0:
@@ -111,6 +114,100 @@ def loop_over_stack(fun):
     return loop_fun
 
 
+@loop_over_stack
+def _generate_pattern_info(img: np.ndarray, opts, reference: Optional[np.ndarray] = None, pxmask: Optional[np.ndarray] = None):
+    # computations on diffraction patterns. To be called from get_pattern_info.
+    
+    reference = opts.reference if reference is None else reference
+    pxmask = opts.pxmask if pxmask is None else pxmask
+        
+    from diffractem.proc_peaks import _ctr_from_pks
+    
+    # apply flatfield and dead-pixel correction to get more accurate COM
+    # CONSIDER DOING THIS OUTSIDE GET PATTERN INFO!
+    img = apply_flatfield(img, reference, keep_type=False)
+    img = correct_dead_pixels(img, pxmask, strategy='replace', mask_gaps=False, replace_val=-1)
+    
+    # thresholded center-of-mass calculation over x-axis sub-range
+    img_ct = img[:,(img.shape[1]-opts.com_xrng)//2:(img.shape[1]+opts.com_xrng)//2]
+    com = center_of_mass(img_ct, threshold=opts.com_threshold*np.quantile(img_ct,1-5e-5)) + [(img.shape[1]-opts.com_xrng)//2, 0]
+    
+    # Lorentz fit of direct beam
+    lorentz = lorentz_fast(img, com[0], com[1], radius=opts.lorentz_radius,
+                                        limit=opts.lorentz_maxshift, scale=7, threads=False)
+    
+    # Get peaks using peakfinder8. Note that pf8 parameters are taken straight from the options file,
+    # with automatic underscore/hyphen replacement.
+    # Note that peak positions are CXI convention, i.e. refer to pixel _center_
+    peak_data = get_peaks(img, lorentz[1], lorentz[2], pxmask=pxmask, max_peaks=opts.max_peaks,
+                                **{k.replace('-','_'): v for k, v in opts.peak_search_params.items()},
+                                as_dict=True)
+    
+    if peak_data['nPeaks'] >= opts.min_peaks:  
+        
+        # prepare peak list. Note the .5, as _ctr_from_pks expects CrystFEL peak convention,
+        # i.e. positions refer to pixel _corner_
+        pkl = np.stack((peak_data['peakXPosRaw'] + .5, peak_data['peakYPosRaw'] + .5, 
+                        peak_data['peakTotalIntensity']), -1)[:int(peak_data['nPeaks']),:]
+        if opts.friedel_max_radius is not None:
+            rsq = (pkl[:, 0] - lorentz[1]) ** 2 + (pkl[:, 1] - lorentz[2]) ** 2
+            pkl = pkl[rsq < opts.friedel_max_radius ** 2, :]
+        
+        ctr_refined, cost, _ = _ctr_from_pks(pkl, lorentz[1:3], int_weight=False, 
+                    sigma=opts.peak_sigma)
+        
+    else:
+        ctr_refined, cost = lorentz[1:3], np.nan
+
+    pattern_info = {'com_x': com[0], 'com_y': com[1],
+                    'lor_pk': lorentz[0], 
+                    'lor_x': lorentz[1],
+                    'lor_y': lorentz[2],
+                    'lor_hwhm': lorentz[3],
+                    'center_x': ctr_refined[0],
+                    'center_y': ctr_refined[1],
+                    'center_refine_score': cost,
+                    'num_peaks': peak_data['nPeaks'],
+                    'peak_data': peak_data}
+        
+    return pattern_info
+
+
+def get_pattern_info(img: np.ndarray, opts, client: Optional[Client] = None, 
+                     reference: Optional[np.ndarray] = None, 
+                     pxmask: Optional[np.ndarray] = None) -> Tuple[pd.DataFrame, dict]:
+    '''
+    PATTERN PROCESSING MACRO
+    ...returns a DataFrame + dict!
+    get_pattern_info computes information on a given diffraction pattern or stack thereof 
+    (as 3D numpy array), returned as a dask.delayed object that computes to a dictionary.
+    It can be altered as required, but in this incarnation it computes center of mass,
+    Parameters of a Lorentzian fit, Pattern center as determined from Friedel pair
+    matching, and Found peaks using peakfinder8 in CXI format (as a sub-dict).
+    '''
+    reference = imread(opts.reference) if reference is None else reference
+    pxmask = imread(opts.pxmask) if pxmask is None else pxmask
+#     print(type(pxmask))
+    
+    if isinstance(img, da.Array):
+        cts = img.to_delayed().squeeze()
+        res_del = [dask.delayed(_generate_pattern_info)(c, opts=opts, reference=reference, pxmask=pxmask) for c in cts]
+        if client is not None:
+            ftrs = client.compute(res_del)
+            alldat = stack_nested(client.gather(ftrs), fun=np.concatenate)
+        else:
+            warn('get_pattern_info is run on a dask array without distributed client - might be slow!')
+            alldat = dask.compute()
+            
+    elif isinstance(img, np.ndarray):
+        alldat = _generate_pattern_info(img, opts=opts, reference=reference, pxmask=pxmask)
+        
+    shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
+    peakinfo = alldat['peak_data']
+    
+    return shotdata, peakinfo    
+
+
 def mean_clip(c,sigma=2.0):
     """
     Iteratively keeps only the values from the array that satisfies
@@ -146,17 +243,6 @@ def func_lorentz(p, x, y):
     :param y    : y coordinate
     """
     return p[0]*((1+((x-p[1])/p[3])**2.0 + ((y-p[2])/p[3])**2.0)**(-p[4]/2.0))
-
-
-def func_voigt(p, r):
-    """
-    Function that returns the voight-profile
-    :param p    : [amp sigma lambda]
-    :param r    : np.array of radius values to evaluate the function at
-    :return     : voight_func evaluation at points r
-    """
-    z = (r + 1j*p[2])/(2*p[1]*np.pi)
-    return np.real(p[0]*special.wofz(z)/np.sqrt(2*np.pi)/p[1])
 
 
 @loop_over_stack
