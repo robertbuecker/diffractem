@@ -16,11 +16,12 @@ from tables import NaturalNameWarning
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
 from contextlib import contextmanager
 import os
+from numba import jit
 
 # top-level helper functions for chunking operations
 # ...to be refactored into tools or compute later...
 def _check_commensurate(init: Union[list, tuple, np.ndarray], final: Union[list, tuple, np.ndarray], 
-                        equal_size: bool = True):
+                        equal_size: bool = False):
     '''check if blocks with sizes in init are commensurate with (i.e. have boundaries aligned with)
     blocks in final, and (optionally) if final blocks in final are equally-sized within each block in initial.
     Useful to check if a dask rechunk operation will act across boundaries of existing chunks,
@@ -29,9 +30,12 @@ def _check_commensurate(init: Union[list, tuple, np.ndarray], final: Union[list,
     and of course: sum(final) == sum(init).
     Returns whether the blocks are commensurate, and (if so), the number of  
     final blocks in each of the initial block.'''
+    #TODO consider using numba jit
 
-    assert sum(init) == sum(final)
     final_inv = list(final)[::-1] # invert for faster popping
+    init = list(init)
+    if sum(init) != sum(final):
+        raise ValueError('Sum of init and final must be identical.')
     blocksize = []
     if equal_size:
         for s0 in init:
@@ -80,11 +84,14 @@ def _map_sub_blocks(stack: da.Array, labels: Union[np.ndarray, list, tuple], fun
     If aggregating=True, func is assumed to reduce the sub-block height to 1 (like summing all stack frames), whereas
     aggregating=False assumes func to leave the sub-block sizes as is (e.g. for cumulative summing).'''
 
-    chunked_labels = da.from_array(labels.values.reshape((-1,1,1)), chunks=(stack.chunks[0],-1,-1), name='sub_block_label')
+    chunked_labels = da.from_array(labels.reshape((-1,1,1)), chunks=(stack.chunks[0],-1,-1), name='sub_block_label')
     cc_out = _check_commensurate(stack.chunks[0], np.unique(labels, return_counts=True)[1], equal_size=False)
     if not cc_out[0]:
-        raise ValueError('Cannot use _mab_sub_blocks: mapping groups are not within single chunk each')
-    final_chunks = (tuple(cc_out[1]), ) + stack.chunks[1:] if aggregating else stack.chunks
+        raise ValueError('Cannot use _map_sub_blocks: mapping groups are not within single chunk each')
+    if 'chunks' in kwargs:
+        final_chunks = kwargs['chunks']
+    else:
+        final_chunks = (tuple(cc_out[1]), ) + stack.chunks[1:] if aggregating else stack.chunks
     return da.map_blocks(_agg_groups, stack, chunked_labels, 
         agg_function=func, chunks=final_chunks, *args, **kwargs)
 
@@ -690,128 +697,92 @@ class Dataset:
         """
 
         #TODO: fast agg only works on 3D arrays currently!
-
+        from time import time
+        T0 = time()
         by = list(by)
-        # aggregate shots
         newset = copy.copy(self)
         newset._stacks = {}
-        agg_shots = []
-        final_zchunk = 1
         exclude_stacks = [] if exclude_stacks is None else exclude_stacks
 
         if not self._stacks_open:
             raise RuntimeError('Stacks are not open.')
+        
+        # PART 1: MAKE A NEW SHOT TABLE ---
+        
+        # get shot selection and aggregation groups
+        shsel = self.shots.reset_index(drop=True).query(query) if query is not None else \
+            self.shots.reset_index(drop=True).groupby(by, sort=False)
+        gb = shsel.groupby(by, sort=False)
+        
+        # get shot list columns that are (non-)identical within each aggregation group
+        nonid = (gb.nunique() != 1).any()
+        cols_nonid = list(nonid[nonid].index)
+        cols_id = list(nonid[np.logical_not(nonid)].index)
 
-        if query is None:
-            gb = self.shots.reset_index(drop=True).groupby(by, sort=False)
-        else:
-            gb = self.shots.reset_index(drop=True).query(query).groupby(by, sort=False)
+        # add some information to shot list
+        sh_initial = pd.concat([shsel, gb.ngroup().rename('_agg_grp_id'), gb.cumcount().rename('_agg_shot_in_grp')], axis=1)
 
-        # SHOT TABLE AND CHUNKING ----
-        initial_chunks = {label: stack.chunks[0] for label, stack in self.stacks.items()}
-        # chunk_id
+        # re-sort initial table if required
+        monotonous = (sh_initial['_agg_grp_id'][1:].values - sh_initial['_agg_grp_id'][:-1].values >=0).all()
+        if not monotonous:
+            sh_initial.sort_values(by=['_agg_grp_id','_agg_shot_in_grp'], inplace=True)
+            
+        # some sanity checks and status report
+        by_frame = (sh_initial['frame'] - sh_initial['_agg_shot_in_grp']).nunique() == 1
+        by_run = (sh_initial['run'] - sh_initial['_agg_shot_in_grp']).nunique() == 1
+        print('Monotonous aggregation:', monotonous, '' if monotonous else '(PLEASE CHECK IF THIS IS DESIRED)')
+        print('File/subset remixing:', ('file' in cols_nonid) or ('subset' in cols_nonid))
+        print('Frame aggregation:', by_frame)
+        print('Acq. run aggregation:', by_run)
+        print('Discarding shot table columns:', cols_nonid)
 
-        for ii, (_, grp) in enumerate(gb):
+        # generate mandatory cols (if files/subsets are remixed):
+        def generate_common_name(name_list):
+            from functools import reduce
+            from difflib import SequenceMatcher
+            return reduce(lambda s1, s2: ''.join([s1[m.a:m.a + m.size] for m in
+                                                SequenceMatcher(None, s1, s2).get_matching_blocks()]), name_list)
+        missing = [fn for fn in ['file', 'subset'] if fn not in cols_id]
+        ssfields = gb[missing].aggregate(generate_common_name) if missing else None
 
-            newshots = grp.copy()
-            newshots['agg_grp_id'] = ii
+        # compute final shot list
+        sh_final = pd.concat([gb[cols_id + ['shot_in_subset', 'Event']].aggregate(lambda x: x.iloc[0]), gb.size().rename('agg_len'), ssfields], axis=1)
+        newset._shots = sh_final.reset_index()
 
-            # find columns with non-identical entries in the aggregation group (typically frame and ID fields)
-            nunique = newshots.apply(pd.Series.nunique)
-            cols_nonid = nunique[nunique > 1].index
-
-            if ('file' in cols_nonid) or ('subset' in cols_nonid):
-                # subset and file are different within aggregation. #uh-oh #crazydata #youpunkorwhat
-                # ...trying to come up with a sensible file and subset name, by finding common sequences
-
-                from functools import reduce
-                from difflib import SequenceMatcher
-
-                common_file = reduce(lambda s1, s2: ''.join([s1[m.a:m.a + m.size] for m in
-                                                             SequenceMatcher(None, s1, s2).get_matching_blocks()]),
-                                     newshots.files)
-                common_subset = reduce(lambda s1, s2: ''.join([s1[m.a:m.a + m.size] for m in
-                                                               SequenceMatcher(None, s1, s2).get_matching_blocks()]),
-                                       newshots.subset)
-                newshots.file = common_file
-                newshots.subset = common_subset
-
-            # ID string for some explanation
-            newshots['aggregation'] = newshots.iloc[0]['file'] + ':' + newshots.iloc[0]['Event'] + '->' + \
-                                      newshots.iloc[-1]['file'] + ':' + newshots.iloc[-1]['Event']
-
-            if final_zchunk > 1: # TODO this will never happen (at the moment)
-                newshots = pd.concat([newshots.iloc[0:1, :]] * final_zchunk, axis=0, ignore_index=True)
-            else:
-                newshots = newshots.iloc[0:1, :] # keep shot data of _first_ shot within the aggregation group
-
-            agg_shots.append(newshots)
-
-        newset._shots = pd.concat(agg_shots, axis=0, ignore_index=True) # NOT using ignore_index, so the index still points into the first dat stack pos
-        #print(f'{newset._shots.shape[0]} aggregated shots.')
-
-        # drop remaining columns that are inconsistent
-        for col in cols_nonid:
-            if col not in self._shot_id_cols + ['shot_in_subset']:
-                newset._shots.drop(col, axis=1)
-
-        agglist = gb.apply(lambda x: x.index.tolist())  # Series of indices in stack corresponding to each aggregation group
-        # agglist = gb.indices
-        # print(agglist)
-        idcs_to_keep = np.concatenate([np.array(x) for x in agglist.values])  # indices of required stack in proper order
-        # print(idcs_to_keep)
-
-        chunks = tuple([len(x) for x in agglist.values])  # size of each aggregation group
-
-        # DATA STACKS ------
-
+        print('Time elapsed:', time()-T0)
+        
+        # PART 2: DATA STACKS ---
+            
+        # aggregating functions
+        func_lib = {'sum': lambda x: np.sum(x, axis=0, keepdims=True),
+                    'mean': lambda x: np.mean(x, axis=0, keepdims=True),
+                    'first': lambda x: x[:1,...],
+                    'last': lambda x: x[-1:,...]}
+            
         for sn, s in self.stacks.items():
 
             if sn in exclude_stacks:
                 continue
 
-            method = how if isinstance(how, str) else how.get(sn, 'mean')
+            method = how.get(sn, 'first') if isinstance(how, dict) else how
+            func = method if callable(method) else func_lib[method]
 
-            reorder = s[idcs_to_keep,...]
-            initial_chunks = reorder.chunks[0]
-                
-            if initial_chunks != chunks:
-                if force_commensurate and (not _check_commensurate(initial_chunks, chunks)[0]):
-                    raise ValueError('Chunks of initial array and aggregation are incommensurate. '
-                                    'If you really want that, set force_commensurate=False.') 
-                # TODO: fast should _only_ work with commensurate, otherwise raise error
-                reorder = reorder.rechunk({0: chunks}) if ('fast' not in method) else reorder
+            # sliced and re-ordered stack
+            stk_sel = s[sh_initial.index.values,...]
 
-            c_final = list(s.chunks)
-            c_final[0] = final_zchunk     
-            print(sn, method)
-            if method == 'sum':
-                newset.add_stack(sn, reorder.map_blocks(lambda x: np.sum(x, axis=0, keepdims=True),
-                                                      chunks=c_final, dtype=s.dtype, name='aggregate_sum'))
+            # aggregated stack
+            try:
+                stk_agg = _map_sub_blocks(stk_sel, labels=sh_initial['_agg_grp_id'].values,
+                                      func=func, dtype=s.dtype, name='aggregate_'+method)
+            except IndexError:
+                raise ValueError(f'Unknown aggregation method {method}. Allowed ones are {tuple(func_lib.keys())}')
+            except ValueError as e:
+                print('Error during aggregation of stack ' + sn)
+                raise e
+            
+            newset.add_stack(sn, stk_agg)
 
-            elif method == 'fastsum':
-                newset.add_stack(sn, _map_sub_blocks(stack=reorder, labels=gb.ngroup(), 
-                                                    func=lambda x: np.sum(x, axis=0, keepdims=True),
-                                                    dtype=s.dtype,
-                                                    name='aggregate_sum'))
-
-            elif method == 'mean':
-                newset.add_stack(sn, reorder.map_blocks(lambda x: np.mean(x, axis=0, keepdims=True), 
-                                                        chunks=c_final, dtype=s.dtype, name='aggregate_mean'))
-
-            elif method == 'fastmean':
-                newset.add_stack(sn, _map_sub_blocks(stack=reorder, labels=gb.ngroup(), 
-                                                    func=lambda x: np.mean(x, axis=0, keepdims=True), 
-                                                    dtype=s.dtype,
-                                                    name='aggregate_mean'))
-
-            elif method == 'cumsum':
-                raise NotImplementedError('cumsum not working yet.')
-
-            else:
-                raise ValueError(f'Unknown aggregation method {how}')
-
-        # OTHER STUFF -----
+        # PART 3: OTHER STUFF ---
 
         newset._features = self._features.merge(newset._shots[self._feature_id_cols],
                                                 on=self._feature_id_cols, how='inner', validate='1:m'). \
@@ -844,7 +815,7 @@ class Dataset:
         self._stacks_open = False
 
     def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False, 
-        readonly=True, swmr=False, chunking: Union[int, str] = 'dataset'):
+        readonly=True, swmr=False, chunking: Union[int, str, list, tuple] = 'dataset'):
         """
         Opens data stacks from HDF5 (NeXus) files (found by the "data_pattern" attribute), and assigns dask array
         objects to them. After opening, the arrays or parts of them can be accessed through the stacks attribute,
@@ -856,9 +827,13 @@ class Dataset:
         :param init: do not load stacks, just make empty dask arrays. Usually the init_stacks method is more useful.
         :param readonly: open HDF5 files in read-only mode
         :param swmr: open HDF5 files in SWMR mode
-        :param chunking: how should the dask arrays be chunked. Options are an integer number for a defined (approximate) chunk size,
-            'dataset' to use the chunksize of the dataset, and 'auto' to use the dask automatic. Generally, a fixed number is
-            recommended for initial loading of data from the camera (raw_counts), and 'dataset' for processed data that has
+        :param chunking: how should the dask arrays be chunked along the 0th (stack) direction. Options are: 
+            * an integer number for a defined (approximate) chunk size, which ignores shots with frame number < -1,
+            * 'dataset' to use the chunksize of the dataset, 
+            * an iterable to explicitly, and 
+            * 'auto' to use the dask automatic. 
+            * 'existing' to use the chunking of an already-existing stack which is about to be overwritten
+            Generally, a fixed number (integer or iterable) is recommended and gives the least trouble.
             already been chunked before. For a fixed number, the chunks are done such that after filtering of frame == -1 shots,
             a constant chunk size is achieved.
         :return:
@@ -867,17 +842,29 @@ class Dataset:
         sets = self._shots[['file', 'subset', 'shot_in_subset', 'frame']].drop_duplicates() # TODO why is the drop duplicates required?
         stacks = defaultdict(list)
 
+        if isinstance(chunking, (list, tuple)):
+            chunking = list(chunking)[::-1]
+
         for (fn, subset), subgrp in sets.groupby(['file', 'subset']):
             self._h5handles[fn] = fh = h5py.File(fn, swmr=swmr, mode='r' if readonly else 'a')
 
-            if isinstance(chunking, int):
-                if (subgrp.frame == -1).any():
-                    print('Found auxiliary frames, adjusting chunking...')
-                    # frames = subgrp[['frame']].copy()
-                    blocks = ((subgrp['frame'] != -1).astype(int).cumsum()-1) // chunking
-                    zchunks = tuple(subgrp.groupby(blocks)['frame'].count())
-                else:
-                    zchunks = chunking
+            if isinstance(chunking, int) and (subgrp.frame == -1).any():
+                # print('Found auxiliary frames, adjusting chunking...')
+                # frames = subgrp[['frame']].copy()
+                blocks = ((subgrp['frame'] != -1).astype(int).cumsum()-1) // chunking
+                zchunks = tuple(subgrp.groupby(blocks)['frame'].count())
+            elif isinstance(chunking, int):
+                zchunks = chunking
+            elif isinstance(chunking, list):
+                chk = []
+                Nshot = len(subgrp)
+                while Nshot > 0:
+                    chk.append(chunking.pop())
+                    Nshot -= chk[-1]
+                    if Nshot < 0:
+                        raise ValueError('Requested chunking is incommensurate with file/subset boundaries!')
+                zchunks = tuple(chk)
+                # print(f'{fn}:{subset} -> {len(zchunks)} chunks.')
             else:
                 zchunks = None
 
@@ -901,8 +888,10 @@ class Dataset:
                             chunks = ds.chunks
                         elif chunking == 'auto':
                             chunks = 'auto'
+                        elif chunking == 'existing':
+                            chunks = self._stacks[dsname][subgrp.index.values,...].chunks
                         else:
-                            raise ValueError('chunking must be an integer, "dataset", or "auto".')
+                            raise ValueError('chunking must be an integer, list, tuple, "dataset", or "auto".')
                         
                         stackname = '_'.join([os.path.basename(fn).rsplit('.', 1)[0],
                                                 subset, dsname])
