@@ -280,7 +280,7 @@ def from_raw(fn, opt: PreProcOpts):
 
     os.makedirs(opt.scratch_dir, exist_ok=True)
     os.makedirs(opt.proc_dir, exist_ok=True)
-    dsraw.open_stacks()
+    dsraw.open_stacks(readonly=True)
 
     if opt.aggregate:
         dsagg = dsraw.aggregate(file_suffix=opt.agg_file_suffix, new_folder=opt.proc_dir, force_commensurate=False,
@@ -335,7 +335,7 @@ def from_raw(fn, opt: PreProcOpts):
     try:
         dsagg.init_files(overwrite=True)
         dsagg.store_tables(shots=True, features=True)
-        dsagg.open_stacks()
+        dsagg.open_stacks(readonly=False)
         dsagg.delete_stack('raw_counts', from_files=False) # we don't need the raw counts in the new files
         dsagg.store_stacks(overwrite=True, progress_bar=False) # this does the actual calculation
 
@@ -410,7 +410,7 @@ def refine_center(fn, opt: PreProcOpts):
 
     # make new files and add the shifted images
     try:
-        ds.open_stacks()
+        ds.open_stacks(readonly=False)
         centered2 = proc2d.center_image(ds.centered, ctr['beam_x'].values, ctr['beam_y'].values, 1556, 616, -1)
         ds.add_stack('centered', centered2, overwrite=True)
         ds.add_stack('pxmask_centered', (centered2 != -1).astype(np.uint16), overwrite=True)
@@ -419,7 +419,7 @@ def refine_center(fn, opt: PreProcOpts):
         print(ds.files)
         ds.init_files(keep_features=False, overwrite=True)
         ds.store_tables(shots=True, features=True)
-        ds.open_stacks()
+        ds.open_stacks(readonly=False)
         ds.store_stacks(overwrite=True, progress_bar=False)
         ds.close_stacks()
         del centered2
@@ -470,7 +470,7 @@ def subtract_bg(fn, opt: PreProcOpts):
         print(idstring, *args)
 
     ds = Dataset().from_list(fn)
-    ds.open_stacks()
+    ds.open_stacks(readonly=False)
 
     if opt.rerun_peak_finder:
         pks = find_peaks(ds, opt=opt)
@@ -491,7 +491,7 @@ def subtract_bg(fn, opt: PreProcOpts):
     ds.change_filenames(opt.nobg_file_suffix)
     ds.init_files(keep_features=False, overwrite=True)
     ds.store_tables(shots=True, features=True, peaks=False)
-    ds.open_stacks()
+    ds.open_stacks(readonly=False)
 
     # for lbl in ['nPeaks', 'peakTotalIntensity', 'peakXPosRaw', 'peakYPosRaw']:
     #    if lbl in ds.stacks:
@@ -552,14 +552,14 @@ def broadcast(fn, opt: PreProcOpts):
 
     try:
 
-        dsraw.open_stacks()
+        dsraw.open_stacks(readonly=True)
         dssel = dsraw.get_selection(f'({opt.select_query}) and selected', file_suffix=opt.single_suffix, new_folder=opt.proc_dir)
         shots = dssel.shots.merge(dsagg.shots[opt.idfields + ['from_id']], on=opt.idfields, validate='m:1') # _inner_ merge
         
         log(f'{dsraw.shots.shape[0]} raw, {dssel.shots.shape[0]} selected, {dsagg.shots.shape[0]} aggregated.')
 
         # get the broadcasted image centers
-        dsagg.open_stacks()
+        dsagg.open_stacks(readonly=True)
         ctr = dsagg.stacks[opt.center_stack][shots.from_id.values, :]
 
         # Flat-field and dead-pixel correction
@@ -595,7 +595,7 @@ def broadcast(fn, opt: PreProcOpts):
 
         dssel.init_files(overwrite=True)
         dssel.store_tables(shots=True, features=True)
-        dssel.open_stacks()
+        dssel.open_stacks(readonly=False)
         dssel.delete_stack('raw_counts', from_files=False) # we don't need the raw counts in the new files
         dssel.store_stacks(overwrite=True, progress_bar=False) # this does the actual calculation
         log('Finished with', dssel.centered.shape[0], 'shots after', time()-t0, 'seconds')
@@ -640,7 +640,7 @@ def cumulate(fn, opt: PreProcOpts):
 
     dssel = Dataset().from_list(fn)
     log('Cumulating from frame', opt.cum_first_frame)
-    dssel.open_stacks()
+    dssel.open_stacks(readonly=False)
 
     # chunks for aggregation
     chunks = tuple(dssel.shots.groupby(opt.idfields).count()['selected'].values)
@@ -666,7 +666,7 @@ def cumulate(fn, opt: PreProcOpts):
     dssel.store_tables(shots=True, features=True, peaks=False)
 
     try:
-        dssel.open_stacks()
+        dssel.open_stacks(readonly=False)
         log('Writing stack data...')
         dssel.store_stacks(overwrite=True, progress_bar=False)
 
