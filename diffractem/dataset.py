@@ -87,7 +87,7 @@ def _map_sub_blocks(stack: da.Array, labels: Union[np.ndarray, list, tuple], fun
     chunked_labels = da.from_array(labels.reshape((-1,1,1)), chunks=(stack.chunks[0],-1,-1), name='sub_block_label')
     cc_out = _check_commensurate(stack.chunks[0], np.unique(labels, return_counts=True)[1], equal_size=False)
     if not cc_out[0]:
-        raise ValueError('Cannot use _map_sub_blocks: mapping groups are not within single chunk each')
+        raise ValueError('Mismatched chunk structure: mapping groups are not within single chunk each')
     if 'chunks' in kwargs:
         final_chunks = kwargs['chunks']
     else:
@@ -773,20 +773,33 @@ class Dataset:
             # aggregated stack
             try:
                 stk_agg = _map_sub_blocks(stk_sel, labels=sh_initial['_agg_grp_id'].values,
-                                      func=func, dtype=s.dtype, name='aggregate_'+method)
+                                      func=func, dtype=s.dtype, name='aggregate_'+method, aggregating=True)
             except IndexError:
                 raise ValueError(f'Unknown aggregation method {method}. Allowed ones are {tuple(func_lib.keys())}')
             except ValueError as e:
-                print('Error during aggregation of stack ' + sn)
-                raise e
+                if str(e).startswith('Mismatched chunk structure'):
+                    warn(f'Stack '+sn+' has mismatched chunk structure. Rechunking to minimum chunk sizes. '
+                         'Consider rechunking manually before, to improve performance.')
+                    #TODO this comes with quite a performance penalty, but sth more complex would be comlex.
+                    stk_rec = stk_sel.rechunk({0: tuple(sh_final['agg_len'].values)})
+                    stk_agg = _map_sub_blocks(stk_rec,
+                                              labels=sh_initial['_agg_grp_id'].values, 
+                                              func=func, dtype=s.dtype, name='aggregate_'+method, 
+                                              aggregating=True)
+                else:
+                    print('Error during aggregation of stack ' + sn)
+                    raise e
             
             newset.add_stack(sn, stk_agg)
 
         # PART 3: OTHER STUFF ---
 
-        newset._features = self._features.merge(newset._shots[self._feature_id_cols],
-                                                on=self._feature_id_cols, how='inner', validate='1:m'). \
-            drop_duplicates(self._feature_id_cols).reset_index(drop=True)
+        try:
+            newset._features = self._features.merge(newset._shots[self._feature_id_cols],
+                                                    on=self._feature_id_cols, how='inner', validate='1:m'). \
+                drop_duplicates(self._feature_id_cols).reset_index(drop=True)
+        except Exception as e:
+            warn('Could not aggregate features. Leaving them all in.')
 
         newset._h5handles = {}
         newset.change_filenames(file_suffix, file_prefix, new_folder, keep_raw=True)
