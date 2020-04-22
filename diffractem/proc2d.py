@@ -6,13 +6,14 @@ import dask
 from dask.distributed import Client
 from numba import jit, prange, int64
 from . import gap_pixels
+from .pre_proc_opts import PreProcOpts
 from scipy import optimize, sparse, special, interpolate
 from scipy.ndimage.morphology import binary_dilation
 from skimage.morphology import disk
 from astropy.convolution import Gaussian2DKernel, convolve
 from scipy.ndimage.filters import median_filter
 from functools import wraps
-from typing import Optional, Tuple, Union, List, Callable
+from typing import Optional, Tuple, Union, List, Callable, Dict
 from warnings import warn
 import pandas as pd
 
@@ -115,7 +116,7 @@ def loop_over_stack(fun):
 
 
 @loop_over_stack
-def _generate_pattern_info(img: np.ndarray, opts, reference: Optional[np.ndarray] = None, pxmask: Optional[np.ndarray] = None):
+def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts, reference: Optional[np.ndarray] = None, pxmask: Optional[np.ndarray] = None):
     # computations on diffraction patterns. To be called from get_pattern_info.
     
     reference = opts.reference if reference is None else reference
@@ -173,7 +174,7 @@ def _generate_pattern_info(img: np.ndarray, opts, reference: Optional[np.ndarray
     return pattern_info
 
 
-def get_pattern_info(img: np.ndarray, opts, client: Optional[Client] = None, 
+def get_pattern_info(img: np.ndarray, opts: PreProcOpts, client: Optional[Client] = None, 
                      reference: Optional[np.ndarray] = None, 
                      pxmask: Optional[np.ndarray] = None) -> Tuple[pd.DataFrame, dict]:
     '''
@@ -194,6 +195,7 @@ def get_pattern_info(img: np.ndarray, opts, client: Optional[Client] = None,
         res_del = [dask.delayed(_generate_pattern_info)(c, opts=opts, reference=reference, pxmask=pxmask) for c in cts]
         if client is not None:
             ftrs = client.compute(res_del)
+            print(f'Running get_pattern_info on cluster. Watch progress at {client.dashboard_link} (or forward port if remote).')
             alldat = stack_nested(client.gather(ftrs), fun=np.concatenate)
         else:
             warn('get_pattern_info is run on a dask array without distributed client - might be slow!')
@@ -206,6 +208,107 @@ def get_pattern_info(img: np.ndarray, opts, client: Optional[Client] = None,
     peakinfo = alldat['peak_data']
     
     return shotdata, peakinfo    
+
+
+@loop_over_stack
+def _compute_corr_img(img: np.ndarray, 
+                      x0: np.ndarray, y0: Union[np.ndarray, None], 
+                      nPeaks: Union[np.ndarray, None], 
+                      peakXPosRaw: Union[np.ndarray, None], 
+                      peakYPosRaw: Union[np.ndarray, None], 
+                      opts: PreProcOpts,
+                      reference: Optional[Union[np.ndarray, str]] = None, 
+                      pxmask: Optional[Union[np.ndarray, str]] = None):
+    '''
+    Inner function for image correction, to be called from correct_image
+    '''
+    
+    img = img.astype(np.float32)
+    if opts.correct_saturation:
+        img = apply_saturation_correction(img, opts.shutter_time, opts.dead_time)
+    img = apply_flatfield(img, reference=reference)
+    img = correct_dead_pixels(img, pxmask=pxmask, strategy='replace', mask_gaps=True)
+    
+    # TODO: CHANGE PXMASK HANDLING TO ALLOW FOR INTERPOLATED/GAP-INCLUDING IMAGES
+    img = remove_background(img, x0, y0, nPeaks, peakXPosRaw, peakYPosRaw, pxmask=None)
+    
+    # has to be re-done after background correction
+    img = correct_dead_pixels(img, pxmask, strategy='replace', mask_gaps=opts.mask_gaps)
+    
+    return img
+
+
+def correct_image(img: Union[np.ndarray, da.Array], opts: PreProcOpts, 
+                  x0: Union[None, np.ndarray, da.Array, pd.Series] = None, 
+                  y0: Union[None, np.ndarray, da.Array, pd.Series] = None, 
+                  peakinfo: Union[None, Dict[str, Union[np.ndarray, da.Array]]] = None, 
+                  reference: Union[None, Union[np.ndarray, str]] = None, 
+                  pxmask: Union[None, Union[np.ndarray, str]] = None) -> Union[np.ndarray, da.Array]:
+    """
+    Runs correction pipeline on stack of diffraction images (numpy or dask). The pipeline comprises
+    flat-field, saturation and dead-pixel correction, as well as background subtraction, optionally
+    including peak exclusion (recommended).
+
+    Arguments:
+        img {Union[np.ndarray, da.Array]} -- Diffraction pattern stack
+        opts {PreProcOpts} -- Pre-processing options. Options used are: (...)
+
+    Keyword Arguments:
+        x0 {Union[None, np.ndarray, da.Array]} -- Pattern X centers 
+            (default: use image center)
+        y0 {Union[None, np.ndarray, da.Array]} -- Pattern Y centers 
+            (default: use image center)
+        peakinfo {Union[None, Dict[Union[np.ndarray, da.Array]]]} -- Diffraction peak dict in CXI format
+            (default: no peak exclusion during background subtraction)
+        reference {Union[None, Union[np.ndarray, str]]} -- Flat-field reference 
+            (default: use reference file specified in options)
+        pxmask {Union[None, Union[np.ndarray, str]]} -- [description] 
+            (default: use pixel mask file specified in options)
+
+    Returns:
+        [Union[np.ndarray, da.Array]] -- Corrected diffraction image stack.
+        
+    Note:
+        This function essentially wraps proc2d._compute_corr_image. If you want to change the 
+        correction pipeline, that is the function to modify.
+    """
+    
+    if isinstance(img, np.ndarray):
+        # take care of numpy image with dask arguments (just in case)
+        innerargs = [x0, y0, peakinfo['nPeaks'], peakinfo['peakXPosRaw'], peakinfo['peakYPosRaw']]
+        innerargs = [a.compute() if isinstance(a, da.Array) else a for a in innerargs]
+        return _compute_corr_img(img, *innerargs, opts, reference, pxmask)
+    
+    reference = imread(opts.reference) if reference is None else reference
+    pxmask = imread(opts.pxmask) if pxmask is None else pxmask
+    
+    N = img.shape[0]
+    
+    if (x0 is None) or (y0 is None):
+        x0 = y0 = None
+        
+    else:
+        if not isinstance(x0, da.Array):
+            x0 = da.from_array(x0.values if isinstance(x0, pd.Series) else x0, chunks=img.chunks[0])
+            y0 = da.from_array(y0.values if isinstance(y0, pd.Series) else y0, chunks=img.chunks[0])
+    
+    if peakinfo is None:
+        npk = pkx = pky = None
+        
+    else:     
+        if not isinstance(peakinfo['nPeaks'], da.Array):
+            peakinfo = {'nPeaks': da.from_array(peakinfo['nPeaks'], chunks=img.chunks[0]),
+                    'peakXPosRaw': da.from_array(peakinfo['peakXPosRaw'], chunks=(img.chunks[0],-1)),
+                    'peakYPosRaw': da.from_array(peakinfo['peakYPosRaw'], chunks=(img.chunks[0],-1))}
+
+        npk = peakinfo['nPeaks'].reshape((N,1,1))
+        pkx = peakinfo['peakXPosRaw'].reshape((N,1,-1))
+        pky = peakinfo['peakYPosRaw'].reshape((N,1,-1))
+    
+    return da.map_blocks(_compute_corr_img, img, x0.reshape((N,1,1)), y0.reshape((N,1,1)), 
+                         npk, pkx, pky, 
+                         reference=reference, pxmask=pxmask, opts=opts,
+                         dtype=np.float32, chunks=img.chunks)
 
 
 def mean_clip(c,sigma=2.0):
@@ -916,9 +1019,11 @@ def apply_flatfield(img, reference=None, keep_type=True, ref_smooth_range=None,
         return img/reference
 
 
-def correct_dead_pixels(img, pxmask=None, strategy='interpolate', 
-                        interp_range=1, replace_val=-1, mask_gaps=False, 
-                        edge_mask=70, **kwargs):
+def correct_dead_pixels(img: np.ndarray, pxmask: Union[np.ndarray, str], 
+                        strategy: str = 'interpolate', 
+                        interp_range: int = 1, replace_val: Union[float, int] = None, 
+                        mask_gaps: bool = False, edge_mask_x: int = 70, edge_mask_y: int = 0,
+                        **kwargs):
     """
     Corrects a set of images for dead pixels by either replacing values with a 
     constant (e.g. for Diffraction Analysis with mask support), or 
@@ -941,18 +1046,20 @@ def correct_dead_pixels(img, pxmask=None, strategy='interpolate',
     :param replace_val: value with which dead pixels are replaced 
                     : (if strategy is 'replace')
     :param mask_gaps: treat the interpolated pixels between the panels as dead
-    :param edge_mask: number of pixels at outer left/right edges to treat as 
+    :param edge_mask_[x/y]: number of pixels at outer [left/right]/[upper/lower] edges to treat as 
                     : dead (because of shading)
     :param kwargs   : not doing anything so far
     :return         : corrected image
     """
 
     assert strategy in ('interpolate', 'replace')
+    
+    if replace_val is None:
+        replace_val = -1 if isinstance(img, np.integer) else np.nan
 
     if isinstance(pxmask, str):
-        with tifffile.TiffFile(pxmask) as tif:
-            pxmask = tif.asarray().astype(np.bool)
-    elif isinstance(pxmask, np.ndarray) or isinstance(pxmask, da.core.Array):
+        pxmask = imread(pxmask)
+    elif isinstance(pxmask, np.ndarray) or isinstance(pxmask, da.Array):
         pxmask = pxmask.astype(np.bool)
     else:
         raise TypeError('pxmask must be either Numpy array, or TIF file name')
@@ -960,10 +1067,14 @@ def correct_dead_pixels(img, pxmask=None, strategy='interpolate',
     if mask_gaps:
         pxmask[gap_pixels()] = True
 
-    if edge_mask:
-        pxmask[:, :edge_mask] = True
-        pxmask[:, -edge_mask:] = True
+    if edge_mask_x:
+        pxmask[:, :edge_mask_x] = True
+        pxmask[:, -edge_mask_x:] = True
 
+    if edge_mask_y:
+        pxmask[:edge_mask_y,:] = True
+        pxmask[-edge_mask_y:,:] = True
+        
     if strategy == 'interpolate':
 
         if (img.ndim > 2) and strategy == 'interpolate':
@@ -992,7 +1103,7 @@ def correct_dead_pixels(img, pxmask=None, strategy='interpolate',
 
             return img
 
-        elif isinstance(img, da.core.Array):
+        elif isinstance(img, da.Array):
              #dask arrays are immutable. This requires a slightly different way
             sz = pxmask.shape
             pml = da.from_array(pxmask.reshape(1, sz[-2], sz[-1]), 

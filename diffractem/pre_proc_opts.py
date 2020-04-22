@@ -16,6 +16,7 @@ class PreProcOpts:
         self.correct_saturation = True
         self.dead_time = 1.9e-3
         self.shutter_time = 2
+        self.mask_gaps = True
         self.float = False
         self.cam_length = 2
         self.y_scale = 0.98 #TODO: extend to full ellipticity handling
