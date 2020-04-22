@@ -10,7 +10,7 @@ from . import io, nexus
 from .stream_parser import StreamParser
 from .map_image import MapImage
 import h5py
-from typing import Union, Dict, Optional, List
+from typing import Union, Dict, Optional, List, Tuple, Callable
 import copy
 from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
@@ -133,8 +133,10 @@ class Dataset:
                 f'{self._shots.shape[0]} shots ({self._shots.selected.sum()} selected)\n'
                 f'{self._peaks.shape[0]} peaks, {self._predict.shape[0]} predictions, '
                 f'{self._features.shape[0]} features\n'
-                f'{len(self._stacks)} data stacks: {list(self._stacks.keys())}\n'
-                f'Data stacks open: {self._stacks_open}\n')
+                f'{len(self._stacks)} data stacks: {", ".join(self._stacks.keys())}\n'
+                f'Data stacks open: {self._stacks_open}\n'
+                f'Data files open: {self._files_open}\n'
+                f'Data files writable: {self._files_writable}')
 
     def __repr__(self):
         return self.__str__()
@@ -821,6 +823,36 @@ class Dataset:
         newset.reset_id(keep_raw=True)
 
         return newset
+    
+    def transform_stack_groups(self, stacks: Union[List[str], str], 
+                               func: Callable[[np.ndarray], np.ndarray] = lambda x: np.cumsum(x, axis=0),
+                               by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id')):
+        """For all data stacks listed in stacks, transforms sub-stacks within groups defined by "by".
+        As a common example, applies some function to all frames of a diffraction movie. The dimensions of
+        each sub-stack must not change in the process. Note that this happens in place, i.e., the stacks
+        will be overwritten by a transformed version.
+        A typical application is to calculate a cumulative sum of patterns wittin each diffraction movie. This
+        is what the default parameter for func is doing. Can do all kinds of other fun things, i.e. calculating
+        directly the difference between frames, the difference of each w.r.t. the first,
+        normalizing them to sth, etc.
+
+        Arguments:
+            stacks {List or str} -- Name(s) of data stacks to be transformed
+
+        Keyword Arguments:
+            func {Callable} -- Function applied to each sub-stack. Must act on a numpy
+                array and return one of the same dimensions. 
+                Defaults to: lambda x: np.cumsum(x, axis=0)
+            by {List} -- Shot table columns to identify groups. 
+                Defaults to ['sample', 'region', 'run', 'crystal_id']
+        """
+        
+        stacks = [stacks] if isinstance(stacks, str) else stacks
+        by = list(by)
+        feature_id = self.shots.groupby(by, sort=False).ngroup().values
+        for sn in stacks:
+            transformed = _map_sub_blocks(self.stacks[sn], feature_id, func, aggregating=False)
+            self.add_stack(sn, transformed, overwrite=True)
 
     def init_stacks(self):
         """
@@ -1125,7 +1157,7 @@ class Dataset:
         """
 
         if not self._files_writable:
-            raise RuntimeError('Please open stacks in write mode before storing.')
+            raise RuntimeError('Please close stacks (no typo) or open in write mode before storing.')
         
         from distributed import Lock
 
@@ -1190,7 +1222,8 @@ class Dataset:
             ValueError: [description]
             ValueError: [description]
         """
-
+        #TODO generalize to storing several diffraction stacks using sync=False.
+         
         if (diff_stack_label is not None) and (diff_stack_label not in self._stacks):
             raise ValueError(f'Stack {diff_stack_label} not found in dataset.')
 
@@ -1198,7 +1231,8 @@ class Dataset:
             raise ValueError(f'If a diffraction data stack is specified, you must supply a dask.distributed client object.')        
             
         for dn in {os.path.dirname(f) for f in self.files}:
-            os.makedirs(dn, exist_ok=True)
+            if dn:
+                os.makedirs(dn, exist_ok=True)
 
         exclude_stacks = [exclude_stacks] if isinstance(exclude_stacks, str) else exclude_stacks
         exclude_stacks = [diff_stack_label] if exclude_stacks is None else [diff_stack_label] + exclude_stacks
@@ -1259,6 +1293,47 @@ class Dataset:
                 if lbl_from not in stk:
                     warn(f'{lbl_from} not in stacks, skipping.')
                 self.shots[lbl_to] = stk[lbl_from]
+            
+    def merge_pattern_info(self, ds_from: 'Dataset', merge_cols: Optional[List[str]] = None, 
+                           by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id')):
+        """Merge shot table columns and peak data from another data set into this one, based
+        on matching of the shot table columns specified in "by".
+
+        Arguments:
+            ds_from {Dataset} -- Diffractem Dataset to take information from
+
+        Keyword Arguments:
+            merge_cols {List} -- Shot table columns to take over from other data set. If None (default),
+                all columns are taken over which are not present in the shot table currently
+            by {List} -- Shot table columns to match by. 
+                Defaults to ['sample', 'region', 'run', 'crystal_id']
+
+        Raises:
+            ValueError: [description] d
+        """
+        by = list(by)
+        
+        merge_cols = ds_from.shots.columns.difference(list(self.shots.columns) + 
+                                                    ['_Event', '_file', 'file_event_hash']) \
+                                                        if merge_cols is None else merge_cols
+        
+        sh_from = ds_from.shots.copy() # avoid side effects on ds_from
+        sh_from['ii_from'] = range(len(sh_from))
+        sel_shots = self.shots.merge(sh_from[by + list(merge_cols) + ['ii_from']], on=by, 
+                                        how='left', validate='m:1', indicator=True)
+        
+        if not all(sel_shots._merge == 'both'):
+            raise ValueError('Not all features present in the dataset are present in ds_from.')
+
+        self.shots = sel_shots.drop('_merge', axis=1)
+
+        peakdata = {k: v for k, v in ds_from._stacks.items() if (k.startswith('peak') or k=='nPeaks')}
+
+        if not all(self.shots.ii_from.diff().fillna(1) == 1):
+            peakdata = {k: v[self.shots.ii_from.values,...] for k, v in peakdata.items()}
+
+        for k, v in peakdata.items():
+            self.add_stack(k, v, overwrite=True)
 
     def merge_acquisition_data(self, fields: dict):
         # mange instrument (acquisition) data like exposure time etc. into shot list
@@ -1270,5 +1345,6 @@ class Dataset:
         :param listfile: list file name
         :return:
         """
+        #TODO allow to export CrystFEL-style single-pattern lists
         with open(listfile, 'w') as fh:
             fh.write('\n'.join(self.files))
