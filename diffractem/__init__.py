@@ -1,6 +1,6 @@
 import numpy as np
 
-__all__ = ['compute', 'io', 'proc2d', 'tools', 'map_image']
+__all__ = ['compute', 'io', 'proc2d', 'tools', 'map_image', 'pre_proc_opts']
 
 def version():
     try:
