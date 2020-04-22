@@ -195,7 +195,8 @@ def get_pattern_info(img: np.ndarray, opts: PreProcOpts, client: Optional[Client
         res_del = [dask.delayed(_generate_pattern_info)(c, opts=opts, reference=reference, pxmask=pxmask) for c in cts]
         if client is not None:
             ftrs = client.compute(res_del)
-            print(f'Running get_pattern_info on cluster. Watch progress at {client.dashboard_link} (or forward port if remote).')
+            print(f'Running get_pattern_info on cluster at {client.scheduler_info()["address"]}. \n'
+                  f'Watch progress at {client.dashboard_link} (or forward port if remote).')
             alldat = stack_nested(client.gather(ftrs), fun=np.concatenate)
         else:
             warn('get_pattern_info is run on a dask array without distributed client - might be slow!')

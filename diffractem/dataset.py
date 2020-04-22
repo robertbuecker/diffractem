@@ -1166,6 +1166,78 @@ class Dataset:
             random.shuffle(dels) # shuffling tasks to minimize concurrent file access
             chunk_info = client.compute(dels, sync=True)
             return pd.DataFrame(chunk_info, columns=['file', 'subset', 'path', 'shot_in_subset'])
+        
+    def compute_and_save(self, diff_stack_label: Optional[str] = None, list_file: Optional[str] = None, client: Optional[Client] = None, 
+                         exclude_stacks: Union[str,List[str]] = None, overwrite: bool = False, persist_diff: bool = True, 
+                         persist_all: bool = False, compression: Union[str, int] = 32004):
+        """
+        Compound method to fully compute a dataset and write it to disk. It is designed for completely writing HDF5 
+        files from scratch, not to append to existing ones. Internally calls init_files, store_tables, store_stacks,
+        store_stack_fast, and write_list. 
+
+        Keyword Arguments:
+            diff_stack_label {Optional[str]} -- [description] (default: {None})
+            list_file {Optional[str]} -- [description] (default: {None})
+            client {Optional[Client]} -- [description] (default: {None})
+            exclude_stacks {Optional[List[str]]} -- [description] (default: {None})
+            overwrite {bool} -- [description] (default: {False})
+            persist_diff {bool} -- [description] (default: {True})
+            persist_all {bool} -- [description] (default: {False})
+            compression {Union[str, int]} -- [description] (default: {32004})
+
+        Raises:
+            ValueError: [description]
+            ValueError: [description]
+            ValueError: [description]
+        """
+
+        if (diff_stack_label is not None) and (diff_stack_label not in self._stacks):
+            raise ValueError(f'Stack {diff_stack_label} not found in dataset.')
+
+        if (diff_stack_label is not None) and (client is None):
+            raise ValueError(f'If a diffraction data stack is specified, you must supply a dask.distributed client object.')        
+            
+        for dn in {os.path.dirname(f) for f in self.files}:
+            os.makedirs(dn, exist_ok=True)
+
+        exclude_stacks = [exclude_stacks] if isinstance(exclude_stacks, str) else exclude_stacks
+        exclude_stacks = [diff_stack_label] if exclude_stacks is None else [diff_stack_label] + exclude_stacks
+
+        self.close_stacks()
+
+        print('Initializing data files...')
+        self.init_files(overwrite=overwrite)
+
+        print('Storing meta tables...')
+        self.store_tables()
+
+        # store all data stacks except for the actual diffraction data
+        self.open_stacks(readonly=False)
+        
+        meta_stacks = [k for k in self.stacks.keys() if k not in exclude_stacks]
+        print(f'Storing meta stacks {", ".join(meta_stacks)}')
+        with dask.config.set(scheduler='threading'):
+            self.store_stacks(labels=meta_stacks, compression=compression, overwrite=overwrite)
+
+        print(f'Storing diffraction data stack {diff_stack_label}... monitor progress at {client.dashboard_link} (or forward port if remote)')
+        chunk_info = self.store_stack_fast('corrected', client, compression=compression)
+
+        # make sure that the calculation went consistent with the data set
+        for (sh, sh_grp), (ch, ch_grp) in zip(self.shots.groupby(['file', 'subset']), chunk_info.groupby(['file', 'subset'])):
+            if any(sh_grp.shot_in_subset.values != np.sort(np.concatenate(ch_grp.shot_in_subset.values))):
+                raise ValueError(f'Incosistency between calculated data and shot list in {sh[0]}: {sh[1]} found. Please investigate.')
+                
+        if list_file is not None:
+            self.write_list(list_file)
+            
+        if persist_all:
+            self.open_stacks(readonly=True, chunking='existing')
+            
+        elif persist_diff:
+            self.open_stacks(labels=[diff_stack_label], readonly=True, chunking='existing')
+            
+    #     else:
+    #         ds_compute.open_stacks(labels=[]) # only populate the file handle list
 
     def rechunk_stacks(self, chunk_height: int):
         c = chunk_height
