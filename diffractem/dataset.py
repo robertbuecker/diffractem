@@ -2,13 +2,15 @@
 
 import pandas as pd
 import numpy as np
+import dask.array.gufunc
 from dask import array as da
 from dask.diagnostics import ProgressBar
+from dask.distributed import Client
 from . import io, nexus
 from .stream_parser import StreamParser
 from .map_image import MapImage
 import h5py
-from typing import Union, Dict, Optional
+from typing import Union, Dict, Optional, List
 import copy
 from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
@@ -145,6 +147,14 @@ class Dataset:
             return self._stacks[attr]
         else:
             raise AttributeError(f'{attr} is neither a dataset attribute, nor a stack name.')
+
+    @property
+    def _files_open(self):
+        return all([isinstance(f, h5py.File) for f in self.file_handles.values()])
+    
+    @property
+    def _files_writable(self):
+        return self._stacks_open and all([f.mode != 'r' for f in self.file_handles.values()])
 
     @property
     def file_handles(self):
@@ -975,14 +985,17 @@ class Dataset:
         """
         Delete a data stack
         :param label: stack label
-        :param from_files: if True (default), the stack is also deleted in the HDF5 files
+        :param from_files: if True, the stack is also deleted in the HDF5 files. Default False.
         :return:
         """
 
         if not self._stacks_open:
             raise RuntimeError('Please open stacks before deleting.')
 
-        del self._stacks[label]
+        try:
+            del self._stacks[label]
+        except KeyError:
+            warn(f'Stack {label} does not exist, not deleting anything.')
 
         if from_files:
             for _, address in self._shots[['file', 'subset']].iterrows():
@@ -995,7 +1008,7 @@ class Dataset:
                     #print(address['file'], path, 'not found!')
 
     def store_stacks(self, labels: Union[None, list] = None, overwrite=False,
-                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, 
+                    compression=32004, lazy=False, data_pattern: Union[None,str] = None, 
                     progress_bar=True, **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
@@ -1013,8 +1026,8 @@ class Dataset:
         :return:
         """
 
-        if not self._stacks_open:
-            raise RuntimeError('Please open stacks before storing.')
+        if not self._files_writable:
+            raise RuntimeError('Please open files in write mode before storing.')
 
         if labels is None:
             labels = self._stacks.keys()
@@ -1079,6 +1092,80 @@ class Dataset:
 
             for fh in self.file_handles.values():
                 fh.flush()
+                
+    def store_stack_fast(self, label: str, client: Optional[Client] = None, sync: bool = True,
+                         compression: Union[int, str] = 32004):
+        """Store (and compute) a single stack to HDF5 file(s), using a dask.distributed cluster.
+        This allows for proper parallel computation (even on many machines) and is wa(aaa)y faster
+        than the standard store_stacks, which only works with threads.
+
+        Arguments:
+            label {str} -- Label of the stack to be computed and stored
+
+        Keyword Arguments:
+            client {Optional[Client]} -- dask.distributed client object. Mandatorily required 
+                if sync=True. (default: {None})
+            sync {bool} -- if True (default), computes and stores immediately, and returns a pandas 
+                dataframe containing metadata of everything stored, for validation. If False,
+                returns a list of dask.delayed objects which encapsulate the computation/storage.
+            compression {Union[int, str]} -- Compression of the dataset to be stored. 
+                Defaults to 32004, which is LZ4. Viable alternatives are 'gzip', 'lzf', or 'none'.
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            pd.DataFrame (if sync=True), list of dask.delayed (if sync=False)
+            
+        Remarks:
+            If the stack to be stored depends on computationally heavy (but memory-fitting) dask
+            arrays which you want to retain outside this computation (e.g. to store them using
+            store_stacks), consider persisting them (using da.persist) before calling sthis function.
+            Otherwise, they will be re-calculated from scratch.
+        """
+
+        if not self._files_writable:
+            raise RuntimeError('Please open stacks in write mode before storing.')
+        
+        from distributed import Lock
+
+        stack = self._stacks[label]
+            
+        # initialize datasets in files
+        for (file, subset), grp in self.shots.groupby(['file', 'subset']):
+            with h5py.File(file) as fh:
+                fh.require_dataset(f'/{subset}/data/{label}', 
+                                        shape=(len(grp),) + stack.shape[1:], 
+                                        dtype=stack.dtype, 
+                                        chunks=(1,) + stack.shape[1:], 
+                                        compression=compression)
+        
+        self.close_stacks()
+        
+        chunk_label = np.concatenate([np.repeat(ii, cs) for ii, cs in enumerate(stack.chunks[0])])
+        stk_del = stack.to_delayed().squeeze()
+
+        locks = {fn: Lock() for fn in self.files}
+
+        dels = []
+        for chk, (cl, sht) in zip(stk_del,self.shots.groupby(chunk_label)):
+            assert len(sht.drop_duplicates(['file','subset'])) == 1
+            ii_to = sht.shot_in_subset.values
+            dels.append(dask.delayed(nexus._save_single_chunk)(chk, file=sht.file.values[0], subset=sht.subset.values[0], 
+                                label=label, idcs=ii_to, data_pattern=self.data_pattern, 
+                                lock=locks[sht.file.values[0]]))
+            
+        if not sync:
+            return dels
+
+        else:
+            # THIS DOES THE ACTUAL COMPUTATION/DATA STORAGE
+            if client is None:
+                raise ValueError('If immediate computation is desired (sync=True), you have to provide a cluster.')
+            import random
+            random.shuffle(dels) # shuffling tasks to minimize concurrent file access
+            chunk_info = client.compute(dels, sync=True)
+            return pd.DataFrame(chunk_info, columns=['file', 'subset', 'path', 'shot_in_subset'])
 
     def rechunk_stacks(self, chunk_height: int):
         c = chunk_height

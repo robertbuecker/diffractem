@@ -149,6 +149,13 @@ def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: s
 
         return [None]
 
+def _save_single_chunk(dat, file, subset, label, idcs, data_pattern, lock):   
+    lock.acquire()
+    with h5py.File(file) as fh:
+        path = f'{data_pattern}/{label}'.replace('%', subset)
+        fh[path][idcs,:,:] = dat
+    lock.release()
+    return file, subset, path, idcs
 
 def meta_to_nxs(filename, meta=None, exclude=('Detector',), meta_grp='/entry/instrument',
                 data_grp='/entry/data', data_field='raw_counts', data_location='/entry/instrument/detector/data'):
