@@ -134,7 +134,7 @@ class Dataset:
                 f'{self._peaks.shape[0]} peaks, {self._predict.shape[0]} predictions, '
                 f'{self._features.shape[0]} features\n'
                 f'{len(self._stacks)} data stacks: {", ".join(self._stacks.keys())}\n'
-                f'Diffraction data stack: {self._diff_stack_label}'
+                f'Diffraction data stack: {self._diff_stack_label}\n'
                 f'Data files open: {self._files_open}\n'
                 f'Data files writable: {self._files_writable}')
 
@@ -703,6 +703,8 @@ class Dataset:
 
             for k, v in self.stacks.items():
                 newset.add_stack(k, self._sel(v))
+                
+            newset.persist_stacks([sn for sn, inmem in newset._stack_in_memory.items() if inmem])
 
         finally:
             if query is not None:
@@ -832,6 +834,7 @@ class Dataset:
         newset._file_handles = {}
         newset.change_filenames(file_suffix, file_prefix, new_folder, keep_raw=True)
         newset.reset_id(keep_raw=True)
+        newset.persist_stacks([sn for sn, inmem in newset._stack_in_memory.items() if inmem])        
 
         return newset
     
@@ -864,6 +867,8 @@ class Dataset:
         for sn in stacks:
             transformed = _map_sub_blocks(self.stacks[sn], feature_id, func, aggregating=False)
             self.add_stack(sn, transformed, overwrite=True)
+        
+        self.persist_stacks([sn for sn in stacks if self._stack_in_memory[sn]])
 
     def init_stacks(self, **kwargs):
         """
@@ -1318,6 +1323,9 @@ class Dataset:
             ValueError: [description]
         """
         #TODO generalize to storing several diffraction stacks using sync=False.
+        
+        if diff_stack_label is None:
+            diff_stack_label = self.diff_stack_label if self.diff_stack_label else None
          
         if (diff_stack_label is not None) and (diff_stack_label not in self._stacks):
             raise ValueError(f'Stack {diff_stack_label} not found in dataset.')
