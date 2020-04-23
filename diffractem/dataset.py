@@ -704,7 +704,7 @@ class Dataset:
             for k, v in self.stacks.items():
                 newset.add_stack(k, self._sel(v))
                 
-            newset.persist_stacks([sn for sn, inmem in newset._stack_in_memory.items() if inmem])
+            newset.persist_stacks([sn for sn, inmem in self._stack_in_memory.items() if inmem])
 
         finally:
             if query is not None:
@@ -921,7 +921,7 @@ class Dataset:
         """
         
         if (not readonly and self._files_open and not self._files_writable) or \
-            (readonly and self._files_open and self._files_writable):
+            (readonly and self._files_writable):
                 
             if chunking != 'existing':
                 warn('Reopening files in a different mode. Chunking will be set to "existing".')
@@ -930,7 +930,10 @@ class Dataset:
             # reopen the stacks in a different mode!
             self.close_stacks()
             
-        
+        if not readonly and self._files_writable and not swmr:
+            # write access already. Nobody else had access anyway
+            return
+               
         # TODO offer even more sophisticated chunking which always aligns with frames
         if 'frame' in self._shots.columns:
             sets = self._shots[['file', 'subset', 'shot_in_subset', 'frame']].drop_duplicates() # TODO why is the drop duplicates required?
@@ -970,11 +973,14 @@ class Dataset:
 
             grp = fh[self.data_pattern.replace('%', subset)]
             if isinstance(grp, h5py.Group):
-                
+                curr_lbl = grp.attrs['signal']
+                if not isinstance(curr_lbl, str):
+                    curr_lbl = curr_lbl.decode()
                 if not self._diff_stack_label:
-                    self._diff_stack_label = grp.attrs['signal'].decode()
-                elif self._diff_stack_label != grp.attrs['signal'].decode():
-                    warn('Files/Subsets have non-matching primary diffraction stack labels.')
+                    self._diff_stack_label = curr_lbl
+                elif self._diff_stack_label != curr_lbl:
+                    warn(f'Non-matching primary diffraction stack labels: '
+                         f'{self._diff_stack_label} vs {grp.attrs["signal"].decode()}')
                 
                 for dsname, ds in grp.items():
                     if ds is None:
@@ -1029,12 +1035,19 @@ class Dataset:
         yield self.stacks
         self.close_stacks()
 
-    def add_stack(self, label: str, stack: Union[da.Array, np.array, h5py.Dataset], overwrite=False, diff_stack=False):
+    def add_stack(self, label: str, stack: Union[da.Array, np.ndarray, h5py.Dataset], 
+                  overwrite: bool = False, diff_stack: bool = False, 
+                  persist: bool = True, rechunk: bool = True):
         """
         Adds a data stack to the data set
         :param label: label of the new stack
         :param stack: new stack, can be anything array-like
         :param overwrite: allows overwriting an existing stack
+        :param diff_stack: marks this stack as the main diffraction data
+        :param persist: persists the dask array to memory, if it is generated
+            from a numpy array
+        :param rechunk: if True, a dask array with chunks along the stack direction that don't match the datasets
+            other stacks chunks will be rechunked. Otherwise, a warning is shown.
         :return:
         """
 
@@ -1046,8 +1059,17 @@ class Dataset:
 
         if not isinstance(stack, da.Array):
             ch = stack.ndim * [-1]
-            ch[0] = self.zchunks
-            stack = da.from_array(stack, chunks=tuple(ch))
+            ch[0] = self.zchunks          
+            if isinstance(stack, np.ndarray) and persist:
+                stack = da.from_array(stack, chunks=tuple(ch)).persist(scheduler='threading')
+            else:
+                stack = da.from_array(stack, chunks=tuple(ch))
+        else:
+            if (stack.chunks[0] != self.zchunks) and (self.zchunks is not None):
+                if rechunk:
+                    stack = stack.rechunk({0: self.zchunks})
+                else:
+                    warn('Stack has a different chunking than the dataset!')
 
         if diff_stack:
             self._diff_stack_label = label
@@ -1082,7 +1104,7 @@ class Dataset:
                     #print(address['file'], path, 'not found!')
                     
     def persist_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None,
-                       include_3d: bool = False):
+                       include_3d: bool = False, scheduler: Union[str, Client] = 'threading'):
         """
         Persist the stacks to memory (locally and/or on the cluster workers), that is, they are computed.
         but actually not changed to numpy arrays, just immediately available dask arrays without an actual
@@ -1093,6 +1115,7 @@ class Dataset:
             labels {Union[None, str, list]} -- [description] (default: {None})
             exclude {Union[None, str, list]} -- [description] (default: {None})
             include_3d {bool} -- [description] (default: {False})
+            scheduler {} -- 
         """
         
         if labels is None:
@@ -1113,7 +1136,8 @@ class Dataset:
         labels = [l for l in labels if l not in exclude]
         
         print('Persisting stacks to memory:', ', '.join(labels))
-        self._stacks.update(dask.persist({sn: stk for sn, stk in self.stacks.items() if stk.ndim < 3})[0])
+        self._stacks.update(dask.persist({sn: stk for sn, stk in self.stacks.items() if stk.ndim < 3}, 
+                                         scheduler=scheduler)[0])
 
     def store_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None, overwrite: bool = False, 
                     compression: Union[str, int] = 32004, lazy: bool = False, data_pattern: Union[None,str] = None, 
@@ -1188,8 +1212,8 @@ class Dataset:
                     ds = fh.create_dataset(path, shape=arr.shape, dtype=arr.dtype,
                                            chunks=(1,) + arr.shape[1:],
                                            compression=compression, **kwargs)
-                except RuntimeError as e:
-                    if overwrite or label == 'index':
+                except (RuntimeError, OSError) as e:
+                    if ('name already exists' in str(e)) and (overwrite or label == 'index'):
                         ds = fh.require_dataset(path, shape=arr.shape, dtype=arr.dtype,
                                                 chunks=(1,) + arr.shape[1:],
                                                 compression=compression, **kwargs)
@@ -1197,9 +1221,9 @@ class Dataset:
                         print('Cannot write stack', label)
                         raise e
                 
-                if label == 'index':
-                    fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
-                    fh[path.rsplit('/', 1)[0]].attrs['signal'] = self._diff_stack_label
+                # if label == 'index':
+                #     fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
+                #     fh[path.rsplit('/', 1)[0]].attrs['signal'] = self._diff_stack_label
 
                 arrays.append(arr)
                 datasets.append(ds)
@@ -1211,9 +1235,9 @@ class Dataset:
             with catch_warnings():
                 if progress_bar:
                     with ProgressBar():
-                        da.store(arrays, datasets, scheduler=scheduler)
+                        da.store(arrays, datasets, scheduler=scheduler, return_stored=False)
                 else:
-                    da.store(arrays, datasets, scheduler=scheduler)
+                    da.store(arrays, datasets, scheduler=scheduler, return_stored=False)
 
             for fh in self.file_handles.values():
                 fh.flush()
@@ -1398,7 +1422,8 @@ class Dataset:
                 self.shots[lbl_to] = stk[lbl_from]
             
     def merge_pattern_info(self, ds_from: 'Dataset', merge_cols: Optional[List[str]] = None, 
-                           by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id')):
+                           by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id'), 
+                           persist: bool = True):
         """Merge shot table columns and peak data from another data set into this one, based
         on matching of the shot table columns specified in "by".
 
@@ -1430,13 +1455,16 @@ class Dataset:
 
         self.shots = sel_shots.drop('_merge', axis=1)
 
-        peakdata = {k: v for k, v in ds_from._stacks.items() if (k.startswith('peak') or k=='nPeaks')}
+        peakdata = {k: v for k, v in ds_from._stacks.items() if (k.startswith('peak') or (k=='nPeaks'))}
 
         if not all(self.shots.ii_from.diff().fillna(1) == 1):
             peakdata = {k: v[self.shots.ii_from.values,...] for k, v in peakdata.items()}
 
         for k, v in peakdata.items():
             self.add_stack(k, v, overwrite=True)
+        
+        if persist: 
+            self.persist_stacks(list(peakdata))
 
     def merge_acquisition_data(self, fields: dict):
         # mange instrument (acquisition) data like exposure time etc. into shot list
