@@ -156,7 +156,7 @@ class Dataset:
     
     @property
     def _files_writable(self):
-        return self._stacks_open and all([f.mode != 'r' for f in self.file_handles.values()])
+        return self._files_open and all([f.mode != 'r' for f in self.file_handles.values()])
 
     @property
     def file_handles(self):
@@ -189,6 +189,7 @@ class Dataset:
 
     @property
     def predict(self):
+        warn('The prediction table functionality will likely be removed.', DeprecationWarning)
         return self._predict
 
     @property
@@ -197,7 +198,8 @@ class Dataset:
 
     @property
     def peaks(self):
-        return self.get_peaks(False)
+        warn('The peak table functionality will likely be removed.', DeprecationWarning)
+        return self._peaks
     
     @property
     def zchunks(self):
@@ -210,17 +212,13 @@ class Dataset:
 
     @peaks.setter
     def peaks(self, value):
+        warn('The peak table functionality will likely be removed.', DeprecationWarning)
         self._peaks = value
         self._peaks_changed = True
 
-    def get_peaks(self, selected=False):
-        if selected:
-            return self._sel(self._peaks)
-        else:
-            return self._peaks
-
     @predict.setter
     def predict(self, value):
+        warn('The prediction table functionality will likely be removed.', DeprecationWarning)
         self._predict = value
         self._predict_changed = True
 
@@ -1041,10 +1039,12 @@ class Dataset:
 
     def store_stacks(self, labels: Union[None, list] = None, overwrite=False,
                     compression=32004, lazy=False, data_pattern: Union[None,str] = None, 
-                    progress_bar=True, **kwargs):
+                    progress_bar=True, scheduler: str = 'threading', **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
-        typically not yet computed, so at this point the actual data crunching is done.
+        typically not yet computed, so at this point the actual data crunching is done. Note that this way of computing
+        and storing data is restricted to threading or single-threaded computation, i.e. it's not recommended for
+        heavy lifting. In this case, better use store_stack_fast.
         :param labels: stacks to be written
         :param overwrite: overwrite stacks already existing in the files?
         :param compression: compression algorithm to be used. 32004 corresponds to bz4, which we mostly use.
@@ -1054,6 +1054,7 @@ class Dataset:
                         Note that stacks stored this way will not be retrievable through Dataset objects.
         :param progress_bar: show a progress bar during calculation/storing. Disable if you're running store_stacks
                         in multiple processes simultaneously.
+        :param scheduler: dask scheduler to be used. Can be 'threading' or 'single-threaded'
         :param **kwargs: will be forwarded to h5py.create_dataset
         :return:
         """
@@ -1118,9 +1119,9 @@ class Dataset:
             with catch_warnings():
                 if progress_bar:
                     with ProgressBar():
-                        da.store(arrays, datasets)
+                        da.store(arrays, datasets, scheduler=scheduler)
                 else:
-                    da.store(arrays, datasets)
+                    da.store(arrays, datasets, scheduler=scheduler)
 
             for fh in self.file_handles.values():
                 fh.flush()
@@ -1156,8 +1157,8 @@ class Dataset:
             Otherwise, they will be re-calculated from scratch.
         """
 
-        if not self._files_writable:
-            raise RuntimeError('Please close stacks (no typo) or open in write mode before storing.')
+        if self._files_open and not self._files_writable:
+            raise RuntimeError('Please open files in write mode or close them before storing.')
         
         from distributed import Lock
 
