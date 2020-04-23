@@ -120,6 +120,7 @@ class Dataset:
         self._stacks = {}
         self._shot_id_cols = ['file', 'Event']
         self._feature_id_cols = ['crystal_id', 'region', 'sample']
+        self._diff_stack_label = ''
 
         # tables
         self._shots = pd.DataFrame(columns=self._shot_id_cols + self._feature_id_cols + ['selected'])
@@ -133,6 +134,7 @@ class Dataset:
                 f'{self._peaks.shape[0]} peaks, {self._predict.shape[0]} predictions, '
                 f'{self._features.shape[0]} features\n'
                 f'{len(self._stacks)} data stacks: {", ".join(self._stacks.keys())}\n'
+                f'Diffraction data stack: {self._diff_stack_label}'
                 f'Data files open: {self._files_open}\n'
                 f'Data files writable: {self._files_writable}')
 
@@ -208,7 +210,18 @@ class Dataset:
             return allchk[0]
         else:
             return None        
-
+        
+    @property
+    def diff_stack_label(self):
+        return self._diff_stack_label
+    
+    @diff_stack_label.setter
+    def diff_stack_label(self, value):
+        if value in self.stacks:
+            self._diff_stack_label = value
+        else: 
+            ValueError(f'{value} is not a stack.')
+            
     @peaks.setter
     def peaks(self, value):
         warn('The peak table functionality will likely be removed.', DeprecationWarning)
@@ -883,18 +896,22 @@ class Dataset:
         :param labels: list of stacks to open. Default: None -> opens all stacks
         :param checklen: check if stack heights (first dimension) is equal to shot list length
         :param init: do not load stacks, just make empty dask arrays. Usually the init_stacks method is more useful.
-        :param readonly: open HDF5 files in read-only mode
-        :param swmr: open HDF5 files in SWMR mode
-        :param chunking: how should the dask arrays be chunked along the 0th (stack) direction. Options are: 
-            * an integer number for a defined (approximate) chunk size, which ignores shots with frame number < -1,
-            * 'hdf5' to use the chunksize of the HDF5 dataset
+        :param readonly: open HDF5 files in read-only mode (Default: True)
+        :param swmr: open HDF5 files in SWMR mode (Default: False)
+        :param chunking: how should the dask arrays be chunked along the 0th (stack) direction. Options are,
+            in decreasing order of recommendation: 
+            * None, which tries all good options and fails if none works
             * 'dataset' to use what is set in the current dataset zchunks property (default)
-            * an iterable to explicitly
-            * 'auto' to use the dask automatic. 
-            * 'existing' to use the chunking of an already-existing stack which is about to be overwritten
-            Generally, a fixed number (integer or iterable) is recommended and gives the least trouble.
-            already been chunked before. For a fixed number, the chunks are done such that after filtering of frame == -1 shots,
-            a constant chunk size is achieved.
+            * 'existing' to use the chunking of an already-existing stack which is about to be overwritten.
+                Should usually be the same as 'dataset'
+            * 'hdf5' to use the chunksize recommended in the HDF5 file ('recommended_zchunks' attribute) of the
+                data stacks group
+            * an integer number for a defined (approximate) chunk size, which ignores shots with frame number < -1,
+            * an iterable to explicitly set the chunk sizes
+            * 'auto' to use the dask automatic mode
+        Generally, a fixed number (integer or iterable) is recommended and gives the least trouble.
+        already been chunked before. For a fixed number, the chunks are done such that after filtering of frame == -1 shots,
+        a constant chunk size is achieved.
         :return:
         """
         
@@ -919,12 +936,12 @@ class Dataset:
 
         if isinstance(chunking, (list, tuple)):
             chunking = list(chunking)[::-1]
+            
         elif(isinstance(chunking, str) and chunking=='dataset'):
             chunking = list(self.zchunks)[::-1]
                 
         for (fn, subset), subgrp in sets.groupby(['file', 'subset']):
             self._file_handles[fn] = fh = h5py.File(fn, swmr=swmr, mode='r' if readonly else 'a')
-
             if isinstance(chunking, int) and (subgrp.frame == -1).any():
                 # print('Found auxiliary frames, adjusting chunking...')
                 # frames = subgrp[['frame']].copy()
@@ -940,12 +957,20 @@ class Dataset:
                     Nshot -= chk[-1]
                     if Nshot < 0:
                         raise ValueError('Requested chunking is incommensurate with file/subset boundaries!')
-                zchunks = tuple(chk)                
+                zchunks = tuple(chk)      
+            elif isinstance(chunking, str) and chunking == 'hdf5':
+                zchunks = tuple(fh[self.data_pattern.replace('%', subset)].attrs['recommended_zchunks'])
             else:
                 zchunks = None
 
             grp = fh[self.data_pattern.replace('%', subset)]
             if isinstance(grp, h5py.Group):
+                
+                if not self._diff_stack_label:
+                    self._diff_stack_label = grp.attrs['signal'].decode()
+                elif self._diff_stack_label != grp.attrs['signal'].decode():
+                    warn('Files/Subsets have non-matching primary diffraction stack labels.')
+                
                 for dsname, ds in grp.items():
                     if ds is None:
                         # can happen for dangling soft links
@@ -999,7 +1024,7 @@ class Dataset:
         yield self.stacks
         self.close_stacks()
 
-    def add_stack(self, label: str, stack: Union[da.Array, np.array, h5py.Dataset], overwrite=False):
+    def add_stack(self, label: str, stack: Union[da.Array, np.array, h5py.Dataset], overwrite=False, diff_stack=False):
         """
         Adds a data stack to the data set
         :param label: label of the new stack
@@ -1019,6 +1044,9 @@ class Dataset:
             ch[0] = self.zchunks
             stack = da.from_array(stack, chunks=tuple(ch))
 
+        if diff_stack:
+            self._diff_stack_label = label
+
         self._stacks[label] = stack
 
     def delete_stack(self, label: str, from_files: bool = False):
@@ -1034,6 +1062,10 @@ class Dataset:
         except KeyError:
             warn(f'Stack {label} does not exist, not deleting anything.')
 
+        if label == self._diff_stack_label:
+            self._diff_stack_label = ''
+            warn(f'Deleting diffraction data stack {label}.', RuntimeWarning)
+
         if from_files:
             for _, address in self._shots[['file', 'subset']].iterrows():
                 path = self.data_pattern.replace('%', address.subset) + '/' + label
@@ -1046,6 +1078,17 @@ class Dataset:
                     
     def persist_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None,
                        include_3d: bool = False):
+        """
+        Persist the stacks to memory (locally and/or on the cluster workers), that is, they are computed.
+        but actually not changed to numpy arrays, just immediately available dask arrays without an actual
+        task graph. It is recommended to have as many stacks persisted as possible.
+        The diffraction data stack is automatically excluded.
+
+        Keyword Arguments:
+            labels {Union[None, str, list]} -- [description] (default: {None})
+            exclude {Union[None, str, list]} -- [description] (default: {None})
+            include_3d {bool} -- [description] (default: {False})
+        """
         
         if labels is None:
             labels = list(self._stacks.keys())
@@ -1059,15 +1102,17 @@ class Dataset:
             
         if not include_3d:
             exclude.extend([sn for sn, stk in self._stacks.items() if stk.ndim >= 3])
+            
+        exclude.append(self._diff_stack_label)
         
         labels = [l for l in labels if l not in exclude]
         
-        # print('Persisting stacks to memory:', ', '.join(labels))
+        print('Persisting stacks to memory:', ', '.join(labels))
         self._stacks.update(dask.persist({sn: stk for sn, stk in self.stacks.items() if stk.ndim < 3})[0])
 
     def store_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None, overwrite: bool = False, 
                     compression: Union[str, int] = 32004, lazy: bool = False, data_pattern: Union[None,str] = None, 
-                    progress_bar=True, chunking: Union[str, int] = 1, scheduler: str = 'threading', **kwargs):
+                    progress_bar=True, scheduler: str = 'threading', **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
         typically not yet computed, so at this point the actual data crunching is done. Note that this way of computing
@@ -1083,10 +1128,6 @@ class Dataset:
                         Note that stacks stored this way will not be retrievable through Dataset objects.
         :param progress_bar: show a progress bar during calculation/storing. Disable if you're running store_stacks
                         in multiple processes simultaneously.
-        :param chunking: 0-dimension (stacking) chunk size. Can be fixed or 'stacks', to use the chunks of the dataset's. 
-                        dask arrays holding the stacks (dataset.zchunks[0] - note that only the size of the _first_ chunk 
-                        is used for all chunks.)
-                        Defaults to 1, which is highly recommended.
         :param scheduler: dask scheduler to be used. Can be 'threading' or 'single-threaded'
         :param **kwargs: will be forwarded to h5py.create_dataset
         :return:
@@ -1105,12 +1146,10 @@ class Dataset:
         elif isinstance(exclude, str):
             exclude = [exclude]
             
-        labels = [l for l in labels is l not in exclude]
-            
-        cs = self.zchunks[0] if isinstance(chunking, str) and chunking.startswith('stack') else chunking
-
+        labels = [l for l in labels if l not in exclude]
+        
         stacks = {k: v for k, v in self._stacks.items() if k in labels}
-        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(cs,))})
+        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(self.zchunks,))})
 
         datasets = []
         arrays = []
@@ -1142,16 +1181,20 @@ class Dataset:
 
                     # print(path, cs, arr.shape)
                     ds = fh.create_dataset(path, shape=arr.shape, dtype=arr.dtype,
-                                           chunks=(cs,) + arr.shape[1:],
+                                           chunks=(1,) + arr.shape[1:],
                                            compression=compression, **kwargs)
                 except RuntimeError as e:
                     if overwrite or label == 'index':
                         ds = fh.require_dataset(path, shape=arr.shape, dtype=arr.dtype,
-                                                chunks=(cs,) + arr.shape[1:],
+                                                chunks=(1,) + arr.shape[1:],
                                                 compression=compression, **kwargs)
                     else:
                         print('Cannot write stack', label)
                         raise e
+                
+                if label == 'index':
+                    fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
+                    fh[path.rsplit('/', 1)[0]].attrs['signal'] = self._diff_stack_label
 
                 arrays.append(arr)
                 datasets.append(ds)
@@ -1170,14 +1213,16 @@ class Dataset:
             for fh in self.file_handles.values():
                 fh.flush()
                 
-    def store_stack_fast(self, label: str, client: Optional[Client] = None, sync: bool = True,
+    def store_stack_fast(self, label: Optional[str], client: Optional[Client] = None, sync: bool = True,
                          compression: Union[int, str] = 32004):
         """Store (and compute) a single stack to HDF5 file(s), using a dask.distributed cluster.
         This allows for proper parallel computation (even on many machines) and is wa(aaa)y faster
         than the standard store_stacks, which only works with threads.
+        It also sets the signal attribute in the NeXus-compliant data group to the given label.
 
         Arguments:
-            label {str} -- Label of the stack to be computed and stored
+            label {str} -- Label of the stack to be computed and stored. If None, use the _diff_stack
+                setting.
 
         Keyword Arguments:
             client {Optional[Client]} -- dask.distributed client object. Mandatorily required 
@@ -1201,6 +1246,9 @@ class Dataset:
             Otherwise, they will be re-calculated from scratch.
         """
 
+        if label is None:
+            label = self._diff_stack_label
+
         if self._files_open and not self._files_writable:
             raise RuntimeError('Please open files in write mode or close them before storing.')
         
@@ -1211,11 +1259,13 @@ class Dataset:
         # initialize datasets in files
         for (file, subset), grp in self.shots.groupby(['file', 'subset']):
             with h5py.File(file) as fh:
-                fh.require_dataset(f'/{subset}/data/{label}', 
+                path = self.data_pattern.replace('%', subset)
+                fh.require_dataset(f'{path}/{label}', 
                                         shape=(len(grp),) + stack.shape[1:], 
                                         dtype=stack.dtype, 
                                         chunks=(1,) + stack.shape[1:], 
                                         compression=compression)
+                fh[path].attrs['signal'] = label
         
         self.close_stacks()
         
@@ -1299,7 +1349,7 @@ class Dataset:
             self.store_stacks(labels=meta_stacks, compression=compression, overwrite=overwrite)
 
         print(f'Storing diffraction data stack {diff_stack_label}... monitor progress at {client.dashboard_link} (or forward port if remote)')
-        chunk_info = self.store_stack_fast('corrected', client, compression=compression)
+        chunk_info = self.store_stack_fast(diff_stack_label, client, compression=compression)
 
         # make sure that the calculation went consistent with the data set
         for (sh, sh_grp), (ch, ch_grp) in zip(self.shots.groupby(['file', 'subset']), chunk_info.groupby(['file', 'subset'])):
