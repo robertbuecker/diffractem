@@ -120,7 +120,6 @@ class Dataset:
         self._stacks = {}
         self._shot_id_cols = ['file', 'Event']
         self._feature_id_cols = ['crystal_id', 'region', 'sample']
-        self._stacks_open = False
 
         # tables
         self._shots = pd.DataFrame(columns=self._shot_id_cols + self._feature_id_cols + ['selected'])
@@ -134,7 +133,6 @@ class Dataset:
                 f'{self._peaks.shape[0]} peaks, {self._predict.shape[0]} predictions, '
                 f'{self._features.shape[0]} features\n'
                 f'{len(self._stacks)} data stacks: {", ".join(self._stacks.keys())}\n'
-                f'Data stacks open: {self._stacks_open}\n'
                 f'Data files open: {self._files_open}\n'
                 f'Data files writable: {self._files_writable}')
 
@@ -169,10 +167,7 @@ class Dataset:
 
     @property
     def stacks(self):
-        if self._stacks_open:
-            return self._stacks
-        else:
-            raise RuntimeError('Data stacks are not open!')
+        return self._stacks
 
     @property
     def files(self):
@@ -208,7 +203,7 @@ class Dataset:
     @property
     def zchunks(self):
         # z chunks of dataset stacks
-        allchk = [stk.chunks[0] for stk in self.stacks.values()]
+        allchk = [stk.chunks[0] for stk in self._stacks.values()]
         if allchk and all([chk == allchk[0] for chk in allchk]):
             return allchk[0]
         else:
@@ -232,7 +227,9 @@ class Dataset:
         self._features_changed = True
 
     @classmethod
-    def from_files(cls, files: Union[list, str, tuple], init_stacks=True, load_tables=True, diff_stack_label='raw_counts', **kwargs):
+    def from_files(cls, files: Union[list, str, tuple], open_stacks: bool = True, chunking: Union[int, str] = 100, 
+                   persist_meta: bool = True, init_stacks: bool = False, load_tables: bool = True, 
+                   diff_stack_label: str = 'raw_counts', validate_files: bool = False, **kwargs):
         """
         Creates a data set from:
             * a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style
@@ -249,7 +246,7 @@ class Dataset:
         :return: dataset object
         """
 
-        file_list = io.expand_files(files, scan_shots=True)
+        file_list = io.expand_files(files, scan_shots=True, validate=validate_files)
         # print(list(file_list))
         self = cls()
 
@@ -269,15 +266,20 @@ class Dataset:
             self._shots['selected'] = self._shots[self._shot_id_cols].isin(file_list[self._shot_id_cols]).all(axis=1)
 
         # and initialize stacks and tables
-        if init_stacks:
-            self.init_stacks()
+        if init_stacks and not open_stacks:
+            self.init_stacks(chunking=chunking)
         if load_tables:
-            self.load_tables(features=True, peaks=True, predict=True)
+            self.load_tables(features=True, peaks=True, predict=True)          
+        if open_stacks:
+            self.open_stacks(chunking=chunking)
+        if open_stacks and persist_meta:
+            self.persist_stacks(exclude=diff_stack_label, include_3d=False)
 
         return self
     
     from_list = from_files # for compatibility
 
+    #TODO What is this method doing here? Shouldn't it go into some tool module?
     def init_shot_table(self, files: list, stack_label: str = 'raw_counts'):
         identifiers = self.data_pattern.rsplit('%', 1)
         shots = []
@@ -403,8 +405,9 @@ class Dataset:
         """
         fs = []
 
-        if self._stacks_open and (format == 'tables'):
-            warn('Data stacks are open, and will be transiently closed. You will need to re-create derived stacks.',
+        #TODO automatically handle readonly-opened files
+        if self._files_open and (format == 'tables'):
+            warn('Data files are open, and will be transiently closed. You will need to re-create derived stacks.',
                  RuntimeWarning)
             stacks_were_open = True
             self.close_stacks()
@@ -685,12 +688,8 @@ class Dataset:
                 newset.reset_id()
             newset._file_handles = {}
 
-            if not self._stacks_open:
-                warn('Getting selection, but stacks are not open -> not taking over stacks.')
-            else:
-                for k, v in self.stacks.items():
-                    newset.add_stack(k, self._sel(v))
-                # newset._stacks_open = False # this is a bit dodgy, but required to not have issues later...
+            for k, v in self.stacks.items():
+                newset.add_stack(k, self._sel(v))
 
         finally:
             if query is not None:
@@ -724,9 +723,6 @@ class Dataset:
         newset = copy.copy(self)
         newset._stacks = {}
         exclude_stacks = [] if exclude_stacks is None else exclude_stacks
-
-        if not self._stacks_open:
-            raise RuntimeError('Stacks are not open.')
         
         # PART 1: MAKE A NEW SHOT TABLE ---
         
@@ -856,13 +852,14 @@ class Dataset:
             transformed = _map_sub_blocks(self.stacks[sn], feature_id, func, aggregating=False)
             self.add_stack(sn, transformed, overwrite=True)
 
-    def init_stacks(self):
+    def init_stacks(self, **kwargs):
         """
         Opens stacks briefly, to check their sizes etc., and closes them again right away. Helpful to just get their
         names and sizes...
         :return:
         """
-        self.open_stacks(init=True, readonly=True)
+        warn('init_stacks is pretty much never required. Double-check if you really need it.', DeprecationWarning)
+        self.open_stacks(init=True, readonly=True, **kwargs)
         self.close_stacks()
 
     def close_stacks(self):
@@ -872,8 +869,8 @@ class Dataset:
         """
         for f in self._file_handles.values():
             f.close()
+            del f
         self._file_handles = {}
-        self._stacks_open = False
 
     def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False, 
         readonly=True, swmr=False, chunking: Union[int, str, list, tuple] = 'dataset'):
@@ -890,8 +887,9 @@ class Dataset:
         :param swmr: open HDF5 files in SWMR mode
         :param chunking: how should the dask arrays be chunked along the 0th (stack) direction. Options are: 
             * an integer number for a defined (approximate) chunk size, which ignores shots with frame number < -1,
-            * 'dataset' to use the chunksize of the dataset, 
-            * an iterable to explicitly, and 
+            * 'hdf5' to use the chunksize of the HDF5 dataset
+            * 'dataset' to use what is set in the current dataset zchunks property (default)
+            * an iterable to explicitly
             * 'auto' to use the dask automatic. 
             * 'existing' to use the chunking of an already-existing stack which is about to be overwritten
             Generally, a fixed number (integer or iterable) is recommended and gives the least trouble.
@@ -899,6 +897,18 @@ class Dataset:
             a constant chunk size is achieved.
         :return:
         """
+        
+        if (not readonly and self._files_open and not self._files_writable) or \
+            (readonly and self._files_open and self._files_writable):
+                
+            if chunking != 'existing':
+                warn('Reopening files in a different mode. Chunking will be set to "existing".')
+                chunking = 'existing'
+                
+            # reopen the stacks in a different mode!
+            self.close_stacks()
+            
+        
         # TODO offer even more sophisticated chunking which always aligns with frames
         if 'frame' in self._shots.columns:
             sets = self._shots[['file', 'subset', 'shot_in_subset', 'frame']].drop_duplicates() # TODO why is the drop duplicates required?
@@ -909,7 +919,9 @@ class Dataset:
 
         if isinstance(chunking, (list, tuple)):
             chunking = list(chunking)[::-1]
-
+        elif(isinstance(chunking, str) and chunking=='dataset'):
+            chunking = list(self.zchunks)[::-1]
+                
         for (fn, subset), subgrp in sets.groupby(['file', 'subset']):
             self._file_handles[fn] = fh = h5py.File(fn, swmr=swmr, mode='r' if readonly else 'a')
 
@@ -928,8 +940,7 @@ class Dataset:
                     Nshot -= chk[-1]
                     if Nshot < 0:
                         raise ValueError('Requested chunking is incommensurate with file/subset boundaries!')
-                zchunks = tuple(chk)
-                # print(f'{fn}:{subset} -> {len(zchunks)} chunks.')
+                zchunks = tuple(chk)                
             else:
                 zchunks = None
 
@@ -949,7 +960,7 @@ class Dataset:
                         
                         if zchunks is not None:
                             chunks = (zchunks,) + ds.chunks[1:]
-                        elif chunking == 'dataset':
+                        elif chunking == 'hdf5':
                             chunks = ds.chunks
                         elif chunking == 'auto':
                             chunks = 'auto'
@@ -974,8 +985,6 @@ class Dataset:
             except ValueError:
                 warn(f'Could not read stack {sn}')
 
-        self._stacks_open = True
-
     @contextmanager
     def Stacks(self, **kwargs):
         """Context manager to handle the opening and closing of stacks.
@@ -999,9 +1008,6 @@ class Dataset:
         :return:
         """
 
-        if not self._stacks_open:
-            raise RuntimeError('Please open stacks before adding another one.')
-
         if stack.shape[0] != self.shots.shape[0]:
             raise ValueError('Stack height must equal that of the shot list.')
 
@@ -1022,9 +1028,6 @@ class Dataset:
         :param from_files: if True, the stack is also deleted in the HDF5 files. Default False.
         :return:
         """
-
-        if not self._stacks_open:
-            raise RuntimeError('Please open stacks before deleting.')
 
         try:
             del self._stacks[label]
@@ -1059,7 +1062,7 @@ class Dataset:
         
         labels = [l for l in labels if l not in exclude]
         
-        print('Persisting stacks to memory:', ', '.join(labels))
+        # print('Persisting stacks to memory:', ', '.join(labels))
         self._stacks.update(dask.persist({sn: stk for sn, stk in self.stacks.items() if stk.ndim < 3})[0])
 
     def store_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None, overwrite: bool = False, 
