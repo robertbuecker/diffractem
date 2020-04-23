@@ -157,6 +157,10 @@ class Dataset:
     @property
     def _files_writable(self):
         return self._files_open and all([f.mode != 'r' for f in self.file_handles.values()])
+    
+    @property
+    def _stack_in_memory(self):
+        return {sn: len(stk.dask) == np.product(stk.numblocks) for sn, stk in self._stacks.items()}
 
     @property
     def file_handles(self):
@@ -228,7 +232,7 @@ class Dataset:
         self._features_changed = True
 
     @classmethod
-    def from_files(cls, files: Union[list, str, tuple], init_stacks=True, load_tables=True, stack_label='raw_counts', **kwargs):
+    def from_files(cls, files: Union[list, str, tuple], init_stacks=True, load_tables=True, diff_stack_label='raw_counts', **kwargs):
         """
         Creates a data set from:
             * a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style
@@ -240,7 +244,7 @@ class Dataset:
         :param init_stacks: initialize stacks, that is, briefly open the data stacks, check their lengths, and close
                 them again. Does not hurt usually.
         :param load_tables: load the additional tables stored in the files (features, peaks, predictions)
-        :param stack_label: name of stack to be used for generating the shot table, if it's not stored in the files
+        :param diff_stack_label: name of stack to be used for generating the shot table, if it's not stored in the files
         :param **kwargs: Dataset attributes to be set right away
         :return: dataset object
         """
@@ -258,7 +262,7 @@ class Dataset:
 
         self.load_tables(shots=True, files=list(file_list.file.unique()))
         if self.shots.shape[0] == 0:
-            self.init_shot_table(file_list['file'], stack_label=stack_label)
+            self.init_shot_table(file_list['file'], stack_label=diff_stack_label)
 
         # now set selected property...
         if 'Event' in file_list.columns:
@@ -1036,16 +1040,38 @@ class Dataset:
                 except KeyError:
                     pass
                     #print(address['file'], path, 'not found!')
+                    
+    def persist_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None,
+                       include_3d: bool = False):
+        
+        if labels is None:
+            labels = list(self._stacks.keys())
+        elif isinstance(labels, str):
+            labels = [labels]          
+              
+        if exclude is None:
+            exclude = []
+        elif isinstance(exclude, str):
+            exclude = [exclude]
+            
+        if not include_3d:
+            exclude.extend([sn for sn, stk in self._stacks.items() if stk.ndim >= 3])
+        
+        labels = [l for l in labels if l not in exclude]
+        
+        print('Persisting stacks to memory:', ', '.join(labels))
+        self._stacks.update(dask.persist({sn: stk for sn, stk in self.stacks.items() if stk.ndim < 3})[0])
 
-    def store_stacks(self, labels: Union[None, list] = None, overwrite=False,
-                    compression=32004, lazy=False, data_pattern: Union[None,str] = None, 
-                    progress_bar=True, scheduler: str = 'threading', **kwargs):
+    def store_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None, overwrite: bool = False, 
+                    compression: Union[str, int] = 32004, lazy: bool = False, data_pattern: Union[None,str] = None, 
+                    progress_bar=True, chunking: Union[str, int] = 1, scheduler: str = 'threading', **kwargs):
         """
         Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
         typically not yet computed, so at this point the actual data crunching is done. Note that this way of computing
         and storing data is restricted to threading or single-threaded computation, i.e. it's not recommended for
         heavy lifting. In this case, better use store_stack_fast.
-        :param labels: stacks to be written
+        :param labels: stack(s) to be written
+        :param exclude: stack(s) to be excluded
         :param overwrite: overwrite stacks already existing in the files?
         :param compression: compression algorithm to be used. 32004 corresponds to bz4, which we mostly use.
         :param lazy: if True, instead of writing the shots, returns two lists containing the arrays and dataset objects
@@ -1054,6 +1080,10 @@ class Dataset:
                         Note that stacks stored this way will not be retrievable through Dataset objects.
         :param progress_bar: show a progress bar during calculation/storing. Disable if you're running store_stacks
                         in multiple processes simultaneously.
+        :param chunking: 0-dimension (stacking) chunk size. Can be fixed or 'stacks', to use the chunks of the dataset's. 
+                        dask arrays holding the stacks (dataset.zchunks[0] - note that only the size of the _first_ chunk 
+                        is used for all chunks.)
+                        Defaults to 1, which is highly recommended.
         :param scheduler: dask scheduler to be used. Can be 'threading' or 'single-threaded'
         :param **kwargs: will be forwarded to h5py.create_dataset
         :return:
@@ -1064,9 +1094,20 @@ class Dataset:
 
         if labels is None:
             labels = self._stacks.keys()
+        elif isinstance(labels, str):
+            labels = [labels]
+
+        if exclude is None:
+            exclude = []
+        elif isinstance(exclude, str):
+            exclude = [exclude]
+            
+        labels = [l for l in labels is l not in exclude]
+            
+        cs = self.zchunks[0] if isinstance(chunking, str) and chunking.startswith('stack') else chunking
 
         stacks = {k: v for k, v in self._stacks.items() if k in labels}
-        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(self.zchunks,))})
+        stacks.update({'index': da.from_array(self.shots.index.values, chunks=(cs,))})
 
         datasets = []
         arrays = []
@@ -1095,15 +1136,15 @@ class Dataset:
 
                 #print('Writing to ', path)
                 try:
-                    cs = tuple([c[0] for c in arr.chunks])
+
                     # print(path, cs, arr.shape)
                     ds = fh.create_dataset(path, shape=arr.shape, dtype=arr.dtype,
-                                           chunks=cs,
+                                           chunks=(cs,) + arr.shape[1:],
                                            compression=compression, **kwargs)
                 except RuntimeError as e:
                     if overwrite or label == 'index':
                         ds = fh.require_dataset(path, shape=arr.shape, dtype=arr.dtype,
-                                                chunks=tuple([c[0] for c in arr.chunks]),
+                                                chunks=(cs,) + arr.shape[1:],
                                                 compression=compression, **kwargs)
                     else:
                         print('Cannot write stack', label)
@@ -1349,3 +1390,23 @@ class Dataset:
         #TODO allow to export CrystFEL-style single-pattern lists
         with open(listfile, 'w') as fh:
             fh.write('\n'.join(self.files))
+
+    def generate_virtual_file(self, filename: str, diff_stack_label: str,
+                              kind: str = 'fake', virtual_size: int = 1024):
+        """Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
+        diffraction. Instead of the diffraction stack, either a dummy stack containing a constant only,
+        or a virtual dataset with external links to the actual data files is created. While the former
+        is useful for indexing using CrystFEL, the latter can serve to generate a file for quick preview.
+
+        Arguments:
+            filename {str} -- [description]
+
+        Keyword Arguments:
+            kind {str} -- [description] (default: {'fake'})
+            virtual_size {int} -- [description] (default: {1024})
+
+        Raises:
+            NotImplementedError: [description]
+        """
+        #TODO maybe rather split the preview file functionality off. It's too different.
+        raise NotImplementedError('Fix this')
