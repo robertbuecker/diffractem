@@ -176,7 +176,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts, reference: Option
 
 def get_pattern_info(img: np.ndarray, opts: PreProcOpts, client: Optional[Client] = None, 
                      reference: Optional[np.ndarray] = None, 
-                     pxmask: Optional[np.ndarray] = None) -> Tuple[pd.DataFrame, dict]:
+                     pxmask: Optional[np.ndarray] = None, 
+                     lazy: bool = False, sync: bool = True) -> Tuple[pd.DataFrame, dict]:
     '''
     PATTERN PROCESSING MACRO
     ...returns a DataFrame + dict!
@@ -192,11 +193,17 @@ def get_pattern_info(img: np.ndarray, opts: PreProcOpts, client: Optional[Client
     
     if isinstance(img, da.Array):
         cts = img.to_delayed().squeeze()
-        res_del = [dask.delayed(_generate_pattern_info)(c, opts=opts, reference=reference, pxmask=pxmask) for c in cts]
+        res_del = [dask.delayed(_generate_pattern_info, nout=1, 
+                                pure=True)(c, opts=opts, reference=reference, pxmask=pxmask,
+                                           dask_key_name=f'pattern_info_chunk_{ii}') for ii, c in enumerate(cts)]
+        if lazy:
+            return res_del
         if client is not None:
             ftrs = client.compute(res_del)
             print(f'Running get_pattern_info on cluster at {client.scheduler_info()["address"]}. \n'
                   f'Watch progress at {client.dashboard_link} (or forward port if remote).')
+            if not sync:
+                return ftrs
             alldat = stack_nested(client.gather(ftrs), fun=np.concatenate)
         else:
             warn('get_pattern_info is run on a dask array without distributed client - might be slow!')
