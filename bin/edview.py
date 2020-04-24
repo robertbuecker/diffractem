@@ -75,7 +75,7 @@ class EDViewer(QWidget):
 
             files = list(stream.shots['file'].unique())
             try:
-                self.dataset = Dataset.from_list(files, load_tables=False, init_stacks=False)
+                self.dataset = Dataset.from_files(files, load_tables=False, init_stacks=False, open_stacks=False)
                 self.dataset.load_tables(features=True)
                 self.dataset.merge_stream(stream)
                 # get_selection would not be the right method to call (changes IDs), instead do...
@@ -95,7 +95,7 @@ class EDViewer(QWidget):
             self.geom = load_crystfel_geometry(args.geometry)
 
         if file_type in ['lst', 'h5', 'hdf', 'nxs']:
-            self.dataset = Dataset.from_list(args.filename, load_tables=True)
+            self.dataset = Dataset.from_list(args.filename, load_tables=True, init_stacks=False, open_stacks=False)
             if not self.dataset.shots.selected.all():
                 # dirty removal of unwanted shots is sufficient in this case:
                 self.dataset._shots = self.dataset._shots.loc[self.dataset._shots.selected,:].reset_index(drop=True)
@@ -105,7 +105,15 @@ class EDViewer(QWidget):
 
         if self.data_path is None:
             # data path neither set via stream file, nor explicitly. We have to guess.
-            self.data_path = '/%/data/centered'
+            try:
+                with h5py.File(self.dataset.shots.file.iloc[0], 'r') as fh:
+                    base = '/%/data'.replace('%', self.dataset.shots.subset.iloc[0])
+                    self.data_path = '/%/data/' + fh[base].attrs['signal']
+                print('Found data path', self.data_path)
+            except Exception as err:
+                warn(str(err), RuntimeWarning)
+                print('Could not find out data path. Assuming /%/data/raw_counts')
+                self.data_path = '/%/data/raw_counts'
 
         if self.args.query:
             print('Only showing shots with', self.args.query)
@@ -125,7 +133,7 @@ class EDViewer(QWidget):
 
     def update_image(self):
         print(self.current_shot)
-        with h5py.File(self.current_shot['file'], mode='r', swmr=True) as f:
+        with h5py.File(self.current_shot['file'], mode='r') as f:
 
             if self.args.internal:
                 path = self.data_path.replace('%', self.current_shot.subset)
@@ -135,13 +143,16 @@ class EDViewer(QWidget):
                     self.diff_image = f[path][int(self.current_shot['shot_in_subset']), ...]
                 elif len(f[path].shape) == 2:
                     self.diff_image = f[path][:]
-
+                    
                 self.diff_image[np.isnan(self.diff_image)] = 0
+                self.hist_img.setHistogramRange(-1, np.partition(self.diff_image.flatten(), -100)[-100])
 
                 levels = self.hist_img.getLevels()
+                levels = (max(levels[0], -1), levels[1])
                 if self.geom is not None:
                     self.diff_image = apply_geometry_to_data(self.diff_image, self.geom)
                 self.img.setImage(self.diff_image, autoRange=False)
+                
                 self.img.setLevels(levels)
                 self.hist_img.setLevels(levels[0], levels[1])
 
@@ -163,8 +174,8 @@ class EDViewer(QWidget):
 
         if self.b_peaks.isChecked():
             
-            if args.cxi_peaks:
-                path = args.peaks_path.replace('%', self.current_shot.subset)
+            if (len(self.dataset.peaks) == 0) or args.cxi_peaks:
+                path = args.cxi_peaks_path.replace('%', self.current_shot.subset)
                 print('Loading CXI peaks of {}:{} from {}'.format(path,
                                                         self.current_shot['shot_in_subset'], self.current_shot['file']))     
                 with h5py.File(self.current_shot.file) as fh:
@@ -336,7 +347,7 @@ class EDViewer(QWidget):
         I = self.diff_image[y, x]
         #print(x, y, I)
         self.info_text.setPos(x, y)
-        self.info_text.setText('{}, {}: {}'.format(x, y, I))
+        self.info_text.setText(f'{x:0.1f}, {y:0.1f}: {I:0.1f}')
 
     def init_widgets(self):
 
@@ -366,7 +377,7 @@ class EDViewer(QWidget):
         self.info_text.setPos(0, 0)
 
         # Contrast/color control
-        self.hist_img = pg.HistogramLUTItem(self.img)
+        self.hist_img = pg.HistogramLUTItem(self.img, fillHistogram=False)
         self.imageWidget.addItem(self.hist_img)
 
         # MAP DISPLAY
@@ -463,11 +474,12 @@ if __name__ == '__main__':
     parser.add_argument('--adxv-bin', help='Location/command string of adxv binary', default='adxv')
     parser.add_argument('--map-path', type=str, help='Path to map image', default='/%/map/image')
     parser.add_argument('--feature-path', type=str, help='Path to map feature table', default='/%/map/features')
-    parser.add_argument('--peaks-path', type=str, help='Path to peaks table', default='/%/results/peaks')
-    parser.add_argument('--cxi-peaks', help='Read peaks in CXI format instead of table.', action='store_true')
+    parser.add_argument('--cxi-peaks', help='Prefer CXI-format peaks in HDF5 files over stream/HDF5 table', action='store_true')
+    parser.add_argument('--cxi-peaks-path', type=str, help='Path to CXI peaks table', default='/%/data')
+    parser.add_argument('--peaks-path', type=str, help='Path to peaks table in HDF5 files', default='/%/results/peaks')
     parser.add_argument('--predict-path', type=str, help='Path to prediction table', default='/%/results/predict')
     parser.add_argument('--no-map', help='Hide map, even if we had it', action='store_true')
-    parser.add_argument('--beam_diam', type=int, help='Beam size displayed in real space, in pixels', default=5)
+    parser.add_argument('--beam-diam', type=int, help='Beam size displayed in real space, in pixels', default=5)
 
     args = parser.parse_args()
 
