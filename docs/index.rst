@@ -10,11 +10,6 @@ Welcome to diffractem's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-.. automodule:: diffractem.dataset
-
-.. autoclass:: Dataset
-      :members:
-
 Indices and tables
 ==================
 
