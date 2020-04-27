@@ -1,0 +1,306 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>diffractem.pre_proc_opts &mdash; diffractem  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> diffractem
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../diffractem.html">Welcome</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">diffractem</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>diffractem.pre_proc_opts</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for diffractem.pre_proc_opts</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">import</span> <span class="nn">pprint</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<div class="viewcode-block" id="PreProcOpts"><a class="viewcode-back" href="../../diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts">[docs]</a><span class="k">class</span> <span class="nc">PreProcOpts</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_filename</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_help</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># raw-image corrections</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reference</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;Ref12_reference.tif&#39;</span>  <span class="c1">#: Name of reference image for flat-field correction in TIF format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pxmask</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;Ref12_pxmask.tif&#39;</span>        <span class="c1">#: Name of pixelmask TIF image</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correct_saturation</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>          <span class="c1">#: Correct for detector saturation using paralyzable model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dead_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.9e-3</span>                 <span class="c1">#: Dead time (in ms) for paralyzable detector model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shutter_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">2</span>                   <span class="c1">#: Shutter time (in ms) for paralyzable detector model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask_gaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">float</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cam_length</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">2</span>                     <span class="c1">#: Coarse camera length (in m) for estimations. Not used for indexing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.98</span>                     <span class="c1">#: Scaling of camera length along y axis (tilted detector)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">55e-6</span>                 <span class="c1">#: Pixel size (in m)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">com_threshold</span><span class="p">:</span><span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">com_xrng</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">800</span>                     <span class="c1">#: x range (px) around pattern center in which to look for center of mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">com_yrng</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">800</span>                     <span class="c1">#: y range (px) around pattern center in which to look for center of mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lorentz_radius</span> <span class="o">=</span> <span class="mi">30</span>                <span class="c1">#: radius (px) around center of mass for Lorentz fit of zero order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lorentz_maxshift</span> <span class="o">=</span> <span class="mi">36</span>              <span class="c1">#: maximum shift (px) of Lorentz fit center from center of mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xsize</span> <span class="o">=</span> <span class="mi">1556</span>                       <span class="c1">#: x image size (px)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ysize</span> <span class="o">=</span> <span class="mi">516</span>                        <span class="c1">#: y image size (px)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r_adf1</span> <span class="o">=</span> <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>                 <span class="c1">#: inner/outer radii for virtual ADF 1 (px)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r_adf2</span> <span class="o">=</span> <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>                <span class="c1">#: inner/outer radii for virtual ADF 2 (px)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_query</span> <span class="o">=</span> <span class="s1">&#39;frame &gt;= 0&#39;</span>        <span class="c1">#: query string for selection of shots from raw data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agg_query</span> <span class="o">=</span> <span class="s1">&#39;frame &gt;= 0 and frame &lt;= 5&#39;</span>    <span class="c1">#: query string for aggregation of patterns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agg_file_suffix</span> <span class="o">=</span> <span class="s1">&#39;_agg.h5&#39;</span>        <span class="c1">#: file suffix for aggregated patterns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aggregate</span> <span class="o">=</span> <span class="kc">True</span>                   <span class="c1">#: calculate aggregated patterns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scratch_dir</span> <span class="o">=</span> <span class="s1">&#39;/scratch/diffractem&#39;</span><span class="c1">#: scratch directory for temporary data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proc_dir</span> <span class="o">=</span> <span class="s1">&#39;proc_data&#39;</span>             <span class="c1">#: directory for pre-processed data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rechunk</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peak_search_params</span> <span class="o">=</span> \
+            <span class="p">{</span><span class="s1">&#39;min-res&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;max-res&#39;</span><span class="p">:</span> <span class="mi">600</span><span class="p">,</span>
+            <span class="s1">&#39;local-bg-radius&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;threshold&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+            <span class="s1">&#39;min-pix-count&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="s1">&#39;min-snr&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;int-radius&#39;</span><span class="p">:</span> <span class="s1">&#39;3,4,5&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;peaks&#39;</span><span class="p">:</span> <span class="s1">&#39;peakfinder8&#39;</span><span class="p">}</span>             <span class="c1">#: parameters for peak finding using peakfinder8</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indexing_params</span> <span class="o">=</span> \
+            <span class="p">{</span><span class="s1">&#39;min-res&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;max-res&#39;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span> <span class="s1">&#39;local-bg-radius&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+            <span class="s1">&#39;threshold&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;min-pix-count&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;min-snr&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="s1">&#39;peaks&#39;</span><span class="p">:</span> <span class="s1">&#39;peakfinder8&#39;</span><span class="p">,</span> 
+            <span class="s1">&#39;indexing&#39;</span><span class="p">:</span> <span class="s1">&#39;none&#39;</span><span class="p">}</span>                 <span class="c1">#: indexamajig parameters for indexing (of virtual files)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">integration_params</span> <span class="o">=</span> \
+            <span class="p">{</span><span class="s1">&#39;min-res&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;max-res&#39;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span> <span class="s1">&#39;local-bg-radius&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+            <span class="s1">&#39;threshold&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;min-pix-count&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;min-snr&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="s1">&#39;peaks&#39;</span><span class="p">:</span> <span class="s1">&#39;peakfinder8&#39;</span><span class="p">,</span> 
+            <span class="s1">&#39;indexing&#39;</span><span class="p">:</span> <span class="s1">&#39;none&#39;</span><span class="p">}</span>                 <span class="c1">#: indexamajig parameters for integration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peak_search_params</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;temp-dir&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scratch_dir</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indexing_params</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;temp-dir&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scratch_dir</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_peaks</span> <span class="o">=</span> <span class="mi">500</span>                    <span class="c1">#: maximum number of peaks for peak finding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">crystfel_procs</span> <span class="o">=</span> <span class="mi">40</span> <span class="c1"># number of processes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">im_exc</span> <span class="o">=</span> <span class="s1">&#39;indexamajig&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">geometry</span> <span class="o">=</span> <span class="s1">&#39;calibrated.geom&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peaks_cxi</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">half_pixel_shift</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peaks_nexus</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">friedel_refine</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_peaks</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peak_sigma</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">friedel_max_radius</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refined_file_suffix</span> <span class="o">=</span> <span class="s1">&#39;_ref.h5&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">center_stack</span> <span class="o">=</span> <span class="s1">&#39;beam_center&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">broadcast_single</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">broadcast_cumulative</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">single_suffix</span> <span class="o">=</span> <span class="s1">&#39;_all.h5&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">idfields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;file_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">,</span> <span class="s1">&#39;sample&#39;</span><span class="p">,</span> <span class="s1">&#39;crystal_id&#39;</span><span class="p">,</span> <span class="s1">&#39;region&#39;</span><span class="p">,</span> <span class="s1">&#39;run&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">broadcast_peaks</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cum_file_suffix</span> <span class="o">=</span> <span class="s1">&#39;_cum.h5&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cum_stacks</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;centered&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cum_first_frame</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rerun_peak_finder</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peak_radius</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_len</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nobg_file_suffix</span> <span class="o">=</span> <span class="s1">&#39;_nobg.h5&#39;</span>
+
+        <span class="k">if</span> <span class="n">fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pprint</span><span class="o">.</span><span class="n">pformat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pprint</span><span class="o">.</span><span class="n">pformat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PreProcOpts.load"><a class="viewcode-back" href="../../diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.load">[docs]</a>    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="n">fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filename</span> <span class="k">if</span> <span class="n">fn</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">fn</span>
+        <span class="k">if</span> <span class="n">fn</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Please set the option file name first&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">fn</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;json&#39;</span><span class="p">):</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">fn</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;yaml&#39;</span><span class="p">):</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;File extension must be .yaml or .json.&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Option&#39;</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s1">&#39;in&#39;</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;unknown.&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_filename</span> <span class="o">=</span> <span class="n">fn</span></div>
+
+<div class="viewcode-block" id="PreProcOpts.save"><a class="viewcode-back" href="../../diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">fn</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;json&#39;</span><span class="p">):</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">,</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">),</span> <span class="n">skipkeys</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">fn</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;yaml&#39;</span><span class="p">):</span>
+            <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">,</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">),</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Robert Buecker
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

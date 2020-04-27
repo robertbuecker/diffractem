@@ -1,0 +1,708 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>diffractem.legacy &mdash; diffractem  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> diffractem
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../diffractem.html">Welcome</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">diffractem</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>diffractem.legacy</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for diffractem.legacy</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib</span> <span class="k">as</span> <span class="nn">mpl</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">dask</span> <span class="kn">import</span> <span class="n">array</span> <span class="k">as</span> <span class="n">da</span>
+<span class="kn">from</span> <span class="nn">mpl_toolkits.axes_grid1.anchored_artists</span> <span class="kn">import</span> <span class="n">AnchoredSizeBar</span>
+
+<span class="kn">from</span> <span class="nn">diffractem.io</span> <span class="kn">import</span> <span class="n">get_meta_lists</span><span class="p">,</span> <span class="n">get_data_stacks</span><span class="p">,</span> <span class="n">expand_files</span>
+<span class="kn">from</span> <span class="nn">diffractem.nexus</span> <span class="kn">import</span> <span class="n">get_meta_fields</span>
+<span class="kn">from</span> <span class="nn">diffractem.proc2d</span> <span class="kn">import</span> <span class="n">correct_dead_pixels</span><span class="p">,</span> <span class="n">lorentz_fit_simple</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">ndimage</span>
+<span class="kn">from</span> <span class="nn">sklearn.cluster</span> <span class="kn">import</span> <span class="n">DBSCAN</span><span class="p">,</span> <span class="n">KMeans</span>
+
+
+<div class="viewcode-block" id="peak_finder"><a class="viewcode-back" href="../../diffractem.legacy.html#diffractem.legacy.peak_finder">[docs]</a><span class="k">def</span> <span class="nf">peak_finder</span><span class="p">(</span><span class="n">img_raw</span><span class="p">,</span> <span class="n">xy</span><span class="p">,</span> <span class="n">profile</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pxmask</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">noise</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span>
+                <span class="p">([[</span><span class="kc">False</span><span class="p">,</span><span class="kc">True</span><span class="p">,</span><span class="kc">False</span><span class="p">],[</span><span class="kc">True</span><span class="p">,</span><span class="kc">True</span><span class="p">,</span><span class="kc">True</span><span class="p">],[</span><span class="kc">False</span><span class="p">,</span><span class="kc">True</span><span class="p">,</span><span class="kc">False</span><span class="p">]]),</span>
+                 <span class="n">kernel_size</span> <span class="o">=</span> <span class="mi">9</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="mi">9</span><span class="p">,</span> <span class="n">db_eps</span> <span class="o">=</span> <span class="mf">1.9</span><span class="p">,</span>
+                 <span class="n">db_samples</span> <span class="o">=</span> <span class="mi">9</span><span class="p">,</span> <span class="n">bkg_remove</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">img_clean</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">radial_min</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    1) (OPTIONAL) Construct background from xy and profile.</span>
+<span class="sd">        Subtract from img_raw.</span>
+<span class="sd">    2) Remove Impulse noise using morpholigical opening and closing with</span>
+<span class="sd">        noise struc.</span>
+<span class="sd">    3) Convolve Image with Gaussian kernel to find local background.</span>
+<span class="sd">        Features are all pixels larger than the local background</span>
+<span class="sd">        by a certain threshold.</span>
+<span class="sd">    4) Pick peaks out of image features using DBSCAN (Clustering)</span>
+<span class="sd">    5) Labelling of Peaks using ndimage</span>
+<span class="sd">    6) (OPTIONAL) Clean image</span>
+<span class="sd">    Simple peakfinder built upon scipy.ndimage.</span>
+<span class="sd">    Uses a morpholgical opening to find features larger than size and higher</span>
+<span class="sd">    than threshold. The features are then labelled and the center of mass and</span>
+<span class="sd">    sum of each peak is returned in a numpy array.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">### 1) Strip Background</span>
+    <span class="k">if</span> <span class="n">bkg_remove</span><span class="p">:</span>
+        <span class="n">ylen</span><span class="p">,</span><span class="n">xlen</span> <span class="o">=</span> <span class="n">img_raw</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">y</span><span class="p">,</span><span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ogrid</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">ylen</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="n">xlen</span><span class="p">]</span>
+        <span class="n">radius</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(((</span><span class="n">x</span><span class="o">-</span><span class="n">xy</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">xy</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">radius</span><span class="p">))</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">copyto</span><span class="p">(</span><span class="n">prof</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">profile</span><span class="p">)],</span> <span class="n">profile</span><span class="p">)</span>
+        <span class="n">bkg</span> <span class="o">=</span> <span class="n">prof</span><span class="p">[</span><span class="n">radius</span><span class="p">]</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">img_raw</span> <span class="o">-</span> <span class="n">bkg</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">correct_dead_pixels</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">pxmask</span><span class="p">,</span> <span class="s1">&#39;replace&#39;</span><span class="p">,</span> <span class="n">replace_val</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+                              <span class="n">mask_gaps</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">img_raw</span>
+        <span class="n">bkg</span><span class="o">=</span><span class="kc">None</span>
+    <span class="c1">### 2) Remove Impulse Noise</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">grey_opening</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="n">noise</span><span class="p">)</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">grey_closing</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="n">noise</span><span class="p">)</span>
+    <span class="c1">### 3) Feature detection NB: astropy.convolve is slow</span>
+    <span class="n">img_fil</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">img</span><span class="o">==-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">img</span><span class="p">)</span>
+    <span class="n">img_fil</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">gaussian_filter</span><span class="p">(</span><span class="n">img_fil</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">),</span>
+                                      <span class="n">kernel_size</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span><span class="n">cval</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">img_norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">img</span><span class="o">==-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">img_norm</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">gaussian_filter</span><span class="p">(</span><span class="n">img_norm</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">),</span>
+                                       <span class="n">kernel_size</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span><span class="n">cval</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">img_norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">img_norm</span><span class="o">==</span><span class="mf">0.0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">img_norm</span><span class="p">)</span>
+    <span class="n">img_fil</span> <span class="o">=</span> <span class="n">img_fil</span><span class="o">/</span><span class="n">img_norm</span>
+    <span class="n">img_feat</span> <span class="o">=</span> <span class="n">img</span> <span class="o">-</span> <span class="n">img_fil</span>
+    <span class="c1">### 4) Peak Picking</span>
+    <span class="n">loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">img_feat</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">loc</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">loc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">img_feat</span><span class="p">[</span><span class="n">loc</span><span class="p">])]))</span>
+    <span class="n">db</span> <span class="o">=</span> <span class="n">DBSCAN</span><span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="n">db_eps</span><span class="p">,</span> <span class="n">min_samples</span><span class="o">=</span><span class="n">db_samples</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">img_label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">img_label</span><span class="p">[</span><span class="n">loc</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">db</span><span class="o">.</span><span class="n">labels_</span>
+    <span class="n">num_feat</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">labels_</span><span class="p">))</span>
+    <span class="c1">### 5) Peak Labelling</span>
+    <span class="n">com</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">center_of_mass</span><span class="p">(</span><span class="n">img_feat</span><span class="p">,</span><span class="n">img_label</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_feat</span><span class="p">))</span>
+    <span class="n">vol</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">img_feat</span><span class="p">,</span><span class="n">img_label</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_feat</span><span class="p">))</span>
+    <span class="c1">### 6) Apply radial cut to peaks</span>
+    <span class="n">rad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">com</span><span class="p">)</span><span class="o">-</span><span class="n">xy</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">rad_cut</span> <span class="o">=</span> <span class="n">rad</span> <span class="o">&gt;</span> <span class="n">radial_min</span>
+    <span class="n">com</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">com</span><span class="p">)[</span><span class="n">rad_cut</span><span class="p">]</span>
+    <span class="n">vol</span> <span class="o">=</span> <span class="n">vol</span><span class="p">[</span><span class="n">rad_cut</span><span class="p">]</span>
+    <span class="n">img_label</span><span class="p">[</span><span class="n">img_label</span><span class="o">-</span><span class="mi">1</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">rad</span><span class="o">&lt;</span><span class="n">radial_min</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Found </span><span class="si">{}</span><span class="s2"> peaks&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">com</span><span class="p">)))</span>
+    <span class="c1">### 7) Clean Image</span>
+    <span class="k">if</span> <span class="n">img_clean</span><span class="p">:</span>
+        <span class="n">img</span><span class="p">[</span><span class="n">img_label</span><span class="o">==</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">com</span><span class="p">,</span><span class="n">vol</span><span class="p">)),</span> <span class="n">img</span></div>
+
+
+<div class="viewcode-block" id="profile_classify_ML"><a class="viewcode-back" href="../../diffractem.legacy.html#diffractem.legacy.profile_classify_ML">[docs]</a><span class="k">def</span> <span class="nf">profile_classify_ML</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">,</span> <span class="n">fit_record</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">show_plot</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                        <span class="n">refit</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">rescale</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">bin_min</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> <span class="n">bin_max</span> <span class="o">=</span> <span class="mi">40</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Takes the profile stack,</span>
+<span class="sd">    refits a 1D Lorentz distribution(Optional),</span>
+<span class="sd">    classifies the profiles with KMeans form sklearn.cluster,</span>
+<span class="sd">    NB MinibatchKMeans is not parrallelized</span>
+<span class="sd">    takes the mean, and returns them to the correct index in profile_ave.</span>
+<span class="sd">    :param prof_stack   : stack of profiles</span>
+<span class="sd">    :fit_record         : array of parameters returned form the 2D lorentz fit</span>
+<span class="sd">    :show_plot          : switch for plotting the profiles</span>
+<span class="sd">    :refit              : switch for refitting of the profiles</span>
+<span class="sd">    :rescale            : if profiles should be scaled.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#scale,shape = np.transpose([rec[0][3:5] for rec in fit_record])</span>
+    <span class="n">n</span><span class="o">=</span><span class="n">prof_stack</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">amp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">prof_ave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">prof_stack</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1">###(Optional) Refitting of the profiles with a Lorentz distribution</span>
+    <span class="k">if</span> <span class="n">refit</span> <span class="ow">or</span> <span class="n">fit_record</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">prof_stack</span> <span class="o">=</span> <span class="n">prof_stack</span><span class="p">[:,:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">amp</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">lorentz_fit_simple</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">,</span><span class="n">bin_min</span><span class="p">,</span><span class="n">bin_max</span><span class="p">)))</span>
+        <span class="n">prof_stack</span> <span class="o">=</span> <span class="n">prof_stack</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">amp</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">fit_record</span><span class="p">[:,[</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]])</span>
+
+    <span class="k">if</span> <span class="n">rescale</span><span class="p">:</span>
+        <span class="n">prof_stack</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">)</span><span class="o">/</span><span class="n">amp</span><span class="p">)</span>
+
+    <span class="c1">###Grouping of profiles according to scale and shape</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="mi">100</span><span class="o">*</span><span class="n">scale</span><span class="p">,</span><span class="mi">100</span><span class="o">*</span><span class="n">shape</span><span class="p">])</span>
+    <span class="c1"># n_jobs=-1 Uses all cores</span>
+    <span class="n">cluster</span> <span class="o">=</span> <span class="n">KMeans</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">n</span><span class="p">)))</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">labels_</span>
+    <span class="n">unique_labels</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Grouping the radial profiles into </span><span class="si">{}</span><span class="s1"> groups.&#39;</span>
+          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="n">show_plot</span> <span class="p">:</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span> <span class="o">=</span> <span class="n">labels</span><span class="p">,</span> <span class="n">marker</span> <span class="o">=</span> <span class="s1">&#39;o&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Estimated number of clusters: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span>
+                  <span class="nb">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">)))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="c1">###Taking Average of profiles</span>
+    <span class="n">prof_stack</span><span class="p">[</span><span class="n">prof_stack</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="k">for</span> <span class="n">kk</span> <span class="ow">in</span> <span class="n">unique_labels</span><span class="p">:</span>
+        <span class="n">cut</span> <span class="o">=</span> <span class="p">(</span><span class="n">kk</span><span class="o">==</span><span class="n">labels</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">RuntimeWarning</span><span class="p">)</span>
+            <span class="n">ave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">[</span><span class="n">cut</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">ave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">ave</span><span class="p">)</span>
+        <span class="n">prof_ave</span><span class="p">[</span><span class="n">cut</span><span class="p">]</span> <span class="o">=</span> <span class="n">ave</span>
+
+    <span class="k">if</span> <span class="n">rescale</span><span class="p">:</span>
+        <span class="n">prof_ave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">prof_ave</span><span class="p">)</span><span class="o">*</span><span class="n">amp</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">prof_ave</span><span class="p">,</span> <span class="n">labels</span></div>
+
+
+<div class="viewcode-block" id="profile_classify"><a class="viewcode-back" href="../../diffractem.legacy.html#diffractem.legacy.profile_classify">[docs]</a><span class="k">def</span> <span class="nf">profile_classify</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">,</span> <span class="n">fit_record</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">show_plot</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                     <span class="n">show_fit</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">refit</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">rescale</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                     <span class="n">verbose</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">bin_min</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> <span class="n">bin_max</span> <span class="o">=</span> <span class="mi">40</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Takes the profile stack,</span>
+<span class="sd">    refits a 1D Lorentz distribution(Optional),</span>
+<span class="sd">    groups the profiles with the same shape and scale together,</span>
+<span class="sd">    takes the mean and std of the group,</span>
+<span class="sd">    plots all the profiles in the group on the same figure(Optional)</span>
+<span class="sd">    and returns them to the correct index in profile_ave and profile_std.</span>
+<span class="sd">    :param prof_stack   : stack of profiles</span>
+<span class="sd">    :fit_record         : array of parameters returned form the 2D lorentz fit</span>
+<span class="sd">    :show_plot          : switch for plotting the profiles</span>
+<span class="sd">    :refit              : switch for refitting of the profiles</span>
+<span class="sd">    :rescale            : if profiles should be scaled.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#scale,shape = np.transpose([rec[0][3:5] for rec in fit_record])</span>
+    <span class="n">n</span><span class="o">=</span><span class="n">prof_stack</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">amp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">prof_ave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">prof_stack</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">prof_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">prof_stack</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1">###(Optional) Refitting of the profiles with a Lorentz distribution</span>
+    <span class="k">if</span> <span class="n">refit</span> <span class="ow">or</span> <span class="n">fit_record</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">prof_stack</span> <span class="o">=</span> <span class="n">prof_stack</span><span class="p">[:,:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">amp</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">lorentz_fit_simple</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">,</span><span class="n">bin_min</span><span class="p">,</span><span class="n">bin_max</span><span class="p">)))</span>
+        <span class="n">prof_stack</span> <span class="o">=</span> <span class="n">prof_stack</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">amp</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">fit_record</span><span class="p">[:,[</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]])</span>
+
+    <span class="k">if</span> <span class="n">rescale</span><span class="p">:</span>
+        <span class="n">prof_stack</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">)</span><span class="o">/</span><span class="n">amp</span><span class="p">)</span>
+
+    <span class="c1">###Grouping of profiles according to scale and shape</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">scale</span><span class="o">*</span><span class="mi">10</span><span class="p">)</span><span class="o">*</span><span class="mi">100</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">shape</span><span class="o">*</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">unique_keys</span><span class="p">,</span> <span class="n">inverse</span><span class="p">,</span> <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span>
+                                             <span class="n">return_inverse</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                                             <span class="n">return_counts</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="n">prof_stack</span><span class="p">[</span><span class="n">prof_stack</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Grouping the radial profiles into </span><span class="si">{}</span><span class="s1"> groups:&#39;</span>
+          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_keys</span><span class="p">)))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Categories: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_keys</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;    Counts: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">counts</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">kk</span> <span class="ow">in</span> <span class="n">unique_keys</span><span class="p">:</span>
+        <span class="n">cut</span> <span class="o">=</span> <span class="p">(</span><span class="n">kk</span><span class="o">==</span><span class="n">keys</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">RuntimeWarning</span><span class="p">)</span>
+            <span class="n">ave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">[</span><span class="n">cut</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanstd</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">[</span><span class="n">cut</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">ave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">ave</span><span class="p">)</span>
+        <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">std</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">show_plot</span><span class="p">:</span>
+            <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">kk</span><span class="p">)</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">prof_stack</span><span class="p">[</span><span class="n">keys</span><span class="o">==</span><span class="n">kk</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="mi">20</span><span class="p">]))</span>
+        <span class="c1">###(Optional) Plotting of the first 20 bins of the profiles</span>
+        <span class="n">prof_ave</span><span class="p">[</span><span class="n">cut</span><span class="p">]</span> <span class="o">=</span> <span class="n">ave</span>
+        <span class="n">prof_std</span><span class="p">[</span><span class="n">cut</span><span class="p">]</span> <span class="o">=</span> <span class="n">std</span>
+
+    <span class="k">if</span> <span class="n">rescale</span><span class="p">:</span>
+        <span class="n">prof_ave</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">prof_ave</span><span class="p">)</span><span class="o">*</span><span class="n">amp</span><span class="p">)</span>
+        <span class="n">prof_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">prof_std</span><span class="p">)</span><span class="o">*</span><span class="n">amp</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">prof_ave</span><span class="p">,</span> <span class="n">prof_std</span><span class="p">,</span> <span class="n">inverse</span><span class="p">,</span> <span class="n">counts</span></div>
+
+
+<div class="viewcode-block" id="process_stack"><a class="viewcode-back" href="../../diffractem.legacy.html#diffractem.legacy.process_stack">[docs]</a><span class="k">def</span> <span class="nf">process_stack</span><span class="p">(</span><span class="n">imgs</span><span class="p">,</span> <span class="n">ops</span><span class="p">,</span> <span class="n">execution</span><span class="o">=</span><span class="s1">&#39;threads&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Applies correction function, or a pipeline thereof, to a stack of images, using different ways of execution.</span>
+<span class="sd">    Essentially very similar to map function of hyperspy.</span>
+<span class="sd">    :param imgs: 3D image stack or 2D single image</span>
+<span class="sd">    :param ops: function handle to processing function, or list/tuple thereof.</span>
+<span class="sd">    :param execution: method of execution. Options are</span>
+<span class="sd">        &#39;threads&#39;: process each image in parallel using threads</span>
+<span class="sd">        &#39;processes&#39;: process each image in parallel using processes</span>
+<span class="sd">        &#39;stack&#39;: pass the entire stack to the ops functions. All ops must be able to handle stack inputs</span>
+<span class="sd">        &#39;loop&#39;: loop through the images. Use for debugging only!</span>
+<span class="sd">    :param kwargs: keyword arguments to be passed to the correction functions</span>
+<span class="sd">    :return: the processed stack/image</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">assert</span> <span class="n">execution</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;threads&#39;</span><span class="p">,</span> <span class="s1">&#39;processes&#39;</span><span class="p">,</span> <span class="s1">&#39;stack&#39;</span><span class="p">,</span> <span class="s1">&#39;loop&#39;</span><span class="p">)</span>
+
+    <span class="n">is_2D</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">imgs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span>
+
+    <span class="k">if</span> <span class="n">is_2D</span><span class="p">:</span>
+        <span class="n">imgs</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">imgs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">imgs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="n">imgs_out</span> <span class="o">=</span> <span class="n">imgs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">ops</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ops</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="n">ops</span> <span class="o">=</span> <span class="p">(</span><span class="n">ops</span><span class="p">,)</span>
+
+    <span class="k">if</span> <span class="n">execution</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;threads&#39;</span><span class="p">,</span> <span class="s1">&#39;processes&#39;</span><span class="p">]:</span>
+        <span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">ProcessPoolExecutor</span>
+        <span class="k">if</span> <span class="n">execution</span><span class="o">.</span><span class="n">lower</span><span class="o">==</span><span class="s1">&#39;processes&#39;</span><span class="p">:</span>
+            <span class="n">Executor</span> <span class="o">=</span> <span class="n">ProcessPoolExecutor</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">Executor</span> <span class="o">=</span> <span class="n">ThreadPoolExecutor</span>
+        <span class="k">for</span> <span class="n">func</span> <span class="ow">in</span> <span class="n">ops</span><span class="p">:</span>
+            <span class="n">imgs_out</span> <span class="o">=</span> <span class="n">Executor</span><span class="p">()</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">img</span><span class="p">:</span> <span class="n">func</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span> <span class="n">imgs_out</span><span class="p">)</span>
+            <span class="n">imgs_out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">imgs_out</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">execution</span><span class="o">.</span><span class="n">lower</span><span class="o">==</span><span class="s1">&#39;loop&#39;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">img</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">imgs_out</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">func</span> <span class="ow">in</span> <span class="n">ops</span><span class="p">:</span>
+                <span class="n">imgs_out</span><span class="p">[</span><span class="n">ii</span><span class="p">,:,:]</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">func</span> <span class="ow">in</span> <span class="n">ops</span><span class="p">:</span>
+            <span class="n">imgs_out</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">imgs_out</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">is_2D</span><span class="p">:</span>
+        <span class="n">imgs_out</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">imgs_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">imgs_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">imgs_out</span></div>
+
+
+<div class="viewcode-block" id="diff_plot"><a class="viewcode-back" href="../../diffractem.legacy.html#diffractem.legacy.diff_plot">[docs]</a><span class="k">def</span> <span class="nf">diff_plot</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">idcs</span><span class="p">,</span> <span class="n">setname</span><span class="o">=</span><span class="s1">&#39;centered&#39;</span><span class="p">,</span> <span class="n">beamdiam</span><span class="o">=</span><span class="mf">100e-9</span><span class="p">,</span>
+              <span class="n">rings</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">),</span> <span class="n">radii</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">show_map</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_peaks</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_predict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+              <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">99.5</span><span class="p">,</span>
+              <span class="n">width</span><span class="o">=</span><span class="mi">616</span><span class="p">,</span> <span class="n">xoff</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">yoff</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ellipticity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+              <span class="n">map_px</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">clen</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">det_px</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">wavelength</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+              <span class="n">stacks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">peaks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">predict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+              <span class="n">base_path</span><span class="o">=</span><span class="s1">&#39;/%/data&#39;</span><span class="p">,</span> <span class="n">map_path</span><span class="o">=</span><span class="s1">&#39;/%/map/image&#39;</span><span class="p">,</span> <span class="n">results_path</span><span class="o">=</span><span class="s1">&#39;/%/results&#39;</span><span class="p">,</span>
+              <span class="n">pre_compute</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">store_to</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">ringcolor</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">shots</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">shots</span> <span class="o">=</span> <span class="n">get_meta_lists</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">base_path</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">])[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">show_peaks</span> <span class="ow">and</span> <span class="n">peaks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">peaks</span> <span class="o">=</span> <span class="n">get_meta_lists</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">results_path</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">])[</span><span class="s1">&#39;peaks&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">show_predict</span> <span class="ow">and</span> <span class="n">predict</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">predict</span> <span class="o">=</span> <span class="n">get_meta_lists</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">results_path</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;predict&#39;</span><span class="p">])[</span><span class="s1">&#39;predict&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">stacks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">stacks</span> <span class="o">=</span> <span class="n">get_data_stacks</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">base_path</span><span class="p">,</span> <span class="p">[</span><span class="n">setname</span><span class="p">])</span>
+
+    <span class="c1"># TODO: replace all the following defaults by proper reading from NeXus and assigning to shots</span>
+    <span class="n">shotsel</span> <span class="o">=</span> <span class="n">shots</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">idcs</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">map_px</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">map_px</span> <span class="o">=</span> <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;map_px&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">17e-9</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;map_px&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">map_px</span>
+    <span class="k">if</span> <span class="n">clen</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;clen&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.57</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;clen&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">clen</span>
+    <span class="k">if</span> <span class="n">det_px</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;det_px&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">55e-6</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;det_px&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">det_px</span>
+    <span class="k">if</span> <span class="n">wavelength</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;wavelength&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.5e-12</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;wavelength&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wavelength</span>
+
+    <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;recpx&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;wavelength&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;det_px&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;clen&#39;</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1e10</span>
+
+    <span class="n">imgs</span> <span class="o">=</span> <span class="n">stacks</span><span class="p">[</span><span class="n">setname</span><span class="p">][</span><span class="n">shotsel</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">pre_compute</span><span class="p">:</span>
+        <span class="n">imgs</span> <span class="o">=</span> <span class="n">imgs</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">show_map</span><span class="p">:</span>
+        <span class="n">map_path</span> <span class="o">=</span> <span class="n">map_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="s1">&#39;entry&#39;</span><span class="p">)</span>
+        <span class="n">map_imgs</span> <span class="o">=</span> <span class="n">meta_from_nxs</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">shotsel</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()),</span> <span class="n">map_path</span><span class="p">)[</span><span class="n">map_path</span><span class="p">]</span>
+
+    <span class="n">figs</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="p">((</span><span class="n">idx</span><span class="p">,</span> <span class="n">shot</span><span class="p">),</span> <span class="n">img</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">shotsel</span><span class="o">.</span><span class="n">iterrows</span><span class="p">(),</span> <span class="n">imgs</span><span class="p">)):</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pre_compute</span><span class="p">:</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
+
+        <span class="n">figh</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="n">dpi</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">figs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">figh</span><span class="p">)</span>
+        <span class="c1">#figh = figs[ii]</span>
+
+        <span class="n">img_ax</span> <span class="o">=</span> <span class="n">figh</span><span class="o">.</span><span class="n">add_axes</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.66</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">])</span>
+        <span class="n">img_ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">/</span><span class="mi">100</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;diff&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">show_peaks</span><span class="p">:</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">peaks</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">peaks</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">idx</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">show_predict</span><span class="p">:</span>
+            <span class="n">pred_coords</span> <span class="o">=</span> <span class="n">peaks</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">predict</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">idx</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pred_coords</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+
+        <span class="n">img_ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">((</span><span class="mi">778</span> <span class="o">-</span> <span class="n">width</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="mi">778</span> <span class="o">+</span> <span class="n">width</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">img_ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span>
+                <span class="s1">&#39;Set: </span><span class="si">{}</span><span class="s1">, Shot: </span><span class="si">{}</span><span class="s1">, Region: </span><span class="si">{}</span><span class="s1">, Run: </span><span class="si">{}</span><span class="s1">, Frame: </span><span class="si">{}</span><span class="s1"> </span><span class="se">\n</span><span class="s1"> (#</span><span class="si">{}</span><span class="s1"> in file: </span><span class="si">{}</span><span class="s1">) PEAKS: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;subset&#39;</span><span class="p">],</span>
+                                                                                                      <span class="n">idx</span><span class="p">,</span>
+                                                                                                      <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">],</span>
+                                                                                                      <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;run&#39;</span><span class="p">],</span>
+                                                                                                      <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;frame&#39;</span><span class="p">],</span>
+                                                                                                      <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;shot&#39;</span><span class="p">],</span>
+                                                                                                      <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">],</span>
+                                                                                                      <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">),</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="s1">&#39;Shot </span><span class="si">{}</span><span class="s1">: (file: </span><span class="si">{}</span><span class="s1">) PEAKS: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;subset&#39;</span><span class="p">],</span> <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="c1">#print(shot[&#39;recpx&#39;])</span>
+        <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">rings</span><span class="p">:</span>
+            <span class="n">img_ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">mpl</span><span class="o">.</span><span class="n">patches</span><span class="o">.</span><span class="n">Ellipse</span><span class="p">((</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">xoff</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">yoff</span><span class="p">),</span>
+                                             <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;recpx&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">res</span><span class="p">),</span> <span class="n">height</span><span class="o">=</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;recpx&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">res</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ellipticity</span><span class="p">)),</span> <span class="n">edgecolor</span><span class="o">=</span><span class="n">ringcolor</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+            <span class="n">img_ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;recpx&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">res</span> <span class="o">/</span> <span class="mf">1.4</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;recpx&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">res</span> <span class="o">/</span> <span class="mf">1.4</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> A&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">res</span><span class="p">),</span>
+                    <span class="n">color</span><span class="o">=</span><span class="n">ringcolor</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coords</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">img_ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;fs/px&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;ss/px&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">),</span>
+                                             <span class="n">radius</span><span class="o">=</span><span class="n">radii</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">fill</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.15</span><span class="p">))</span>
+            <span class="n">img_ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;fs/px&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;ss/px&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">),</span>
+                                             <span class="n">radius</span><span class="o">=</span><span class="n">radii</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">))</span>
+            <span class="n">img_ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;fs/px&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;ss/px&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">),</span>
+                                             <span class="n">radius</span><span class="o">=</span><span class="n">radii</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">pred_coords</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">img_ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Rectangle</span><span class="p">((</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;fs/px&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;ss/px&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">),</span>
+                                             <span class="n">width</span><span class="o">=</span><span class="n">radii</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">height</span><span class="o">=</span><span class="n">radii</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">))</span>
+
+        <span class="n">img_ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">show_map</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1">#map_px = shotsel[&#39;map_px&#39;]</span>
+        <span class="c1">#print(map_px)</span>
+
+        <span class="n">map_ax</span> <span class="o">=</span> <span class="n">figh</span><span class="o">.</span><span class="n">add_axes</span><span class="p">([</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.45</span><span class="p">])</span>
+        <span class="n">feat_ax</span> <span class="o">=</span> <span class="n">figh</span><span class="o">.</span><span class="n">add_axes</span><span class="p">([</span><span class="mf">0.6</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.45</span><span class="p">])</span>
+
+        <span class="n">map_ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">map_imgs</span><span class="p">[</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]],</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+        <span class="n">map_ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;crystal_x&#39;</span><span class="p">],</span> <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;crystal_y&#39;</span><span class="p">]),</span> <span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">))</span>
+        <span class="n">map_ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">AnchoredSizeBar</span><span class="p">(</span><span class="n">map_ax</span><span class="o">.</span><span class="n">transData</span><span class="p">,</span> <span class="mf">5e-6</span> <span class="o">/</span> <span class="n">map_px</span><span class="p">,</span> <span class="s1">&#39;5 um&#39;</span><span class="p">,</span> <span class="s1">&#39;lower right&#39;</span><span class="p">))</span>
+        <span class="n">map_ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+
+        <span class="n">feat_ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">map_imgs</span><span class="p">[</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]],</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+        <span class="c1">#feat_ax.add_artist(AnchoredSizeBar(feat_ax.transData, 0.1e-6 / map_px, &#39;100 nm&#39;, &#39;lower right&#39;))</span>
+        <span class="n">feat_ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;crystal_x&#39;</span><span class="p">],</span> <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;crystal_y&#39;</span><span class="p">]),</span> <span class="n">radius</span><span class="o">=</span><span class="n">beamdiam</span><span class="o">/</span><span class="mi">2</span><span class="o">/</span><span class="n">map_px</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;crystal_x&#39;</span><span class="p">]):</span>
+            <span class="n">feat_ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;crystal_x&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">]))</span>
+            <span class="n">feat_ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;crystal_y&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">feat_ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;pos_x&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">]))</span>
+            <span class="n">feat_ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;pos_y&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">]))</span>
+        <span class="n">feat_ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">store_to</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">_</span><span class="si">{:04d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">store_to</span><span class="p">,</span> <span class="n">filename</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">idx</span><span class="p">))</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">gcf</span><span class="p">())</span>
+
+    <span class="k">return</span> <span class="n">figs</span></div>
+
+
+<div class="viewcode-block" id="region_plot"><a class="viewcode-back" href="../../diffractem.legacy.html#diffractem.legacy.region_plot">[docs]</a><span class="k">def</span> <span class="nf">region_plot</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">regions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crystal_pos</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">peak_ct</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">beamdiam</span><span class="o">=</span><span class="mf">100e-9</span><span class="p">,</span> <span class="n">scanpx</span><span class="o">=</span><span class="mf">2e-8</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">meta</span> <span class="o">=</span> <span class="n">get_meta_lists</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">jet</span>
+    <span class="n">fhs</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">regions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">][</span><span class="s1">&#39;region&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">regions</span><span class="p">,</span> <span class="s1">&#39;__iter__&#39;</span><span class="p">):</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="p">(</span><span class="n">regions</span><span class="p">,)</span>
+
+    <span class="k">for</span> <span class="n">reg</span> <span class="ow">in</span> <span class="n">regions</span><span class="p">:</span>
+
+        <span class="n">shots</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">][</span><span class="s1">&#39;region&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">reg</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">shots</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Region </span><span class="si">{}</span><span class="s1"> does not exist. Skipping.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">reg</span><span class="p">))</span>
+            <span class="k">continue</span>
+
+        <span class="n">shot</span> <span class="o">=</span> <span class="n">shots</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="n">fh</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">fhs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
+
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">axes</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Set: </span><span class="si">{}</span><span class="s1">, Region: </span><span class="si">{}</span><span class="s1">, Run: </span><span class="si">{}</span><span class="s1">, # Crystals: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;subset&#39;</span><span class="p">],</span> <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">],</span> <span class="n">shot</span><span class="p">[</span><span class="s1">&#39;run&#39;</span><span class="p">],</span>
+                                                                           <span class="n">shots</span><span class="p">[</span><span class="s1">&#39;crystal_id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+        <span class="n">stem</span> <span class="o">=</span> <span class="n">get_meta_array</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;stem&#39;</span><span class="p">,</span> <span class="n">shot</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">stem</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;acqdata&#39;</span> <span class="ow">in</span> <span class="n">meta</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">acqdata</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;acquisition_data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">shot</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]]</span>
+            <span class="n">pxs</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">acqdata</span><span class="p">[</span><span class="s1">&#39;Scanning_Pixel_size_x&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pxs</span> <span class="o">=</span> <span class="n">scanpx</span> <span class="o">*</span> <span class="mf">1e9</span>
+
+        <span class="k">if</span> <span class="n">crystal_pos</span> <span class="ow">and</span> <span class="n">peak_ct</span><span class="p">:</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shots</span><span class="p">[</span><span class="s1">&#39;peak_count&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="mf">0.99</span><span class="p">))</span>
+
+            <span class="k">def</span> <span class="nf">ncmap</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">cmap</span><span class="p">(</span><span class="n">x</span> <span class="o">/</span> <span class="n">norm</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">cr</span> <span class="ow">in</span> <span class="n">shots</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s1">&#39;crystal_x&#39;</span><span class="p">,</span> <span class="s1">&#39;crystal_y&#39;</span><span class="p">,</span> <span class="s1">&#39;peak_count&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="n">cr</span><span class="p">[</span><span class="s1">&#39;crystal_x&#39;</span><span class="p">],</span> <span class="n">cr</span><span class="p">[</span><span class="s1">&#39;crystal_y&#39;</span><span class="p">]),</span> <span class="n">radius</span><span class="o">=</span><span class="n">beamdiam</span> <span class="o">*</span> <span class="mf">1e9</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">pxs</span><span class="p">,</span>
+                                         <span class="n">facecolor</span><span class="o">=</span><span class="n">ncmap</span><span class="p">(</span><span class="n">cr</span><span class="p">[</span><span class="s1">&#39;peak_count&#39;</span><span class="p">]),</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+            <span class="c1"># some gymnastics to get a colorbar</span>
+            <span class="n">Z</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
+            <span class="n">levels</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">norm</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">CS3</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">contourf</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">levels</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">jet</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">CS3</span><span class="p">,</span> <span class="n">fraction</span><span class="o">=</span><span class="mf">0.046</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mf">0.04</span><span class="p">)</span>
+            <span class="k">del</span> <span class="p">(</span><span class="n">CS3</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">crystal_pos</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">cr</span> <span class="ow">in</span> <span class="n">shots</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s1">&#39;crystal_x&#39;</span><span class="p">,</span> <span class="s1">&#39;crystal_y&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="n">cr</span><span class="p">[</span><span class="s1">&#39;crystal_x&#39;</span><span class="p">],</span> <span class="n">cr</span><span class="p">[</span><span class="s1">&#39;crystal_y&#39;</span><span class="p">]),</span> <span class="n">radius</span><span class="o">=</span><span class="n">beamdiam</span> <span class="o">*</span> <span class="mf">1e9</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">pxs</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span>
+                               <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">AnchoredSizeBar</span><span class="p">(</span><span class="n">ax</span><span class="o">.</span><span class="n">transData</span><span class="p">,</span> <span class="mi">5000</span> <span class="o">/</span> <span class="n">pxs</span><span class="p">,</span> <span class="s1">&#39;5 um&#39;</span><span class="p">,</span> <span class="s1">&#39;lower right&#39;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">size_vertical</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fhs</span></div>
+
+
+<div class="viewcode-block" id="reduce_stack"><a class="viewcode-back" href="../../diffractem.legacy.html#diffractem.legacy.reduce_stack">[docs]</a><span class="k">def</span> <span class="nf">reduce_stack</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">first_frame</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">last_frame</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">aggregate</span><span class="o">=</span><span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="p">(),</span>
+                 <span class="n">threads</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">instrument_data</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;raw_counts&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">exp_time_field</span> <span class="o">=</span> <span class="s1">&#39;/entry/instrument/detector/collection/shutter_time&#39;</span>
+    <span class="n">tilt_field</span> <span class="o">=</span> <span class="s1">&#39;/entry/instrument/Stage/A&#39;</span>
+    <span class="k">if</span> <span class="n">last_frame</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="n">last_frame</span> <span class="o">=</span> <span class="mi">16383</span>
+    <span class="n">exclude</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;frame &lt; </span><span class="si">{</span><span class="n">first_frame</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;frame &gt; </span><span class="si">{</span><span class="n">last_frame</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">exclude</span><span class="p">)</span>
+
+    <span class="kn">from</span> <span class="nn">multiprocessing.pool</span> <span class="kn">import</span> <span class="n">ThreadPool</span>
+
+    <span class="k">def</span> <span class="nf">make_stacks</span><span class="p">(</span><span class="n">raw_name</span><span class="p">):</span>
+        <span class="n">sr0</span> <span class="o">=</span> <span class="n">get_nxs_list</span><span class="p">(</span><span class="n">raw_name</span><span class="p">,</span> <span class="s1">&#39;shots&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">instrument_data</span><span class="p">:</span>
+            <span class="n">instrument_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">get_meta_fields</span><span class="p">(</span><span class="n">raw_name</span><span class="p">,</span> <span class="p">[</span><span class="n">exp_time_field</span><span class="p">,</span> <span class="n">tilt_field</span><span class="p">]))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">instrument_data</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;exp_time&#39;</span><span class="p">,</span> <span class="s1">&#39;tilt_angle&#39;</span><span class="p">]</span>
+            <span class="n">instrument_data</span><span class="p">[</span><span class="s1">&#39;tilt_angle&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">instrument_data</span><span class="p">[</span><span class="s1">&#39;tilt_angle&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">sr0</span> <span class="o">=</span> <span class="n">sr0</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">instrument_data</span><span class="p">,</span> <span class="n">right_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">left_on</span><span class="o">=</span><span class="s1">&#39;file&#39;</span><span class="p">)</span>
+
+        <span class="n">sr0</span><span class="p">[</span><span class="s1">&#39;selected&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">ex</span> <span class="ow">in</span> <span class="n">exclude</span><span class="p">:</span>
+            <span class="n">sr0</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">sr0</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">ex</span><span class="p">),</span> <span class="s1">&#39;selected&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">return</span> <span class="n">modify_stack</span><span class="p">(</span><span class="n">raw_name</span><span class="p">,</span> <span class="n">sr0</span><span class="p">,</span> <span class="n">aggregate</span><span class="o">=</span><span class="n">aggregate</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">threads</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">ThreadPool</span><span class="p">()</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="n">stkdat</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">make_stacks</span><span class="p">,</span> <span class="n">expand_files</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">stkdat</span> <span class="o">=</span> <span class="n">make_stacks</span><span class="p">(</span><span class="n">expand_files</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+
+    <span class="n">shots</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stkdat</span> <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">stack_raw</span> <span class="o">=</span> <span class="n">da</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">label</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stkdat</span> <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">shots</span><span class="p">[</span><span class="s1">&#39;file_raw&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">shots</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="kc">None</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Robert Buecker
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

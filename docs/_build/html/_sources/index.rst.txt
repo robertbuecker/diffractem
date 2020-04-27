@@ -7,8 +7,12 @@ Welcome to diffractem's documentation!
 ======================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 3
+   
+   Welcome<diffractem>
+   Preprocessing<pre_processing>
+   CrystFEL integration<crystfel>
+   Full API<api>
 
 Indices and tables
 ==================

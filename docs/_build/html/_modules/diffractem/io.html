@@ -1,0 +1,558 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>diffractem.io &mdash; diffractem  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> diffractem
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../diffractem.html">Welcome</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">diffractem</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>diffractem.io</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for diffractem.io</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">dask</span> <span class="kn">import</span> <span class="n">array</span> <span class="k">as</span> <span class="n">da</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span> <span class="nn">dask.diagnostics</span>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">from</span> <span class="nn">diffractem</span> <span class="kn">import</span> <span class="n">normalize_names</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+
+
+<div class="viewcode-block" id="expand_files"><a class="viewcode-back" href="../../diffractem.io.html#diffractem.io.expand_files">[docs]</a><span class="k">def</span> <span class="nf">expand_files</span><span class="p">(</span><span class="n">file_list</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">],</span> <span class="n">scan_shots</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">remove_bs</span><span class="p">(</span><span class="n">fns</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">fn</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">fns</span><span class="p">]</span>
+    
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="n">fl</span> <span class="o">=</span> <span class="n">remove_bs</span><span class="p">(</span><span class="n">file_list</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">scan_shots</span><span class="p">:</span>
+            <span class="n">fl</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fl</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">file_list</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.lst&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">scan_shots</span><span class="p">:</span>
+            <span class="n">fl</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s1">&#39;python&#39;</span><span class="p">,</span>
+                             <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">])</span>
+            <span class="n">fl</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">remove_bs</span><span class="p">(</span><span class="n">fl</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">fl</span><span class="o">.</span><span class="n">Event</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="n">fl</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fl</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">readlines</span><span class="p">():</span>
+                <span class="k">if</span> <span class="s1">&#39;//&#39;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Shot identifier found in list file. You may want to set scan_shots=True&#39;</span><span class="p">)</span>
+                <span class="n">fl</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="n">fl</span> <span class="o">=</span> <span class="n">remove_bs</span><span class="p">(</span><span class="n">fl</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">file_list</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.h5&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">file_list</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.nxs&#39;</span><span class="p">)):</span>
+        <span class="n">fl</span> <span class="o">=</span> <span class="n">remove_bs</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="n">file_list</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">scan_shots</span><span class="p">:</span>
+            <span class="n">fl</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fl</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;file_list must be a list file, single or glob pattern of h5/nxs files, or a list of filenames&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">scan_shots</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">fl</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">fl</span><span class="p">))):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;File identifiers are not unique, most likely because the file names are not.&#39;</span><span class="p">)</span>
+        
+    <span class="k">if</span> <span class="n">validate</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">scan_shots</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Validation is only allowed if scan_shot=False.&#39;</span><span class="p">)</span>
+        <span class="n">valid_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">fl</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">fh</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                
+                    <span class="k">if</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/shots&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/map/features&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/data&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">):</span>
+                        <span class="c1"># print(r,&#39;: file validated!&#39;)</span>
+                        <span class="n">valid_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s1">&#39;: invalid file/subset!&#39;</span><span class="p">)</span>       
+                    
+        <span class="k">return</span> <span class="n">valid_files</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">fl</span></div>
+
+
+<div class="viewcode-block" id="dict_to_h5"><a class="viewcode-back" href="../../diffractem.io.html#diffractem.io.dict_to_h5">[docs]</a><span class="k">def</span> <span class="nf">dict_to_h5</span><span class="p">(</span><span class="n">grp</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="p">()):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Write dictionary into HDF group (or file) object</span>
+<span class="sd">    :param grp: HDF group or file object</span>
+<span class="sd">    :param data: dictionary to be written into HDF5</span>
+<span class="sd">    :param exclude: dataset or group names to be excluded</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">nk</span> <span class="o">=</span> <span class="n">normalize_names</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">exclude</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">dict_to_h5</span><span class="p">(</span><span class="n">grp</span><span class="o">.</span><span class="n">require_group</span><span class="p">(</span><span class="n">nk</span><span class="p">),</span> <span class="n">v</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">nk</span> <span class="ow">in</span> <span class="n">grp</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">grp</span><span class="p">[</span><span class="n">nk</span><span class="p">][</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">grp</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">nk</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">v</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="h5_to_dict"><a class="viewcode-back" href="../../diffractem.io.html#diffractem.io.h5_to_dict">[docs]</a><span class="k">def</span> <span class="nf">h5_to_dict</span><span class="p">(</span><span class="n">grp</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">),</span> <span class="n">max_len</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get dictionary from HDF group (or file) object</span>
+<span class="sd">    :param grp: HDF group or file</span>
+<span class="sd">    :param exclude: (sub-)group or dataset names to be excluded; by default &#39;data&#39; and &#39;image</span>
+<span class="sd">    :param max_len: maximum length of data field to be included (along first direction)</span>
+<span class="sd">    :return: dictionary corresponding to HDF group</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">grp</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">exclude</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">h5py</span><span class="o">.</span><span class="n">Group</span><span class="p">):</span>
+            <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">h5_to_dict</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">h5py</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_len</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">return</span> <span class="n">d</span></div>
+
+
+<div class="viewcode-block" id="apply_shot_selection"><a class="viewcode-back" href="../../diffractem.io.html#diffractem.io.apply_shot_selection">[docs]</a><span class="k">def</span> <span class="nf">apply_shot_selection</span><span class="p">(</span><span class="n">lists</span><span class="p">,</span> <span class="n">stacks</span><span class="p">,</span> <span class="n">min_chunk</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reset_shot_index</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Applies the selection of shots as defined by the &#39;selected&#39; column of the shot list, returning corresponding</span>
+<span class="sd">    subsets of both lists (pandas DataFrames) and stacks (dask arrays).</span>
+<span class="sd">    :param lists: flat dict of lists. Does not handle subsets, so use flat=True when reading from file</span>
+<span class="sd">    :param stacks: dict of arrays. Again, not accounting for subsets. Use flat=True for reading</span>
+<span class="sd">    :param min_chunk: minimum chunk size of the output arrays along the stacked dimension</span>
+<span class="sd">    :param reset_shot_index: if True, the returned shot list has its index reset, with correspondingly updated serial</span>
+<span class="sd">            numbers in peak list. Recommended.</span>
+<span class="sd">    :return new_lists, new_stacks: subselected lists and stacks</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># n</span>
+    <span class="n">shots</span> <span class="o">=</span> <span class="n">lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span>  <span class="c1"># just a shortcut</span>
+    <span class="n">new_lists</span> <span class="o">=</span> <span class="n">lists</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;selected&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Keeping </span><span class="si">{}</span><span class="s1"> shots out of </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]),</span> <span class="nb">len</span><span class="p">(</span><span class="n">shots</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="s1">&#39;peaks&#39;</span> <span class="ow">in</span> <span class="n">lists</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="c1"># remove rejected shots from the peak list</span>
+        <span class="c1"># TODO: why is this not simply done with a right merge?</span>
+        <span class="n">peaksel</span> <span class="o">=</span> <span class="n">lists</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">shots</span><span class="p">[[</span><span class="s1">&#39;selected&#39;</span><span class="p">]],</span> <span class="n">left_on</span><span class="o">=</span><span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="n">right_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;selected&#39;</span><span class="p">]</span>
+        <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lists</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">peaksel</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="k">if</span> <span class="n">reset_shot_index</span><span class="p">:</span>
+            <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">][</span><span class="s1">&#39;newEv&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]))</span>
+            <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s1">&#39;newEv&#39;</span><span class="p">,</span> <span class="p">]],</span>
+                                                          <span class="n">left_on</span><span class="o">=</span><span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="n">right_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">][</span><span class="s1">&#39;serial&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">][</span><span class="s1">&#39;newEv&#39;</span><span class="p">]</span>
+            <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;peaks&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;newEv&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;newEv&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">reset_shot_index</span><span class="p">:</span>
+        <span class="n">new_lists</span><span class="p">[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">new_stacks</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">stk</span> <span class="ow">in</span> <span class="n">stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+        <span class="c1"># select the proper images from the stack</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="n">stk</span><span class="p">[</span><span class="n">shots</span><span class="p">[</span><span class="s1">&#39;selected&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+
+        <span class="c1"># if desired, re-chunk such that chunks don&#39;t become too small</span>
+        <span class="k">if</span> <span class="n">min_chunk</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nchk</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">fchks</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">chk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stack</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">nchk</span> <span class="o">+=</span> <span class="n">chk</span>
+                <span class="k">if</span> <span class="n">nchk</span> <span class="o">&gt;=</span> <span class="n">min_chunk</span><span class="p">:</span>
+                    <span class="n">fchks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nchk</span><span class="p">)</span>
+                    <span class="n">nchk</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">elif</span> <span class="n">ii</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">stack</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">fchks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">nchk</span>
+
+            <span class="n">stack</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">rechunk</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fchks</span><span class="p">)})</span>
+
+        <span class="n">new_stacks</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">stack</span><span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">new_lists</span><span class="p">,</span> <span class="n">new_stacks</span></div>
+
+
+<div class="viewcode-block" id="make_master_h5"><a class="viewcode-back" href="../../diffractem.io.html#diffractem.io.make_master_h5">[docs]</a><span class="k">def</span> <span class="nf">make_master_h5</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">abs_path</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">local_group</span><span class="o">=</span><span class="s1">&#39;/&#39;</span><span class="p">,</span>
+                   <span class="n">remote_group</span><span class="o">=</span><span class="s1">&#39;/entry&#39;</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">fns</span><span class="p">,</span> <span class="n">ids</span> <span class="o">=</span> <span class="n">expand_files</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_list</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">file_list</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.lst&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">file_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="n">file_list</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;.h5&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">file_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Please provide output file name explicitly, if input is not a file list.&#39;</span><span class="p">)</span>
+
+    <span class="n">f</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+
+        <span class="n">subsets</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">fn</span><span class="p">,</span> <span class="nb">id</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">ids</span><span class="p">):</span>
+
+            <span class="n">subset</span> <span class="o">=</span> <span class="nb">id</span>
+
+            <span class="k">if</span> <span class="n">subset</span> <span class="ow">in</span> <span class="n">subsets</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;File names are not unique!&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">subsets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">abs_path</span><span class="p">:</span>
+                <span class="n">fn2</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">fn</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fn2</span> <span class="o">=</span> <span class="n">fn</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fn2</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;File </span><span class="si">{</span><span class="n">fn2</span><span class="si">}</span><span class="s1"> present in </span><span class="si">{</span><span class="n">file_list</span><span class="si">}</span><span class="s1"> not found!&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Referencing file </span><span class="si">{</span><span class="n">fn2</span><span class="si">}</span><span class="s1"> as </span><span class="si">{</span><span class="n">subset</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">local_group</span> <span class="o">!=</span> <span class="s1">&#39;/&#39;</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">require_group</span><span class="p">(</span><span class="n">local_group</span><span class="p">)</span>
+
+            <span class="n">f</span><span class="p">[</span><span class="n">local_group</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">subset</span><span class="p">]</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">ExternalLink</span><span class="p">(</span><span class="n">fn2</span><span class="p">,</span> <span class="n">remote_group</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">err</span>
+
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">file_name</span></div>
+
+
+<div class="viewcode-block" id="get_meta_lists"><a class="viewcode-back" href="../../diffractem.io.html#diffractem.io.get_meta_lists">[docs]</a><span class="k">def</span> <span class="nf">get_meta_lists</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">base_path</span><span class="o">=</span><span class="s1">&#39;/%/data&#39;</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Please use get_meta_list instead if you know what you</span><span class="se">\&#39;</span><span class="s1">re looking for. It is WAY faster.&#39;</span><span class="p">,</span>
+                  <span class="ne">DeprecationWarning</span><span class="p">)</span>
+    <span class="n">fns</span> <span class="o">=</span> <span class="n">expand_files</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="n">identifiers</span> <span class="o">=</span> <span class="n">base_path</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">lists</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="c1"># print(fns)</span>
+
+    <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">fns</span><span class="p">:</span>
+        <span class="c1"># print(fn)</span>
+        <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">identifiers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">base_grp</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;&#39;</span><span class="p">:</span> <span class="n">fh</span><span class="p">[</span><span class="n">identifiers</span><span class="p">[</span><span class="mi">0</span><span class="p">]]}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">base_grp</span> <span class="o">=</span> <span class="n">fh</span><span class="p">[</span><span class="n">identifiers</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="c1"># print(base_grp)</span>
+            <span class="k">for</span> <span class="n">subset</span><span class="p">,</span> <span class="n">ssgrp</span> <span class="ow">in</span> <span class="n">base_grp</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># print(list(ssgrp.keys()))</span>
+                <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">identifiers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">and</span> <span class="n">identifiers</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">identifiers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">ssgrp</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">grp</span> <span class="o">=</span> <span class="n">ssgrp</span><span class="p">[</span><span class="n">identifiers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">grp</span> <span class="o">=</span> <span class="n">ssgrp</span>  <span class="c1"># subset identifier is on last level</span>
+
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">grp</span><span class="p">,</span> <span class="n">h5py</span><span class="o">.</span><span class="n">Group</span><span class="p">):</span>
+                    <span class="c1"># print(grp)</span>
+                    <span class="k">for</span> <span class="n">tname</span><span class="p">,</span> <span class="n">tgrp</span> <span class="ow">in</span> <span class="n">grp</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="c1"># print(tname, tgrp)</span>
+                        <span class="k">if</span> <span class="n">tgrp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="c1"># can happen for dangling soft links</span>
+                            <span class="k">continue</span>
+                        <span class="k">if</span> <span class="p">((</span><span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">tname</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span><span class="s1">&#39;table_type&#39;</span> <span class="ow">in</span> <span class="n">tgrp</span><span class="o">.</span><span class="n">attrs</span><span class="p">):</span>
+                            <span class="n">newlist</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_hdf</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">tgrp</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                            <span class="n">newlist</span><span class="p">[</span><span class="s1">&#39;subset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">subset</span>
+                            <span class="n">newlist</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn</span>
+                            <span class="c1"># newlist[&#39;shot_in_subset&#39;] = range(newlist.shape[0])</span>
+
+                            <span class="n">lists</span><span class="p">[</span><span class="n">tname</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">newlist</span><span class="p">)</span>
+                            <span class="c1"># print(f&#39;Appended {len(newlist)} items from {fn}: {subset} -&gt; list {tname}&#39;)</span>
+
+    <span class="n">lists</span> <span class="o">=</span> <span class="p">{</span><span class="n">tn</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">tn</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">lists</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">return</span> <span class="n">lists</span></div>
+
+
+<div class="viewcode-block" id="store_data_stacks"><a class="viewcode-back" href="../../diffractem.io.html#diffractem.io.store_data_stacks">[docs]</a><span class="k">def</span> <span class="nf">store_data_stacks</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">stacks</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">base_path</span><span class="o">=</span><span class="s1">&#39;/%/data&#39;</span><span class="p">,</span> <span class="n">store_shots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Direct accessors to NeXus files are deprecated. Use Dataset objects instead.&#39;</span><span class="p">,</span>
+                  <span class="ne">DeprecationWarning</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">shots</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No shot list provided; getting shots from data file(s).&#39;</span><span class="p">)</span>
+        <span class="n">shots</span> <span class="o">=</span> <span class="n">get_meta_lists</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">base_path</span><span class="p">,</span> <span class="s1">&#39;shots&#39;</span><span class="p">)[</span><span class="s1">&#39;shots&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fns</span> <span class="o">=</span> <span class="n">expand_files</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fns</span> <span class="o">=</span> <span class="n">shots</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="s1">&#39;serial&#39;</span> <span class="ow">in</span> <span class="n">shots</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">serial</span> <span class="o">=</span> <span class="n">shots</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">serial</span> <span class="o">=</span> <span class="n">shots</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">serial</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Serial numbers are not equally incrementing by one. Just saying.&#39;</span><span class="p">,</span> <span class="ne">RuntimeWarning</span><span class="p">)</span>
+
+    <span class="n">stacks</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="n">da</span><span class="o">.</span><span class="n">from_array</span><span class="p">(</span><span class="n">serial</span><span class="p">,</span> <span class="n">chunks</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,))})</span>
+    <span class="n">counters</span> <span class="o">=</span> <span class="p">{</span><span class="n">ln</span><span class="p">:</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="n">stacks</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+
+    <span class="n">datasets</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">arrays</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">fns</span><span class="p">:</span>
+
+            <span class="n">f</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+            <span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="n">fshots</span> <span class="o">=</span> <span class="n">shots</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">shots</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">fn</span><span class="p">,</span> <span class="p">:]</span>
+
+            <span class="k">for</span> <span class="n">sn</span><span class="p">,</span> <span class="n">stack</span> <span class="ow">in</span> <span class="n">stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">subset</span><span class="p">,</span> <span class="n">ssshots</span> <span class="ow">in</span> <span class="n">fshots</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;subset&#39;</span><span class="p">):</span>
+                    <span class="n">arr</span> <span class="o">=</span> <span class="n">stack</span><span class="p">[</span><span class="n">ssshots</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+                    <span class="n">path</span> <span class="o">=</span> <span class="n">base_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="n">subset</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">sn</span>
+                    <span class="n">ds</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">require_dataset</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">arr</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">arr</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+                                           <span class="n">chunks</span><span class="o">=</span><span class="nb">tuple</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">arr</span><span class="o">.</span><span class="n">chunks</span><span class="p">]),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+                    <span class="n">arrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+                    <span class="n">datasets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span>
+                    <span class="n">counters</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span> <span class="o">+=</span> <span class="n">arr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">sn</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">subset</span><span class="si">}</span><span class="s1">//</span><span class="si">{</span><span class="n">ssshots</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">...</span><span class="si">{</span><span class="n">ssshots</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1"> -&gt; </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">counters</span><span class="p">[</span><span class="n">k</span><span class="p">]:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Warning: </span><span class="si">{</span><span class="n">counters</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="si">}</span><span class="s1"> out of </span><span class="si">{</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1"> entries in stack </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1"> will be stored.&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="k">with</span> <span class="n">dask</span><span class="o">.</span><span class="n">diagnostics</span><span class="o">.</span><span class="n">ProgressBar</span><span class="p">():</span>
+                <span class="n">da</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">arrays</span><span class="p">,</span> <span class="n">datasets</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">]</span>
+        <span class="k">raise</span> <span class="n">err</span>
+
+    <span class="k">if</span> <span class="n">store_shots</span> <span class="ow">and</span> <span class="n">shots</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">store_meta_lists</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;shots&#39;</span><span class="p">:</span> <span class="n">shots</span><span class="p">},</span> <span class="n">base_path</span><span class="o">=</span><span class="n">base_path</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Stored shot list.&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_data_stacks"><a class="viewcode-back" href="../../diffractem.io.html#diffractem.io.get_data_stacks">[docs]</a><span class="k">def</span> <span class="nf">get_data_stacks</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">base_path</span><span class="o">=</span><span class="s1">&#39;/%/data&#39;</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># Internally, this function is structured 99% as get_meta_lists, just operating on dask</span>
+    <span class="c1"># arrays, not pandas frames</span>
+    <span class="n">fns</span> <span class="o">=</span> <span class="n">expand_files</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="n">identifiers</span> <span class="o">=</span> <span class="n">base_path</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">stacks</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">fns</span><span class="p">:</span>
+        <span class="n">fh</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">identifiers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">base_grp</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;&#39;</span><span class="p">:</span> <span class="n">fh</span><span class="p">[</span><span class="n">identifiers</span><span class="p">[</span><span class="mi">0</span><span class="p">]]}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">base_grp</span> <span class="o">=</span> <span class="n">fh</span><span class="p">[</span><span class="n">identifiers</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">subset</span><span class="p">,</span> <span class="n">ssgrp</span> <span class="ow">in</span> <span class="n">base_grp</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+                <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">identifiers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">and</span> <span class="n">identifiers</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">identifiers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">ssgrp</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">grp</span> <span class="o">=</span> <span class="n">ssgrp</span><span class="p">[</span><span class="n">identifiers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">grp</span> <span class="o">=</span> <span class="n">ssgrp</span>  <span class="c1"># subset identifier is on last level</span>
+
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">grp</span><span class="p">,</span> <span class="n">h5py</span><span class="o">.</span><span class="n">Group</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">dsname</span><span class="p">,</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">grp</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="n">ds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="c1"># can happen for dangling soft links</span>
+                            <span class="k">continue</span>
+                        <span class="k">if</span> <span class="p">((</span><span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">dsname</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">))</span> \
+                                <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">h5py</span><span class="o">.</span><span class="n">Dataset</span><span class="p">)</span> \
+                                <span class="ow">and</span> <span class="p">(</span><span class="s1">&#39;pandas_type&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">attrs</span><span class="p">):</span>
+                            <span class="n">stacks</span><span class="p">[</span><span class="n">dsname</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">da</span><span class="o">.</span><span class="n">from_array</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">chunks</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">chunks</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="n">err</span>
+
+    <span class="n">stacks</span> <span class="o">=</span> <span class="p">{</span><span class="n">sn</span><span class="p">:</span> <span class="n">da</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">sn</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stacks</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">return</span> <span class="n">stacks</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Robert Buecker
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

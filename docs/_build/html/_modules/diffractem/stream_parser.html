@@ -1,0 +1,715 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>diffractem.stream_parser &mdash; diffractem  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> diffractem
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../diffractem.html">Welcome</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">diffractem</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>diffractem.stream_parser</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for diffractem.stream_parser</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">StringIO</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="n">BEGIN_GEOM</span> <span class="o">=</span> <span class="s1">&#39;----- Begin geometry file -----&#39;</span>
+<span class="n">END_GEOM</span> <span class="o">=</span> <span class="s1">&#39;----- End geometry file -----&#39;</span>
+<span class="n">BEGIN_CELL</span> <span class="o">=</span> <span class="s1">&#39;----- Begin unit cell -----&#39;</span>
+<span class="n">END_CELL</span> <span class="o">=</span> <span class="s1">&#39;----- End unit cell -----&#39;</span>
+<span class="n">BEGIN_CHUNK</span> <span class="o">=</span> <span class="s1">&#39;----- Begin chunk -----&#39;</span>
+<span class="n">END_CHUNK</span> <span class="o">=</span> <span class="s1">&#39;----- End chunk -----&#39;</span>
+<span class="n">BEGIN_CRYSTAL</span> <span class="o">=</span> <span class="s1">&#39;--- Begin crystal&#39;</span>
+<span class="n">END_CRYSTAL</span> <span class="o">=</span> <span class="s1">&#39;--- End crystal&#39;</span>
+<span class="n">BEGIN_PEAKS</span> <span class="o">=</span> <span class="s1">&#39;Peaks from peak search&#39;</span>
+<span class="n">END_PEAKS</span> <span class="o">=</span> <span class="s1">&#39;End of peak list&#39;</span>
+<span class="n">BEGIN_REFLECTIONS</span> <span class="o">=</span> <span class="s1">&#39;Reflections measured after indexing&#39;</span>
+<span class="n">END_REFLECTIONS</span> <span class="o">=</span> <span class="s1">&#39;End of reflections&#39;</span>
+<span class="n">HEAD</span> <span class="o">=</span> <span class="s1">&#39;CrystFEL stream format </span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="n">GENERATOR</span> <span class="o">=</span> <span class="s1">&#39;Generated by diffractem StreamParser&#39;</span>
+<span class="n">PEAK_COLUMNS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;fs/px&#39;</span><span class="p">,</span> <span class="s1">&#39;ss/px&#39;</span><span class="p">,</span> <span class="s1">&#39;(1/d)/nm^-1&#39;</span><span class="p">,</span> <span class="s1">&#39;Intensity&#39;</span><span class="p">,</span> <span class="s1">&#39;Panel&#39;</span><span class="p">]</span>
+<span class="n">REFLECTION_COLUMNS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;h&#39;</span><span class="p">,</span> <span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="s1">&#39;l&#39;</span><span class="p">,</span> <span class="s1">&#39;I&#39;</span><span class="p">,</span> <span class="s1">&#39;Sigma(I)&#39;</span><span class="p">,</span> <span class="s1">&#39;Peak&#39;</span><span class="p">,</span> <span class="s1">&#39;Background&#39;</span><span class="p">,</span> <span class="s1">&#39;fs/px&#39;</span><span class="p">,</span> <span class="s1">&#39;ss/px&#39;</span><span class="p">,</span> <span class="s1">&#39;Panel&#39;</span><span class="p">]</span>
+<span class="n">ID_FIELDS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="augment_stream"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.augment_stream">[docs]</a><span class="k">def</span> <span class="nf">augment_stream</span><span class="p">(</span><span class="n">streamname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">outfile</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">new_fields</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">dict</span><span class="p">],</span> <span class="n">where</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;chunk&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;IDEA: add new fields to stream headers, which can then be used for chopping or filtering.</span>
+<span class="sd">    </span>
+<span class="sd">    Arguments:</span>
+<span class="sd">        streamname {str} -- [description]</span>
+<span class="sd">        new_fields {Union[pd.DataFrame, dict]} -- [description]</span>
+<span class="sd">    </span>
+<span class="sd">    Raises:</span>
+<span class="sd">        NotImplementedError: [description]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">chunk_init</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">found_fn</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">found_event</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">streamname</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh_in</span><span class="p">,</span> <span class="nb">open</span><span class="p">(</span><span class="n">outfile</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">ln</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fh_in</span><span class="p">):</span>
+        
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">BEGIN_CHUNK</span><span class="p">):</span>
+                <span class="n">chunk_init</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">file_init</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">event_init</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">found_fn</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+                <span class="n">found_event</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+                <span class="n">cols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">new_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+            <span class="k">elif</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Image filename:&#39;</span><span class="p">):</span>
+                <span class="n">found_fn</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;: &#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="c1">#print(found_fn)</span>
+                <span class="n">file_init</span> <span class="o">=</span> <span class="kc">True</span>
+                
+            <span class="k">elif</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Event:&#39;</span><span class="p">):</span>
+                <span class="n">found_event</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;: &#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="c1">#print(found_event)</span>
+                <span class="n">event_init</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">elif</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="n">event_init</span> <span class="ow">and</span> <span class="n">file_init</span> <span class="ow">and</span> \
+                <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">BEGIN_REFLECTIONS</span> <span class="k">if</span> <span class="n">where</span><span class="o">==</span><span class="s1">&#39;crystal&#39;</span> <span class="k">else</span> <span class="n">BEGIN_CHUNK</span><span class="p">):</span>
+                <span class="c1"># now is the time to insert the new stuff</span>
+                <span class="c1"># print(found_fn, found_event)</span>
+               
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">new_fields</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">found_fn</span><span class="p">,</span> <span class="n">found_event</span><span class="p">),:]</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1"> = </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">END_CHUNK</span><span class="p">):</span>
+                <span class="n">chunk_init</span> <span class="o">=</span> <span class="kc">False</span>
+                
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">l</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="chop_stream"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.chop_stream">[docs]</a><span class="k">def</span> <span class="nf">chop_stream</span><span class="p">(</span><span class="n">streamname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">id_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">id_field</span><span class="o">=</span><span class="s1">&#39;hdf5/%/shots/frame&#39;</span><span class="p">,</span> <span class="n">id_appendix</span><span class="o">=</span><span class="s1">&#39;frame&#39;</span><span class="p">,</span> <span class="n">fn_contains</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Chops a stream file into sub-streams containing only shots with a specific value of</span>
+<span class="sd">    a defined field, which must be in the chunk header. Useful e.g. for chopping into aggregation</span>
+<span class="sd">    frames.</span>
+<span class="sd">    </span>
+<span class="sd">    Arguments:</span>
+<span class="sd">        streamname {str} -- [Stream file name]</span>
+<span class="sd">        id_list {str} -- [List of values of the ID variable which you want to have in the final files.]</span>
+<span class="sd">    </span>
+<span class="sd">    Keyword Arguments:</span>
+<span class="sd">        id_field {str} -- [Field in chunk data to select by] (default: {&#39;hdf5/%/shots/frame&#39;})</span>
+<span class="sd">        id_appendix {str} -- [file appendix specifying the ID] (default: {&#39;frame&#39;})</span>
+<span class="sd">    </span>
+<span class="sd">    Raises:</span>
+<span class="sd">        RuntimeError: [weirdness in the stream found]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">outfiles</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">fnum</span> <span class="ow">in</span> <span class="n">id_list</span><span class="p">:</span>
+        <span class="n">outfiles</span><span class="p">[</span><span class="n">fnum</span><span class="p">]</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">streamname</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;-</span><span class="si">{</span><span class="n">id_appendix</span><span class="si">}{</span><span class="n">fnum</span><span class="si">}</span><span class="s1">.stream&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+
+    <span class="n">chunk_init</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">chunk_string</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">streamname</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh_in</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">ln</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fh_in</span><span class="p">):</span>
+        
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">BEGIN_CHUNK</span><span class="p">):</span>
+                <span class="n">chunk_init</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">chunk_string</span> <span class="o">+=</span> <span class="n">l</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">include_file</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">elif</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="p">(</span><span class="n">fn_contains</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Image filename&#39;</span><span class="p">):</span>
+                <span class="n">found_fn</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;: &#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">include_file</span> <span class="o">=</span> <span class="n">fn_contains</span> <span class="ow">in</span> <span class="n">found_fn</span>
+                <span class="n">chunk_string</span> <span class="o">+=</span> <span class="n">l</span>
+                
+            <span class="k">elif</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">id_field</span><span class="p">):</span>
+                <span class="n">found_value</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">found_value</span> <span class="o">=</span> <span class="n">parse_str_val</span><span class="p">(</span><span class="n">found_value</span><span class="p">)</span>
+                <span class="n">chunk_string</span> <span class="o">+=</span> <span class="n">l</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">found_value</span> <span class="k">if</span> <span class="n">found_value</span> <span class="ow">in</span> <span class="n">id_list</span> <span class="k">else</span> <span class="kc">None</span>
+        
+            <span class="k">elif</span> <span class="n">chunk_init</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">END_CHUNK</span><span class="p">):</span>
+                <span class="n">chunk_init</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">chunk_string</span> <span class="o">+=</span> <span class="n">l</span>
+                <span class="c1">#print(frame)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">include_file</span><span class="p">:</span>
+                    <span class="c1">#print(chunk_string)</span>
+                    <span class="n">outfiles</span><span class="p">[</span><span class="n">value</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk_string</span><span class="p">)</span>
+                <span class="n">chunk_string</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+                
+            <span class="k">elif</span> <span class="n">chunk_init</span><span class="p">:</span>
+                <span class="n">chunk_string</span> <span class="o">+=</span> <span class="n">l</span>
+        
+            <span class="k">elif</span> <span class="ow">not</span> <span class="n">chunk_init</span><span class="p">:</span>
+                <span class="c1"># no chunk initialized, write to all files</span>
+                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">fh</span> <span class="ow">in</span> <span class="n">outfiles</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+                    
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;This should not happen?! Please debug me.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="parse_str_val"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.parse_str_val">[docs]</a><span class="k">def</span> <span class="nf">parse_str_val</span><span class="p">(</span><span class="nb">input</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">input</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="StreamParser"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.StreamParser">[docs]</a><span class="k">class</span> <span class="nc">StreamParser</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">parse_now</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">serial_offset</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">new_folder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge_shot</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">command</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cell_string</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_geometry_string</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shots</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parsed_lines</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_lines</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serial_offset</span> <span class="o">=</span> <span class="n">serial_offset</span>
+
+        <span class="k">if</span> <span class="n">parse_now</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">new_folder</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">geometry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        :return: geometry section as dictionary</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">g</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geometry_string</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="s1">&#39;=&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">g</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">parse_str_val</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">g</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        :return: cell section as dictionary</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">c</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cell_string</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;=&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">c</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="n">c</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">c</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">options</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        :return: crystfel call options (ONLY -- ones) as dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;--\S+&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">command</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;=&#39;</span> <span class="ow">in</span> <span class="n">opt</span><span class="p">:</span>
+                <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">opt</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">o</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">o</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                        <span class="n">o</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">o</span><span class="p">[</span><span class="n">opt</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">o</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">indexed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">peaks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">shots</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shots</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">ID_FIELDS</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">input_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">command</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-i &#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; -&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+
+<div class="viewcode-block" id="StreamParser.parse"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.StreamParser.parse">[docs]</a>    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_folder</span><span class="p">):</span>
+
+        <span class="n">linedat_peak</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">linedat_index</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">shotlist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">crystallist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">init_peak</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">init_index</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">init_geom</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">init_cell</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">init_crystal_info</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">init_chunk</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">shotdat</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Event&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;shot_in_subset&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="s1">&#39;file&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="n">crystal_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">idstr</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parsed_lines</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_lines</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># lines are queried for their meaning. Lines belonging to tables are appended to StringIO virtual files,</span>
+        <span class="c1"># which are then read into pandas data frames at the very end. The order of Queries is chosen to optimize</span>
+        <span class="c1"># performance, that is, the table lines (most frequent) come first.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+
+            <span class="k">for</span> <span class="n">ln</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fh</span><span class="p">):</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">_parsed_lines</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_total_lines</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">skip</span><span class="p">:</span>
+                    <span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># EVENT CHUNKS</span>
+
+                <span class="c1"># Actual parsing (indexed peaks)</span>
+                <span class="k">if</span> <span class="n">init_index</span> <span class="ow">and</span> <span class="n">END_REFLECTIONS</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">init_index</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="n">init_index</span><span class="p">:</span>
+                    <span class="n">linedat_index</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+                        <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="nb">str</span><span class="p">(</span><span class="n">ln</span><span class="p">),</span> <span class="n">idstr</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">]))</span>
+
+                <span class="c1"># Actual parsing (found peaks)</span>
+                <span class="k">elif</span> <span class="n">init_peak</span> <span class="ow">and</span> <span class="n">END_PEAKS</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">init_peak</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="n">init_peak</span><span class="p">:</span>
+                    <span class="n">linedat_peak</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+                        <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="nb">str</span><span class="p">(</span><span class="n">ln</span><span class="p">),</span> <span class="n">idstr</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">]))</span>
+
+                <span class="c1"># Required info at chunk head</span>
+                <span class="k">elif</span> <span class="n">BEGIN_CHUNK</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">shotdat</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Event&#39;</span><span class="p">:</span> <span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="s1">&#39;shot_in_subset&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">:</span> <span class="s1">&#39;_&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;file&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;first_line&#39;</span><span class="p">:</span> <span class="n">ln</span><span class="p">,</span> <span class="s1">&#39;last_line&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+                    <span class="n">init_chunk</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">elif</span> <span class="n">END_CHUNK</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;last_line&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ln</span>
+                    <span class="n">shotlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">shotdat</span><span class="p">)</span>
+                    <span class="n">shotdat</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Event&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;shot_in_subset&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                               <span class="s1">&#39;file&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;first_line&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;last_line&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+                    <span class="n">init_chunk</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="s1">&#39;Event:&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;Event&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;: &#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">dummy_shot</span> <span class="o">=</span> <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;Event&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;//&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">dummy_shot</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]:</span>
+                        <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;shot_in_subset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;shot_in_subset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;Event&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;//&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;subset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;Event&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;//&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">elif</span> <span class="s1">&#39;Image filename:&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">new_folder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">elif</span> <span class="s1">&#39;Image serial number:&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;: &#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">serial_offset</span>
+                <span class="k">elif</span> <span class="p">(</span><span class="s1">&#39; = &#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">init_crystal_info</span><span class="p">)</span> <span class="ow">and</span> <span class="n">init_chunk</span><span class="p">:</span>    <span class="c1"># optional shot info</span>
+                    <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; = &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>                           
+                    <span class="n">shotdat</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">parse_str_val</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+                <span class="c1"># Table parsing activation for found peaks</span>
+                <span class="k">elif</span> <span class="p">(</span><span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">shotdat</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="ow">and</span> <span class="p">(</span><span class="n">BEGIN_PEAKS</span> <span class="ow">in</span> <span class="n">l</span><span class="p">):</span>
+                    <span class="n">skip</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1"># skip the column header line</span>
+                    <span class="n">init_peak</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">idstr</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">],</span> <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;Event&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">])])</span>
+
+                <span class="c1"># Table parsing activation for indexing</span>
+                <span class="k">elif</span> <span class="p">(</span><span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">shotdat</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="ow">and</span> <span class="p">(</span><span class="n">BEGIN_REFLECTIONS</span> <span class="ow">in</span> <span class="n">l</span><span class="p">):</span>
+                    <span class="n">skip</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">init_index</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">idstr</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">],</span> <span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;Event&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">shotdat</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">])])</span>
+
+                <span class="c1"># Additional information from indexing</span>
+                <span class="k">elif</span> <span class="n">BEGIN_CRYSTAL</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">crystal_info</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">shotdat</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">ID_FIELDS</span><span class="p">}</span>
+                    <span class="n">init_crystal_info</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">elif</span> <span class="n">END_CRYSTAL</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">crystallist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">crystal_info</span><span class="p">)</span>
+                    <span class="n">crystal_info</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="n">init_crystal_info</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="s1">&#39;Cell parameters&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="s1">&#39;dummy&#39;</span><span class="p">,</span> <span class="s1">&#39;al&#39;</span><span class="p">,</span> <span class="s1">&#39;be&#39;</span><span class="p">,</span> <span class="s1">&#39;ga&#39;</span><span class="p">],</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">2</span><span class="p">:</span><span class="mi">9</span><span class="p">]):</span>
+                        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s1">&#39;dummy&#39;</span><span class="p">:</span>
+                            <span class="k">continue</span>
+                        <span class="n">crystal_info</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="s1">&#39;astar&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">crystal_info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                        <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s1">&#39;astar_x&#39;</span><span class="p">,</span> <span class="s1">&#39;astar_y&#39;</span><span class="p">,</span> <span class="s1">&#39;astar_z&#39;</span><span class="p">],</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">])})</span>
+                <span class="k">elif</span> <span class="s1">&#39;bstar&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">crystal_info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                        <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s1">&#39;bstar_x&#39;</span><span class="p">,</span> <span class="s1">&#39;bstar_y&#39;</span><span class="p">,</span> <span class="s1">&#39;bstar_z&#39;</span><span class="p">],</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">])})</span>
+                <span class="k">elif</span> <span class="s1">&#39;cstar&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">crystal_info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                        <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s1">&#39;cstar_x&#39;</span><span class="p">,</span> <span class="s1">&#39;cstar_y&#39;</span><span class="p">,</span> <span class="s1">&#39;cstar_z&#39;</span><span class="p">],</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">])})</span>
+                <span class="k">elif</span> <span class="s1">&#39;diffraction_resolution_limit&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">crystal_info</span><span class="p">[</span><span class="s1">&#39;diff_limit&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39; nm&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;= &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="s1">&#39;predict_refine/det_shift&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">crystal_info</span><span class="p">[</span><span class="s1">&#39;xshift&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">3</span><span class="p">])</span>
+                    <span class="n">crystal_info</span><span class="p">[</span><span class="s1">&#39;yshift&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">6</span><span class="p">])</span>
+                    <span class="k">continue</span>
+                <span class="k">elif</span> <span class="p">(</span><span class="s1">&#39; = &#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">)</span> <span class="ow">and</span> <span class="n">init_crystal_info</span> <span class="ow">and</span> <span class="n">init_chunk</span><span class="p">:</span>    <span class="c1"># optional shot info</span>
+                    <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; = &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  
+                    <span class="n">crystal_info</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">parse_str_val</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+                <span class="c1"># CALL STRING</span>
+
+                <span class="k">elif</span> <span class="s1">&#39;indexamajig&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">command</span> <span class="o">=</span> <span class="n">l</span>
+
+                <span class="c1"># GEOMETRY FILE</span>
+
+                <span class="k">elif</span> <span class="n">init_geom</span> <span class="ow">and</span> <span class="p">(</span><span class="n">END_GEOM</span> <span class="ow">in</span> <span class="n">l</span><span class="p">):</span>
+                    <span class="n">init_geom</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="n">init_geom</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_geometry_string</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                <span class="k">elif</span> <span class="n">BEGIN_GEOM</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">init_geom</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="c1"># CELL FILE</span>
+
+                <span class="k">elif</span> <span class="n">init_cell</span> <span class="ow">and</span> <span class="p">(</span><span class="n">END_CELL</span> <span class="ow">in</span> <span class="n">l</span><span class="p">):</span>
+                    <span class="n">init_cell</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="n">init_cell</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_cell_string</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                <span class="k">elif</span> <span class="n">BEGIN_CELL</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                    <span class="n">init_cell</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_parsed_lines</span> <span class="o">-=</span> <span class="mi">1</span>
+
+        <span class="c1"># Now convert to pandas data frames</span>
+
+        <span class="n">linedat_index</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">linedat_peak</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">linedat_peak</span><span class="p">,</span> <span class="n">delim_whitespace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                  <span class="n">names</span><span class="o">=</span><span class="n">PEAK_COLUMNS</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;stream_line&#39;</span><span class="p">,</span> <span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">]</span>
+                                  <span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;serial&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;index&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span>
+            <span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">linedat_index</span><span class="p">,</span> <span class="n">delim_whitespace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                    <span class="n">names</span><span class="o">=</span><span class="n">REFLECTION_COLUMNS</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;stream_line&#39;</span><span class="p">,</span> <span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">]</span>
+                                    <span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;serial&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;index&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span>
+            <span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shots</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">shotlist</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;serial&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">crystallist</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">crystallist</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;serial&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">ID_FIELDS</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="StreamParser.write"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.StreamParser.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">include_peaks</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_indexed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_geom</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_cell</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+        <span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">HEAD</span><span class="o">+</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="n">GENERATOR</span><span class="o">+</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">command</span><span class="o">+</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">include_geom</span><span class="p">:</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">BEGIN_GEOM</span><span class="o">+</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_geometry_string</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="n">END_GEOM</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">include_cell</span><span class="p">:</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">BEGIN_CELL</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cell_string</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">END_CELL</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">shot</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_shots</span><span class="o">.</span><span class="n">iterrows</span><span class="p">(),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_shots</span><span class="p">)):</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">BEGIN_CHUNK</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Image filename: </span><span class="si">{</span><span class="n">shot</span><span class="o">.</span><span class="n">file</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Event: </span><span class="si">{</span><span class="n">shot</span><span class="o">.</span><span class="n">Event</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Image serial number: </span><span class="si">{</span><span class="n">shot</span><span class="o">.</span><span class="n">serial</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">serial_offset</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">shot</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;shot_in_subset&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">})</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1"> = </span><span class="si">{</span><span class="n">shot</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">include_peaks</span><span class="p">:</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">BEGIN_PEAKS</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span><span class="o">.</span><span class="n">serial</span> <span class="o">==</span> <span class="n">shot</span><span class="o">.</span><span class="n">serial</span><span class="p">,</span> <span class="n">PEAK_COLUMNS</span><span class="p">]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span>
+                        <span class="n">fh</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">na_rep</span><span class="o">=</span><span class="s1">&#39;-nan&#39;</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">END_PEAKS</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+                <span class="n">crystals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span><span class="o">.</span><span class="n">serial</span> <span class="o">==</span> <span class="n">shot</span><span class="o">.</span><span class="n">serial</span><span class="p">,</span> <span class="p">:]</span>
+
+                <span class="k">for</span> <span class="n">cid</span><span class="p">,</span> <span class="n">crs</span> <span class="ow">in</span> <span class="n">crystals</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">BEGIN_CRYSTAL</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Cell parameters </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">a</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">b</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">c</span><span class="si">}</span><span class="s1"> nm, </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">al</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">be</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">ga</span><span class="si">}</span><span class="s1"> deg</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;astar = </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">astar_x</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">astar_y</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">astar_z</span><span class="si">}</span><span class="s1"> nm^-1</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;bstar = </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">bstar_x</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">bstar_y</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">bstar_z</span><span class="si">}</span><span class="s1"> nm^-1</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;cstar = </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">cstar_x</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">cstar_y</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">cstar_z</span><span class="si">}</span><span class="s1"> nm^-1</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;diffraction_resolution_limit = </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">diff_limit</span><span class="si">}</span><span class="s1"> nm^-1 or </span><span class="si">{</span><span class="mi">10</span> <span class="o">/</span> <span class="n">crs</span><span class="o">.</span><span class="n">diff_limit</span><span class="si">}</span><span class="s1"> A</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;predict_refine/det_shift x = </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">xshift</span><span class="si">}</span><span class="s1"> y = </span><span class="si">{</span><span class="n">crs</span><span class="o">.</span><span class="n">yshift</span><span class="si">}</span><span class="s1"> mm</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">crs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span>
+                        <span class="p">{</span><span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;shot_in_subset&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="s1">&#39;al&#39;</span><span class="p">,</span> <span class="s1">&#39;be&#39;</span><span class="p">,</span> <span class="s1">&#39;ga&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;astar_x&#39;</span><span class="p">,</span> <span class="s1">&#39;astar_y&#39;</span><span class="p">,</span> <span class="s1">&#39;astar_z&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;bstar_x&#39;</span><span class="p">,</span> <span class="s1">&#39;bstar_y&#39;</span><span class="p">,</span> <span class="s1">&#39;bstar_z&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;cstar_x&#39;</span><span class="p">,</span> <span class="s1">&#39;cstar_y&#39;</span><span class="p">,</span> <span class="s1">&#39;cstar_z&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;diff_limit&#39;</span><span class="p">,</span> <span class="s1">&#39;xshift&#39;</span><span class="p">,</span> <span class="s1">&#39;yshift&#39;</span><span class="p">})</span>
+                    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+                        <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1"> = </span><span class="si">{</span><span class="n">crs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">include_indexed</span><span class="p">:</span>
+                        <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">BEGIN_REFLECTIONS</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="o">.</span><span class="n">serial</span> <span class="o">==</span> <span class="n">shot</span><span class="o">.</span><span class="n">serial</span><span class="p">,</span> <span class="n">REFLECTION_COLUMNS</span><span class="p">]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span>
+                            <span class="n">fh</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">na_rep</span><span class="o">=</span><span class="s1">&#39;-nan&#39;</span><span class="p">)</span>
+                        <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">END_REFLECTIONS</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">END_CRYSTAL</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">END_CHUNK</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="StreamParser.change_path"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.StreamParser.change_path">[docs]</a>    <span class="k">def</span> <span class="nf">change_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_folder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">old_pattern</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">new_pattern</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="k">for</span> <span class="n">df</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_crystals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shots</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">new_folder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">old_pattern</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">new_folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> \
+                          <span class="n">df</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">old_pattern</span><span class="p">,</span> <span class="n">new_pattern</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">old_pattern</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">old_pattern</span><span class="p">,</span> <span class="n">new_pattern</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">new_folder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">new_folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">df</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="StreamParser.get_cxi_format"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.StreamParser.get_cxi_format">[docs]</a>    <span class="k">def</span> <span class="nf">get_cxi_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">what</span><span class="o">=</span><span class="s1">&#39;peaks&#39;</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">half_pixel_shift</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">shots</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">shots</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shots</span>
+
+        <span class="k">if</span> <span class="n">half_pixel_shift</span><span class="p">:</span>
+            <span class="n">off</span> <span class="o">=</span> <span class="o">-.</span><span class="mi">5</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">off</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">what</span> <span class="o">==</span> <span class="s1">&#39;peaks&#39;</span><span class="p">:</span>
+            <span class="n">ifield</span> <span class="o">=</span> <span class="s1">&#39;Intensity&#39;</span>
+            <span class="n">indexed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">elif</span> <span class="n">what</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;indexed&#39;</span><span class="p">,</span> <span class="s1">&#39;predict&#39;</span><span class="p">,</span> <span class="s1">&#39;prediction&#39;</span><span class="p">]:</span>
+            <span class="n">ifield</span> <span class="o">=</span> <span class="s1">&#39;I&#39;</span>
+            <span class="n">indexed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;what must be peaks or indexed&#39;</span><span class="p">)</span>
+
+        <span class="c1"># some majig to get CXI arrays</span>
+        <span class="k">if</span> <span class="n">indexed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="p">[</span><span class="s1">&#39;pk_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">cumcount</span><span class="p">()</span>
+            <span class="n">pk2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="s1">&#39;pk_id&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span><span class="p">[</span><span class="s1">&#39;pk_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">cumcount</span><span class="p">()</span>
+            <span class="n">pk2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">,</span> <span class="s1">&#39;pk_id&#39;</span><span class="p">])</span>
+        <span class="c1"># joining step with shot list is required to make sure that shots without peaks/indexing stay in</span>
+        <span class="n">s2</span> <span class="o">=</span> <span class="n">shots</span><span class="p">[[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">])</span>
+        <span class="n">s2</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_arrays</span><span class="p">([[],</span> <span class="p">[]],</span> <span class="n">names</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;field&#39;</span><span class="p">,</span> <span class="s1">&#39;pk_id&#39;</span><span class="p">))</span>
+        <span class="n">pk2</span> <span class="o">=</span> <span class="n">s2</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pk2</span><span class="o">.</span><span class="n">unstack</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">indexed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_indexed</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;pk_id&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_peaks</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;pk_id&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">cxidat</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;peakXPosRaw&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">pk2</span><span class="p">[</span><span class="s1">&#39;fs/px&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">off</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+            <span class="s1">&#39;peakYPosRaw&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">pk2</span><span class="p">[</span><span class="s1">&#39;ss/px&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">off</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+            <span class="s1">&#39;peakTotalIntensity&#39;</span><span class="p">:</span> <span class="n">pk2</span><span class="p">[</span><span class="n">ifield</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+            <span class="s1">&#39;nPeaks&#39;</span><span class="p">:</span> <span class="n">pk2</span><span class="p">[</span><span class="s1">&#39;fs/px&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">indexed</span><span class="p">:</span>
+            <span class="n">cxidat</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;peakSNR&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">pk2</span><span class="p">[</span><span class="n">ifield</span><span class="p">]</span><span class="o">/</span><span class="n">pk2</span><span class="p">[</span><span class="s1">&#39;Sigma(I)&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+                           <span class="s1">&#39;indexH&#39;</span><span class="p">:</span> <span class="n">pk2</span><span class="p">[</span><span class="s1">&#39;h&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">),</span>
+                           <span class="s1">&#39;indexK&#39;</span><span class="p">:</span> <span class="n">pk2</span><span class="p">[</span><span class="s1">&#39;k&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">),</span>
+                           <span class="s1">&#39;indexL&#39;</span><span class="p">:</span> <span class="n">pk2</span><span class="p">[</span><span class="s1">&#39;l&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)})</span>
+
+        <span class="k">return</span> <span class="n">cxidat</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Robert Buecker
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

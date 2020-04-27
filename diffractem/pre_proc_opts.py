@@ -10,20 +10,20 @@ class PreProcOpts:
         self._help = {}
 
         # raw-image corrections
-        self.verbose = True
-        self.reference = 'Ref12_reference.tif'  #: Name of reference image for flat-field correction in TIF format
-        self.pxmask = 'Ref12_pxmask.tif'        #: Name of pixelmask TIF image
-        self.correct_saturation = True          #: Correct for detector saturation using paralyzable model
-        self.dead_time = 1.9e-3                 #: Dead time (in ms) for paralyzable detector model
-        self.shutter_time = 2                   #: Shutter time (in ms) for paralyzable detector model
-        self.mask_gaps = True
-        self.float = False
-        self.cam_length = 2                     #: Coarse camera length (in m) for estimations. Not used for indexing
-        self.y_scale = 0.98                     #: Scaling of camera length along y axis (tilted detector)
-        self.pixel_size = 55e-6                 #: Pixel size (in m)
-        self.com_threshold = 0.9
-        self.com_xrng = 800                     #: x range (px) around pattern center in which to look for center of mass
-        self.com_yrng = 800                     #: y range (px) around pattern center in which to look for center of mass
+        self.verbose: bool = True
+        self.reference: str = 'Ref12_reference.tif'  #: Name of reference image for flat-field correction in TIF format
+        self.pxmask: str = 'Ref12_pxmask.tif'        #: Name of pixelmask TIF image
+        self.correct_saturation: bool = True          #: Correct for detector saturation using paralyzable model
+        self.dead_time: float = 1.9e-3                 #: Dead time (in ms) for paralyzable detector model
+        self.shutter_time: float = 2                   #: Shutter time (in ms) for paralyzable detector model
+        self.mask_gaps: bool = True
+        self.float: bool = False
+        self.cam_length: float = 2                     #: Coarse camera length (in m) for estimations. Not used for indexing
+        self.y_scale: float = 0.98                     #: Scaling of camera length along y axis (tilted detector)
+        self.pixel_size: float = 55e-6                 #: Pixel size (in m)
+        self.com_threshold:float = 0.9
+        self.com_xrng: int = 800                     #: x range (px) around pattern center in which to look for center of mass
+        self.com_yrng: int = 800                     #: y range (px) around pattern center in which to look for center of mass
         self.lorentz_radius = 30                #: radius (px) around center of mass for Lorentz fit of zero order
         self.lorentz_maxshift = 36              #: maximum shift (px) of Lorentz fit center from center of mass
         self.xsize = 1556                       #: x image size (px)
