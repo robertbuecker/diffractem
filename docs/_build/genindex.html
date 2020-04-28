@@ -91,6 +91,8 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -243,6 +245,8 @@
         <li><a href="diffractem.tools.html#diffractem.tools.chop_stream">(in module diffractem.tools)</a>
 </li>
       </ul></li>
+      <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.close_files">close_files() (diffractem.dataset.Dataset method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.close_stacks">close_stacks() (diffractem.dataset.Dataset method)</a>
@@ -258,6 +262,8 @@
       <li><a href="diffractem.adxv.html#diffractem.adxv.Adxv.contrast_min">contrast_min() (diffractem.adxv.Adxv method)</a>
 </li>
       <li><a href="diffractem.map_image.html#diffractem.map_image.MapImage.coordinates">coordinates() (diffractem.map_image.MapImage property)</a>
+</li>
+      <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.copy">copy() (diffractem.dataset.Dataset method)</a>
 </li>
       <li><a href="diffractem.nexus.html#diffractem.nexus.copy_h5">copy_h5() (in module diffractem.nexus)</a>
 </li>
@@ -275,6 +281,8 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.data_pattern">data_pattern (diffractem.dataset.Dataset attribute)</a>
+</li>
       <li><a href="diffractem.tools.html#diffractem.tools.dataframe_hash">dataframe_hash() (in module diffractem.tools)</a>
 </li>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset">Dataset (class in diffractem.dataset)</a>
@@ -316,6 +324,8 @@
         <li><a href="diffractem.compute.html#module-diffractem.compute">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     diffractem.dataset
 
@@ -323,8 +333,6 @@
         <li><a href="diffractem.dataset.html#module-diffractem.dataset">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     diffractem.io
 
@@ -491,10 +499,10 @@
 </li>
       <li><a href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.indexing_params">indexing_params (diffractem.pre_proc_opts.PreProcOpts attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.init_files">init_files() (diffractem.dataset.Dataset method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.init_shot_table">init_shot_table() (diffractem.dataset.Dataset method)</a>
 </li>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.init_stacks">init_stacks() (diffractem.dataset.Dataset method)</a>
@@ -502,6 +510,8 @@
       <li><a href="diffractem.stream_parser.html#diffractem.stream_parser.StreamParser.input_file">input_file() (diffractem.stream_parser.StreamParser property)</a>
 </li>
       <li><a href="diffractem.tools.html#diffractem.tools.insert_init">insert_init() (in module diffractem.tools)</a>
+</li>
+      <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.instrument_pattern">instrument_pattern (diffractem.dataset.Dataset attribute)</a>
 </li>
       <li><a href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.integration_params">integration_params (diffractem.pre_proc_opts.PreProcOpts attribute)</a>
 </li>
@@ -555,6 +565,8 @@
 </li>
       <li><a href="diffractem.map_image.html#diffractem.map_image.MapImage.make_scan_list">make_scan_list() (diffractem.map_image.MapImage method)</a>
 </li>
+      <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.map_pattern">map_pattern (diffractem.dataset.Dataset attribute)</a>
+</li>
       <li><a href="diffractem.compute.html#diffractem.compute.map_reduction_func">map_reduction_func() (in module diffractem.compute)</a>
 </li>
       <li><a href="diffractem.map_image.html#diffractem.map_image.MapImage">MapImage (class in diffractem.map_image)</a>
@@ -571,10 +583,10 @@
 </li>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.merge_stream">merge_stream() (diffractem.dataset.Dataset method)</a>
 </li>
-      <li><a href="diffractem.map_image.html#diffractem.map_image.MapImage.meta">meta() (diffractem.map_image.MapImage property)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="diffractem.map_image.html#diffractem.map_image.MapImage.meta">meta() (diffractem.map_image.MapImage property)</a>
+</li>
       <li><a href="diffractem.map_image.html#diffractem.map_image.MapImage.meta_diff">meta_diff() (diffractem.map_image.MapImage property)</a>
 </li>
       <li><a href="diffractem.nexus.html#diffractem.nexus.meta_to_nxs">meta_to_nxs() (in module diffractem.nexus)</a>
@@ -626,6 +638,8 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.parallel_io">parallel_io (diffractem.dataset.Dataset attribute)</a>
+</li>
       <li><a href="diffractem.stream_parser.html#diffractem.stream_parser.StreamParser.parse">parse() (diffractem.stream_parser.StreamParser method)</a>
 </li>
       <li><a href="diffractem.stream_parser.html#diffractem.stream_parser.parse_str_val">parse_str_val() (in module diffractem.stream_parser)</a>
@@ -684,10 +698,10 @@
 </li>
       <li><a href="diffractem.adxv.html#diffractem.adxv.Adxv.raise_window">raise_window() (diffractem.adxv.Adxv method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.rechunk_stacks">rechunk_stacks() (diffractem.dataset.Dataset method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="diffractem.legacy.html#diffractem.legacy.reduce_stack">reduce_stack() (in module diffractem.legacy)</a>
 </li>
       <li><a href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.reference">reference (diffractem.pre_proc_opts.PreProcOpts attribute)</a>
@@ -697,6 +711,8 @@
       <li><a href="diffractem.proc2d.html#diffractem.proc2d.remove_background">remove_background() (in module diffractem.proc2d)</a>
 </li>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.reset_id">reset_id() (diffractem.dataset.Dataset method)</a>
+</li>
+      <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.result_pattern">result_pattern (diffractem.dataset.Dataset attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -730,14 +746,16 @@
         <li><a href="diffractem.stream_parser.html#diffractem.stream_parser.StreamParser.shots">(diffractem.stream_parser.StreamParser property)</a>
 </li>
       </ul></li>
+      <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.shots_pattern">shots_pattern (diffractem.dataset.Dataset attribute)</a>
+</li>
       <li><a href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.shutter_time">shutter_time (diffractem.pre_proc_opts.PreProcOpts attribute)</a>
 </li>
       <li><a href="diffractem.adxv.html#diffractem.adxv.Adxv.slab">slab() (diffractem.adxv.Adxv method)</a>
 </li>
-      <li><a href="diffractem.adxv.html#diffractem.adxv.Adxv.slabs">slabs() (diffractem.adxv.Adxv method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="diffractem.adxv.html#diffractem.adxv.Adxv.slabs">slabs() (diffractem.adxv.Adxv method)</a>
+</li>
       <li><a href="diffractem.proc2d.html#diffractem.proc2d.stack_nested">stack_nested() (in module diffractem.proc2d)</a>
 </li>
       <li><a href="diffractem.dataset.html#diffractem.dataset.Dataset.Stacks">Stacks() (diffractem.dataset.Dataset method)</a>
@@ -839,7 +857,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

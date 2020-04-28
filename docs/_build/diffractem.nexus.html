@@ -90,6 +90,8 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -209,9 +211,11 @@
 
 <dl class="py function">
 <dt id="diffractem.nexus.get_meta_fields">
-<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">get_meta_fields</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>list<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">dataset_paths</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>list<span class="p">, </span>str<span class="p">, </span>tuple<span class="p">, </span>dict<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">shorten_labels</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#get_meta_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.get_meta_fields" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">get_meta_fields</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span></em>, <em class="sig-param"><span class="n">dataset_paths</span></em>, <em class="sig-param"><span class="n">shorten_labels</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#get_meta_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.get_meta_fields" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get arbitrary meta data from files.
+:type files: <code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]
 :param files:
+:type dataset_paths: <code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]
 :param dataset_paths: list of dataset paths, or dict of structure {dataset: default value}
 :param shorten_labels: only use final section of labels for columns of returned DataFrame
 :return: pandas DataFrame of metadata</p>
@@ -219,8 +223,13 @@
 
 <dl class="py function">
 <dt id="diffractem.nexus.get_table">
-<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">get_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>list<span class="p">, </span>str<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">'/%/shots'</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; pandas.core.frame.DataFrame<a class="reference internal" href="_modules/diffractem/nexus.html#get_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.get_table" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">get_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span></em>, <em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">'/%/shots'</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#get_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.get_table" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.nexus.meta_to_nxs">
@@ -250,12 +259,16 @@ Additionally, it adds a soft link to the actual data for easier retrieval later 
 
 <dl class="py function">
 <dt id="diffractem.nexus.store_table">
-<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">store_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span><span class="p">:</span> <span class="n">pandas.core.frame.DataFrame</span></em>, <em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">format</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'nexus'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#store_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.store_table" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">store_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span></em>, <em class="sig-param"><span class="n">path</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">'nexus'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#store_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.store_table" title="Permalink to this definition">¶</a></dt>
 <dd><p>Stores a pandas DataFrame containing ‘file’ and ‘subset’ columns to multiple HDF5 files. Essentially a
 multi-file, multi-processed wrapper to pd.to_hdf
+:type table: <code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>
 :param table: DataFrame to be stored
+:type path: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>
 :param path: path in HDF5 files. % will be substituted by the respective subset name
+:type parallel: <code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>
 :param parallel: if True (default), writes files in parallel
+:type format: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>
 :param format: can be ‘nexus’ to write columns of table in separate arrays, or ‘tables’ to use PyTables to write</p>
 <blockquote>
 <div><p>a HDF5 table object.</p>
@@ -280,7 +293,7 @@ multi-file, multi-processed wrapper to pd.to_hdf
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

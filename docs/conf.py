@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'diffractem'
-copyright = '2020, Robert Buecker'
-author = 'Robert Buecker'
+copyright = '2020, Robert Bücker'
+author = 'Robert Bücker'
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,7 +35,7 @@ master_doc = 'index'
 extensions = ['recommonmark', 'sphinx.ext.autodoc', 
               'sphinx.ext.napoleon', 'sphinx.ext.viewcode',
               'jupyter_sphinx.execute', 'nbsphinx', 'sphinx.ext.mathjax',
-              'nbsphinx_link'
+              'nbsphinx_link', 'sphinx_autodoc_typehints'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -47,6 +47,8 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 autodoc_mock_imports = ['PyQt5']
+
+nbsphinx_execute = 'never'
 
 # -- Options for HTML output -------------------------------------------------
 

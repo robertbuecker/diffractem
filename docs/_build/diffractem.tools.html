@@ -90,6 +90,8 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -183,7 +185,7 @@
 <span id="diffractem-tools-module"></span><h1>diffractem.tools module<a class="headerlink" href="#module-diffractem.tools" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="diffractem.tools.call_indexamajig">
-<code class="sig-prename descclassname">diffractem.tools.</code><code class="sig-name descname">call_indexamajig</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">input</span></em>, <em class="sig-param"><span class="n">geometry</span></em>, <em class="sig-param"><span class="n">output</span><span class="o">=</span><span class="default_value">'im_out.stream'</span></em>, <em class="sig-param"><span class="n">cell</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">im_params</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">index_params</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">procs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exc</span><span class="o">=</span><span class="default_value">'indexamajig'</span></em>, <em class="sig-param"><span class="n">copy_fields</span><span class="p">:</span> <span class="n">list</span> <span class="o">=</span> <span class="default_value">()</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/tools.html#call_indexamajig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.tools.call_indexamajig" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.tools.</code><code class="sig-name descname">call_indexamajig</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">input</span></em>, <em class="sig-param"><span class="n">geometry</span></em>, <em class="sig-param"><span class="n">output</span><span class="o">=</span><span class="default_value">'im_out.stream'</span></em>, <em class="sig-param"><span class="n">cell</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">im_params</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">index_params</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">procs</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exc</span><span class="o">=</span><span class="default_value">'indexamajig'</span></em>, <em class="sig-param"><span class="n">copy_fields</span><span class="o">=</span><span class="default_value">()</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/tools.html#call_indexamajig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.tools.call_indexamajig" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generates an indexamajig command from a dictionary of indexamajig parameters, a exc dictionary of files names and core number, and an indexer dictionary</p>
 <p>e.g.</p>
 <dl class="simple">
@@ -209,7 +211,7 @@
 
 <dl class="py function">
 <dt id="diffractem.tools.chop_stream">
-<code class="sig-prename descclassname">diffractem.tools.</code><code class="sig-name descname">chop_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">streamfile</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">shots</span><span class="p">:</span> <span class="n">pandas.core.frame.DataFrame</span></em>, <em class="sig-param"><span class="n">query</span><span class="o">=</span><span class="default_value">'frame == 1'</span></em>, <em class="sig-param"><span class="n">postfix</span><span class="o">=</span><span class="default_value">'fr1'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/tools.html#chop_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.tools.chop_stream" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.tools.</code><code class="sig-name descname">chop_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">streamfile</span></em>, <em class="sig-param"><span class="n">shots</span></em>, <em class="sig-param"><span class="n">query</span><span class="o">=</span><span class="default_value">'frame == 1'</span></em>, <em class="sig-param"><span class="n">postfix</span><span class="o">=</span><span class="default_value">'fr1'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/tools.html#chop_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.tools.chop_stream" title="Permalink to this definition">¶</a></dt>
 <dd><p>Carve shots with a given frame number from a stream file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -223,11 +225,16 @@
 
 <dl class="py function">
 <dt id="diffractem.tools.dataframe_hash">
-<code class="sig-prename descclassname">diffractem.tools.</code><code class="sig-name descname">dataframe_hash</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">df</span><span class="p">:</span> <span class="n">pandas.core.frame.DataFrame</span></em>, <em class="sig-param"><span class="n">signed</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; pandas.core.series.Series<a class="reference internal" href="_modules/diffractem/tools.html#dataframe_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.tools.dataframe_hash" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.tools.</code><code class="sig-name descname">dataframe_hash</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">df</span></em>, <em class="sig-param"><span class="n">signed</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/tools.html#dataframe_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.tools.dataframe_hash" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generate int32 (or uint32 if signed=False) hashes from a pandas data frame and return as a pandas Series.
 The hash is generated with md5 from a whitespace-delimited string representation from each data frame row,
 such as e.g.:
 “data/file_a.h5 entry//0” (so similar to CrystFEL’s list syntax).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Series</span></code></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -295,7 +302,7 @@ below a specified value. The quantized y positions are determined by K-means clu
 
 <dl class="py function">
 <dt id="diffractem.tools.strip_file_path">
-<code class="sig-prename descclassname">diffractem.tools.</code><code class="sig-name descname">strip_file_path</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">df</span><span class="p">:</span> <span class="n">pandas.core.frame.DataFrame</span></em>, <em class="sig-param"><span class="n">add_folder</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/tools.html#strip_file_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.tools.strip_file_path" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.tools.</code><code class="sig-name descname">strip_file_path</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">df</span></em>, <em class="sig-param"><span class="n">add_folder</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/tools.html#strip_file_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.tools.strip_file_path" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </div>
@@ -311,7 +318,7 @@ below a specified value. The quantized y positions are determined by K-means clu
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

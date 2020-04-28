@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial notebooks &mdash; diffractem  documentation</title>
+  <title>Crystal-map images &mdash; diffractem  documentation</title>
   
 
   
@@ -41,8 +41,8 @@
   <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Indexing using PinkIndexer" href="notebooks/indexing.html" />
-    <link rel="prev" title="Installation" href="installation.html" /> 
+    <link rel="next" title="CrystFEL integration" href="crystfel.html" />
+    <link rel="prev" title="EDview" href="edview.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -88,17 +88,12 @@
             
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial notebooks</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/indexing.html">Indexing using PinkIndexer</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/preprocessing.html">Serial diffraction data preprocessing using <em>diffractem</em></a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/merging.html">Merging of serial data sets</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -145,13 +140,13 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-      <li>Tutorial notebooks</li>
+      <li>Crystal-map images</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="_sources/notebooks.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/map_image.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -188,46 +183,11 @@
     text-align: unset;
 }
 </style>
-<div class="section" id="tutorial-notebooks">
-<h1>Tutorial notebooks<a class="headerlink" href="#tutorial-notebooks" title="Permalink to this headline">¶</a></h1>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/indexing.html">Indexing using PinkIndexer</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/indexing.html#Prepare-data-sets">Prepare data sets</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/indexing.html#Cell-file-generation-function">Cell file generation function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/indexing.html#Screen-indexing-parameters">Screen indexing parameters</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/indexing.html#Run-indexing">Run indexing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/indexing.html#Indexing-done!">Indexing done!</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/indexing.html#(Re-)Integration">(Re-)Integration</a></li>
+<div class="section" id="crystal-map-images">
+<h1>Crystal-map images<a class="headerlink" href="#crystal-map-images" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p>Messy relation to <span class="xref std std-ref">dataset</span></p></li>
 </ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/preprocessing.html">Serial diffraction data preprocessing using <em>diffractem</em></a><ul>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/preprocessing.html#Dataset-initialization">Dataset initialization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/preprocessing.html#A-good-time-to-optimize-the-peak-finder">A good time to optimize the peak finder</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="notebooks/preprocessing.html#Centering-refinement">Centering refinement</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/preprocessing.html#Centering-check">Centering check</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="notebooks/preprocessing.html#Ready-for-indexing,-Preparation-of-sets-for-integration">Ready for indexing, Preparation of sets for integration</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/preprocessing.html#Apply-pre-processing-to-single-frames">Apply pre-processing to single frames</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/preprocessing.html#Background-subtraction">Background subtraction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/preprocessing.html#Cumulation">Cumulation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/preprocessing.html#Done!">Done!</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/merging.html">Merging of serial data sets</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/merging.html#Preparation-of-a-command-script-for-partialator">Preparation of a command script for partialator</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/merging.html#Analysis-of-shell-data">Analysis of shell data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/merging.html#Print-overall-and-per-shell-statistics">Print overall and per-shell statistics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/merging.html#Export">Export</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/merging.html#Plot">Plot</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notebooks/merging.html#Congratulations">Congratulations</a></li>
-</ul>
-</li>
-</ul>
-</div>
 </div>
 
 
@@ -238,10 +198,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="notebooks/indexing.html" class="btn btn-neutral float-right" title="Indexing using PinkIndexer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="crystfel.html" class="btn btn-neutral float-right" title="CrystFEL integration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="edview.html" class="btn btn-neutral float-left" title="EDview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

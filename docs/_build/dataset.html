@@ -89,9 +89,19 @@
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">The Dataset object</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The Dataset object</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#shot-list">Shot list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data-stacks">Data stacks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#chunking">Chunking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#lazy-evaluation-and-persisting">Lazy evaluation and persisting</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -183,6 +193,31 @@
 </style>
 <div class="section" id="the-dataset-object">
 <h1>The Dataset object<a class="headerlink" href="#the-dataset-object" title="Permalink to this headline">¶</a></h1>
+<p>A diffractem data set is represented by a <cite>Dataset</cite> object, which manages all diffraction and meta data
+from an electron diffraction set, and provides a plethora of features to work with them. This comprises:</p>
+<ul class="simple">
+<li><p>Automatic management of the HDF5 files containing the diffraction and meta data (see also
+<span class="xref std std-ref">file_format</span>).</p></li>
+<li><p>A framework to apply massively parallel computations on larger-than-memory diffraction data stacks
+using <a class="reference external" href="https://dask.org">dask</a>, on a local machine or even remote clusters.</p></li>
+<li><p>Handling of meta data for each single recorded diffraction pattern using an embedded <cite>pandas.DataFrame</cite>
+as a “shot list”.</p></li>
+<li><p>Methods for quick and transparent creation of sub-sets through complex queries on metadata.</p></li>
+</ul>
+<p>To learn how to handle <cite>Dataset</cite> objects, we’d recommend the tutorial notebooks.</p>
+<p>The full API documentation can be found <a class="reference internal" href="diffractem.dataset.html"><span class="doc">here</span></a>.</p>
+<div class="section" id="shot-list">
+<h2>Shot list<a class="headerlink" href="#shot-list" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="data-stacks">
+<h2>Data stacks<a class="headerlink" href="#data-stacks" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="chunking">
+<h3>Chunking<a class="headerlink" href="#chunking" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="lazy-evaluation-and-persisting">
+<h3>Lazy evaluation and persisting<a class="headerlink" href="#lazy-evaluation-and-persisting" title="Permalink to this headline">¶</a></h3>
+</div>
+</div>
 </div>
 
 
@@ -205,7 +240,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

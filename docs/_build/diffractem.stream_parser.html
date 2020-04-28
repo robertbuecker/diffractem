@@ -90,6 +90,8 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -267,7 +269,7 @@
 
 <dl class="py function">
 <dt id="diffractem.stream_parser.augment_stream">
-<code class="sig-prename descclassname">diffractem.stream_parser.</code><code class="sig-name descname">augment_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">streamname</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">outfile</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">new_fields</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>dict<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">where</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'chunk'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/stream_parser.html#augment_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.stream_parser.augment_stream" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.stream_parser.</code><code class="sig-name descname">augment_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">streamname</span></em>, <em class="sig-param"><span class="n">outfile</span></em>, <em class="sig-param"><span class="n">new_fields</span></em>, <em class="sig-param"><span class="n">where</span><span class="o">=</span><span class="default_value">'chunk'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/stream_parser.html#augment_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.stream_parser.augment_stream" title="Permalink to this definition">¶</a></dt>
 <dd><p>IDEA: add new fields to stream headers, which can then be used for chopping or filtering.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -284,7 +286,7 @@
 
 <dl class="py function">
 <dt id="diffractem.stream_parser.chop_stream">
-<code class="sig-prename descclassname">diffractem.stream_parser.</code><code class="sig-name descname">chop_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">streamname</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">id_list</span><span class="p">:</span> <span class="n">list</span></em>, <em class="sig-param"><span class="n">id_field</span><span class="o">=</span><span class="default_value">'hdf5/%/shots/frame'</span></em>, <em class="sig-param"><span class="n">id_appendix</span><span class="o">=</span><span class="default_value">'frame'</span></em>, <em class="sig-param"><span class="n">fn_contains</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/stream_parser.html#chop_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.stream_parser.chop_stream" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.stream_parser.</code><code class="sig-name descname">chop_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">streamname</span></em>, <em class="sig-param"><span class="n">id_list</span></em>, <em class="sig-param"><span class="n">id_field</span><span class="o">=</span><span class="default_value">'hdf5/%/shots/frame'</span></em>, <em class="sig-param"><span class="n">id_appendix</span><span class="o">=</span><span class="default_value">'frame'</span></em>, <em class="sig-param"><span class="n">fn_contains</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/stream_parser.html#chop_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.stream_parser.chop_stream" title="Permalink to this definition">¶</a></dt>
 <dd><p>Chops a stream file into sub-streams containing only shots with a specific value of
 a defined field, which must be in the chunk header. Useful e.g. for chopping into aggregation
 frames.</p>
@@ -309,7 +311,7 @@ frames.</p>
 
 <dl class="py function">
 <dt id="diffractem.stream_parser.parse_str_val">
-<code class="sig-prename descclassname">diffractem.stream_parser.</code><code class="sig-name descname">parse_str_val</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">input</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/stream_parser.html#parse_str_val"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.stream_parser.parse_str_val" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.stream_parser.</code><code class="sig-name descname">parse_str_val</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">input</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/stream_parser.html#parse_str_val"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.stream_parser.parse_str_val" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </div>
@@ -325,7 +327,7 @@ frames.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

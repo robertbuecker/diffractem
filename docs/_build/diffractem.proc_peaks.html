@@ -90,6 +90,8 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -183,7 +185,7 @@
 <span id="diffractem-proc-peaks-module"></span><h1>diffractem.proc_peaks module<a class="headerlink" href="#module-diffractem.proc_peaks" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="diffractem.proc_peaks.center_friedel">
-<code class="sig-prename descclassname">diffractem.proc_peaks.</code><code class="sig-name descname">center_friedel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">peaks</span><span class="p">:</span> <span class="n">pandas.core.frame.DataFrame</span></em>, <em class="sig-param"><span class="n">shots</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">p0</span><span class="o">=</span><span class="default_value">778, 308</span></em>, <em class="sig-param"><span class="n">colnames</span><span class="o">=</span><span class="default_value">'fs/px', 'ss/px'</span></em>, <em class="sig-param"><span class="n">sigma</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">minpeaks</span><span class="o">=</span><span class="default_value">4</span></em>, <em class="sig-param"><span class="n">maxres</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>float<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#center_friedel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.center_friedel" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.proc_peaks.</code><code class="sig-name descname">center_friedel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">peaks</span></em>, <em class="sig-param"><span class="n">shots</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">p0</span><span class="o">=</span><span class="default_value">778, 308</span></em>, <em class="sig-param"><span class="n">colnames</span><span class="o">=</span><span class="default_value">'fs/px', 'ss/px'</span></em>, <em class="sig-param"><span class="n">sigma</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">minpeaks</span><span class="o">=</span><span class="default_value">4</span></em>, <em class="sig-param"><span class="n">maxres</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#center_friedel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.center_friedel" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="simple">
 <dt>[Center refinement of diffraction patterns from a list of peaks, assuming the presence</dt><dd><p>of a significant number of Friedel mates.]</p>
 </dd>
@@ -218,7 +220,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

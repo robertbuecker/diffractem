@@ -107,13 +107,22 @@ class Dataset:
         self._features_changed = False
 
         # HDF5 file addresses
-        self.data_pattern = '/%/data'
-        self.shots_pattern = '/%/shots'
-        self._fallback_shots_pattern = '/%/data/shots'
-        self.result_pattern = '/%/results'
-        self.map_pattern = '/%/map'
-        self.instrument_pattern = '/%/instrument'
-        self.parallel_io = True
+        self.data_pattern: str = '/%/data' 
+        '''Path to data stacks in HDF5 files. % can be used as placeholder (as in CrystFEL). Default /%/data'''
+        self.shots_pattern: str = '/%/shots'
+        '''Path to shot table data in HDF5 files. % can be used as placeholder (as in CrystFEL). Default /%/shots'''
+        self._fallback_shots_pattern: str = '/%/data/shots'
+        self.result_pattern: str = '/%/results'
+        '''Path to result data (peaks, predictions) in HDF5 files. % can be used as placeholder (as in CrystFEL). 
+        Default /%/results. **Note that storing results in this way is discouraged and deprecated.**'''
+        self.map_pattern: str = '/%/map'
+        '''Path to map and feature data in HDF5 files. % can be used as placeholder (as in CrystFEL). Default /%/map'''
+        self.instrument_pattern: str = '/%/instrument'
+        '''Path to instrument metadat in HDF5 files. % can be used as placeholder (as in CrystFEL). Default /%/instrument'''
+        self.parallel_io: bool = True
+        '''Toggles if parallel I/O is attempted for datasets spanning many files. Note that this is independent
+        from `dask.distributed`-based parallelization as in `store_stack_fast`. Default True, which is overriden
+        if the Dataset comprises a single file only.'''
 
         # internal stuff
         self._file_handles = {}
@@ -122,7 +131,7 @@ class Dataset:
         self._feature_id_cols = ['crystal_id', 'region', 'sample']
         self._diff_stack_label = ''
 
-        # tables
+        # tables: accessed via properties!
         self._shots = pd.DataFrame(columns=self._shot_id_cols + self._feature_id_cols + ['selected'])
         self._peaks = pd.DataFrame(columns=self._shot_id_cols)
         self._predict = pd.DataFrame(columns=self._shot_id_cols)
@@ -151,68 +160,109 @@ class Dataset:
             raise AttributeError(f'{attr} is neither a dataset attribute, nor a stack name.')
 
     @property
-    def _files_open(self):
+    def _files_open(self) -> bool:
+        """True if HDF5 files are open"""
         return all([isinstance(f, h5py.File) for f in self.file_handles.values()])
     
     @property
-    def _files_writable(self):
+    def _files_writable(self) -> bool:
+        """True if HDF5 files are open in write mode"""
         return self._files_open and all([f.mode != 'r' for f in self.file_handles.values()])
     
     @property
-    def _stack_in_memory(self):
+    def _stack_in_memory(self) -> dict:
+        """For each stack, indicates whether the dask array is persisted in memory. This is done
+        by comparing the task number to the chunk number, which might be inaccurate in 
+        pathological cases"""
         return {sn: len(stk.dask) == np.product(stk.numblocks) for sn, stk in self._stacks.items()}
 
     @property
-    def file_handles(self):
-        # handles to HDF5 files, if open. Otherwise None.
+    def file_handles(self) -> dict:
+        """Handles to the HDF5 files as a dict with keys matching the file name, if files are open.
+        Otherwise returns None (for each file)."""
         return {fn: self._file_handles[fn] if fn in self._file_handles else None for fn in self.files}
 
     @property
-    def stacks(self):
+    def stacks(self) -> dict:
+        """Dictionary of data stacks of the Dataset."""
         return self._stacks
 
     @property
-    def files(self):
+    def files(self) -> list:
+        """List of HDF5 files which the Dataset is based on. Note that these files do not have
+        to actually exist; but they will be written if any of the writing functions is called.
+        Change the file names and directories using `change_filenames`, or direct editing of the
+        shot table (*discouraged*)"""
         return list(self._shots['file'].unique())
 
     @property
-    def shots(self):
+    def shots(self) -> pd.DataFrame:
+        """Shot list. Can be overwritten only if index and ID columns of the shots
+        are identical to the existing one."""
         return self._shots
 
     @shots.setter
     def shots(self, value: pd.DataFrame):
         if (value.index != self._shots.index).any():
-            raise ValueError('Shot index is different from existing one. Use modify_shots to change index.')
+            raise ValueError('Shot index is different from existing one.')
         if (value[self._shot_id_cols] != self._shots[self._shot_id_cols]).any().any():
-            raise ValueError('Shot ID columns are different from existing ones. Use modify_shots to change index.')
+            raise ValueError('Shot ID columns are different from existing ones.')
         self._shots = value
         self._shots_changed = True
 
     @property
-    def predict(self):
+    def predict(self) -> pd.DataFrame:
+        """List of predictions. Deprecated. Please store predictions in StreamParser objects."""
         warn('The prediction table functionality will likely be removed.', DeprecationWarning)
         return self._predict
 
+    @predict.setter
+    def predict(self, value):
+        warn('The prediction table functionality will likely be removed.', DeprecationWarning)
+        self._predict = value
+        self._predict_changed = True
+        
     @property
-    def features(self):
+    def features(self) -> pd.DataFrame:
+        """List of features (that is e.g. crystals). Each feature can have one or many shots
+        associated with it."""
         return self._features
 
+    @features.setter
+    def features(self, value):
+        self._features = value
+        self._features_changed = True
+        
     @property
-    def peaks(self):
+    def peaks(self) -> pd.DataFrame:
+        """List of found diffraction peaks. Deprecated. Please store peaks in CXI-format
+        stacks. Note that peak positions in this table must follow *CrystFEL* convention, that
+        is, integer numbers specify the pixel *edges*, not centers. This is in contrast to
+        CXI convention, where integer numbers correspond to pixel *centers*"""
         warn('The peak table functionality will likely be removed.', DeprecationWarning)
         return self._peaks
-    
+            
+    @peaks.setter
+    def peaks(self, value):
+        warn('The peak table functionality will likely be removed.', DeprecationWarning)
+        self._peaks = value
+        self._peaks_changed = True
+            
     @property
-    def zchunks(self):
+    def zchunks(self) -> tuple:
+        """Chunks of dask arrays holding the stacks along their first (that is, stacked) axis."""
         # z chunks of dataset stacks
         allchk = [stk.chunks[0] for stk in self._stacks.values()]
         if allchk and all([chk == allchk[0] for chk in allchk]):
             return allchk[0]
-        else:
+        elif allchk:
+            warn('Stacks have unequal chunking along first axis. This is undesirable.')
+        else:            
             return None        
         
     @property
     def diff_stack_label(self):
+        """Label of stack which holds the diffraction data."""
         return self._diff_stack_label
     
     @diff_stack_label.setter
@@ -221,42 +271,44 @@ class Dataset:
             self._diff_stack_label = value
         else: 
             ValueError(f'{value} is not a stack.')
-            
-    @peaks.setter
-    def peaks(self, value):
-        warn('The peak table functionality will likely be removed.', DeprecationWarning)
-        self._peaks = value
-        self._peaks_changed = True
-
-    @predict.setter
-    def predict(self, value):
-        warn('The prediction table functionality will likely be removed.', DeprecationWarning)
-        self._predict = value
-        self._predict_changed = True
-
-    @features.setter
-    def features(self, value):
-        self._features = value
-        self._features_changed = True
 
     @classmethod
-    def from_files(cls, files: Union[list, str, tuple], open_stacks: bool = True, chunking: Union[int, str] = 100, 
+    def from_files(cls, files: Union[list, str, tuple], open_stacks: bool = True, chunking: Union[int, str] = 'hdf5', 
                    persist_meta: bool = True, init_stacks: bool = False, load_tables: bool = True, 
                    diff_stack_label: str = 'raw_counts', validate_files: bool = False, **kwargs):
-        """
-        Creates a data set from:
-            * a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style
-                event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.
-            * a glob pattern (like: 'data/*.h5')
-            * a python iterable of files. 
-            * a simple HDF5 file path
-        :param files: see above
-        :param init_stacks: initialize stacks, that is, briefly open the data stacks, check their lengths, and close
-                them again. Does not hurt usually.
-        :param load_tables: load the additional tables stored in the files (features, peaks, predictions)
-        :param diff_stack_label: name of stack to be used for generating the shot table, if it's not stored in the files
-        :param **kwargs: Dataset attributes to be set right away
-        :return: dataset object
+        """Create a `Dataset` object from HDF5 file(s) stored on disk.
+        
+        There is some flexibility with regards to how to define the input files. You can specify them by
+        
+        * a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style
+          event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.
+        * a glob pattern (like: 'data/*.h5')
+        * a python iterable of files. 
+        * a simple HDF5 file path
+            
+        In any case, the shot list and feature list are loaded to memory. Using the arguments you can specify what should
+        happen to the stacks.
+            
+        Args:
+            files (Union[list, str, tuple]): File specification as decsribed above.
+            open_stacks (bool, optional): Open the data stacks. This means that open handles to the HDF5 (in readonly mode). 
+                are kept within the `Dataset` object. Defaults to True.
+            chunking (Union[int, str], optional):  See documentation of `open_stacks`. Defaults to 'hdf5', that is, look
+                up in the HDF5 file for a recommendation value.
+            persist_meta (bool, optional): Right away persists the data stacks, that is, loads the actual data into memory
+                instead of just holding references to the HDF5 files. Diffraction data (identified by 3D stacks) is automatically
+                excluded. Defaults to True.
+            init_stacks (bool, optional): Initialize stacks, that is, briefly open the data stacks, check their lengths, and close
+                the files again. Viable option if you need/want to set open_stacks=False for some reason. Defaults to False.
+            load_tables (bool, optional): Also load peaks and prediction tables from the HDF5 files. Defaults to True (will likely
+                be changed to False).
+            diff_stack_label (str, optional): Label of the diffraction data stack. Defaults to 'raw_counts'.
+            validate_files (bool, optional): Validate the HDF5 files (that is, check for required groups and datasets)
+                before attempting to open them. Defaults to False.
+            **kwargs: Dataset attributes to be set right away.
+
+        Returns:
+            Dataset: new Dataset object read from files
         """
 
         file_list = io.expand_files(files, scan_shots=True, validate=validate_files)
@@ -323,15 +375,17 @@ class Dataset:
         self._shots = pd.concat(shots, axis=0).reset_index(drop=True)
         print(f'Found {self.shots.shape[0]} shots, initialized shot table.')
 
-    def load_tables(self, shots=False, features=False, peaks=False, predict=False, files=None):
-        """
-        Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.
-        :param shots: shot table
-        :param features: feature table
-        :param peaks: peak table
-        :param predict: prediction table
-        :param files: ...allows to supply a custom file list, instead of the stored one. Dangerous.
-        :return:
+    def load_tables(self, shots: bool = False, features: bool = False, 
+                    peaks: bool = False, predict: bool = False, files: bool = None):
+        """Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.
+
+        Args:
+            shots (bool, optional): Get shot table. Defaults to False.
+            features (bool, optional): Get feature table. Defaults to False.
+            peaks (bool, optional): Get peaks table. Defaults to False.
+            predict (bool, optional): Get prediction table. Defaults to False.
+            files (bool, optional): Only include sub selection of files - usually not a good idea.
+                Uses all files of dataset if None. Defaults to None.
         """
 
         if files is None:
@@ -369,7 +423,7 @@ class Dataset:
                     self._shots.drop('stem', axis=1, inplace=True)
 
             except KeyError:
-                print('No shots found at ' + self.shots_pattern)
+                warn('No shots found at ' + self.shots_pattern)
 
         if features:
             try:
@@ -405,17 +459,31 @@ class Dataset:
 
     def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None,
                      peaks: Union[None, bool] = None, predict: Union[None, bool] = None, format: str = 'nexus'):
+        """Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. 
+        
+        The location into which the tables will be stored is defined in the Dataset object's attributes. The format
+        in which they are stored is, on the other hand, determined by the *format* argument. If set to 'tables',
+        PyTables will be used to store the table in a native HDF5 table format, which however is somewhat uncommon
+        and not recognized by CrystFEL. If set to 'nexus' (Default), each column of the table will be stored as
+        a one-dimensional dataset.
+        
+        As a general recommendation, **always** use nexus format to store the shots and features. For peaks and 
+        predictions, 'tables' is rather preferred, as it allows faster read/write and is more flexible with
+        regards to column labels.
+        
+        For each of the tables,
+        it can be automatically determined if they have changed and should be stored (however, this only works if 
+        no inplace changes have been made. So don't rely on it too much.). If you want this, leave the
+        argument at None. Otherwise explicitly specify True or False (strongly recommended).
+
+        Args:
+            shots (Union[None, bool], optional): Store shot table. Defaults to None.
+            features (Union[None, bool], optional): Store feature table. Defaults to None.
+            peaks (Union[None, bool], optional): Store peak table. Defaults to None.
+            predict (Union[None, bool], optional): Store prediction table. Defaults to None.
+            format (str, optional): Table storage format in HDF5 file, can be 'nexus' or 'tables'. Defaults to 'nexus'.
         """
-        Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. For each of the tables,
-        it can be automatically determined if they have changed and should be stored...
-        HOWEVER, this only works if no inplace changes have been made. So don't rely on it too much.
-        :param shots: True -> store shot list, False -> don't store shot list, None -> only store if changed
-        :param features: similar
-        :param peaks: similar
-        :param predict: similar
-        :param format: format to write metadata tables. 'nexus' (recommended) or 'tables' (old-style)
-        :return:
-        """
+        
         fs = []
 
         #TODO automatically handle readonly-opened files
@@ -423,7 +491,7 @@ class Dataset:
             warn('Data files are open, and will be transiently closed. You will need to re-create derived stacks.',
                  RuntimeWarning)
             stacks_were_open = True
-            self.close_stacks()
+            self.close_files()
         else:
             stacks_were_open = False
 
@@ -453,10 +521,10 @@ class Dataset:
             self.open_stacks()
 
     def merge_stream(self, streamfile: Union[StreamParser, str]):
-        """
-        Loads a CrystFEL stream file, and merges its contents into the dataset object.
-        :param streamfile: file name of streamfile, or StreamParser object
-        :return:
+        """Loads a `CrystFEL` stream file and merges it contents into the dataset.
+
+        Args:
+            streamfile (Union[StreamParser, str]): stream file name, or StreamParser object.
         """
 
         # ...it would be way more elegant, to just associate a StreamParser object, and merge the list in
@@ -484,14 +552,19 @@ class Dataset:
 
     def _sel(self, obj: Union[None, pd.DataFrame, da.Array, np.array, h5py.Dataset, list, dict] = None):
         """
-        General method to pick items that belong to selected shots from many kinds of data types.
-        - For DataFrames, it matches the selected items by the datasets ID columns (usually 'file' and 'Event',
-        or 'crystal_id' and 'region')
-        - For anything slicable (dask or numpy array), it picks elements along the first array dimension,
-        assuming that the stack is ordered the same way as the shot list.
-        - Also accepts lists or dicts of all such objects and returns a corresponding list or dict.
-        :param obj: DataFrame, numpy Array, dask Array, h5py Dataset, list, dict
-        :return: same as obj
+        General internal method to pick items that belong to shots with selected==True from many kinds of data types.
+        
+        * For DataFrames, it matches the selected items by the datasets ID columns (usually 'file' and 'Event',
+          or 'crystal_id' and 'region')
+        * For anything slicable (dask or numpy array), it picks elements along the first array dimension,
+          assuming that the stack is ordered the same way as the shot list.
+        * Also accepts lists or dicts of all such objects and returns a corresponding list or dict.
+        
+        Args:
+            obj: DataFrame, numpy Array, dask Array, h5py Dataset, list, dict
+        
+        Returns: 
+            subset of input object (typically as non-copied view!)
         """
         if obj is None:
             return self._shots.loc[self._shots.selected, :]
@@ -516,8 +589,9 @@ class Dataset:
         Sets the 'selected' column of the shot list by a string query (eg. 'num_peaks > 30 and frame == 1').
         See pandas documentation for 'query' and 'eval'. If you want to add another criterion to the existing
         selection you can also do sth. like 'selected and hit == 1'.
-        :param query: if left empty, defaults to 'True' -> selects all shots.
-        :return:
+        
+        Args:
+            query (str): if left empty, defaults to 'True' -> selects all shots.
         """
         selection = self._shots.eval(query)
         if selection.dtype != bool:
@@ -529,18 +603,23 @@ class Dataset:
                          new_folder: Union[str, None] = None,
                          fn_map: Union[pd.DataFrame, None] = None,
                          keep_raw=True):
-        """
-        Change file names in all lists using some handy modifications. The old file names are copied to a "file_raw"
-        column, if not already present (can be overriden with keep_raw).
-        :param file_suffix: add suffix to file, INCLUDING file extension, e.g. '_modified.h5'
-        :param file_prefix: add prefix to actual filenames (not folder/full path!), e.g. 'aggregated_
-        :param new_folder: if not None, changes folder name to this path
-        :param fn_map: if not None, gives an explicit table (pd.DataFrame) with columns 'file' and 'file_new'
-            that manually maps old to new filenames. All other parameters are ignored, if provided
-        :param keep_raw: if True (default), does not change the file_raw column in the shot list,
-            unless there is none yet (in which case the old file names are _always_ copied to keep_raw)
-        :return: DataFrame with a map from old to new file names (for reference)
-        """
+        """Change file names in all lists using some handy modifications. 
+        
+        The old file names are copied to a "file_raw" column, if not already present 
+        (can be overriden with keep_raw).
+
+        Args:
+            file_suffix (Optional[str], optional): add suffix to file, INCLUDING file extension, e.g. '_modified.h5'. 
+                Defaults to '.h5', i.e., no change is made except for the file extension being fixed to h5.
+            file_prefix (str, optional): add prefix to actual filenames (not folder/full path!), e.g. 'aggregated_'. 
+                Defaults to '', i.e., no prefix..
+            new_folder (Union[str, None], optional): If not None, changes the file folders to this path. Defaults to None.
+            fn_map (Union[pd.DataFrame, None], optional): if not None, expects an explicit table (pd.DataFrame) with columns 
+                'file' and 'file_new'
+                that manually maps old to new filenames. *All other parameters are ignored, if provided.* Defaults to None.
+            keep_raw (bool, optional): If True (default), does not change the file_raw column in the shot list,
+                unless there is none yet (in which case the old file names are *always* copied to keep_raw). Defaults to True.
+        """        
 
         if fn_map is None:
             # name mangling pt. 1: make map of old names to new names
@@ -583,8 +662,10 @@ class Dataset:
         """
         Resets shot_in_subset and Event columns to continuous numbering. Useful after dataset reduction. The old
         Event strings are copied to a "Event_raw" column, if not already present (can be overriden with keep_raw).
-        :param keep_raw: if True (default), does not change the Event_raw column in the shot list,
-            unless there is none yet (in which case the old Event IDs are _always_ copied to keep_raw)
+        
+        Args:
+            keep_raw (bool, optional): if True (default), does not change the Event_raw column in the shot list,
+                unless there is none yet (in which case the old Event IDs are *always* copied to keep_raw)
         :return:
         """
 
@@ -607,14 +688,20 @@ class Dataset:
             self.__dict__[lbl + '_changed'] = True
 
     def init_files(self, overwrite=False, keep_features=False, exclude_list=()):
+        """Initialize set of HDF5 files to store the Dataset.
+        
+        Makes new files corresponding to the shot list, by creating the files with the basic structure, and
+        copying over instrument metadata and maps (but not shot list, data arrays,...) 
+        from the raw files (as stored in file_raw).
+
+        Args:
+            overwrite (bool, optional): Overwrite files if existing already. Defaults to False.
+            keep_features (bool, optional): Copy over the (full) feature list. Usually not required,
+                as it will be later stored using store_stacks. Defaults to False.
+            exclude_list (tuple, optional): Custom list of HDF5 groups or datasets to exclude
+                from copying. Please consult documentation of `nexus.copy_h5` for help. Defaults to ().
         """
-        Make new files corresponding to the shot list, by copying over instrument metadata and maps (but not
-        results, shot list, data arrays,...) from the raw files (as stored in file_raw).
-        :param overwrite: overwrite new files if not yet existing
-        :param keep_features: copy over the feature list from the files
-        :param exclude_list: custom list of HDF5 groups or datasets to exclude from copying
-        :return:
-        """
+        
         fn_map = self.shots[['file', 'file_raw']].drop_duplicates()
 
         exc = ('%/detector/data', self.data_pattern + '/%',
@@ -639,7 +726,6 @@ class Dataset:
                 for f in futures:
                     if f.exception():
                         raise f.exception()
-                return futures
 
         else:
             for _, filepair in fn_map.iterrows():
@@ -647,9 +733,21 @@ class Dataset:
                               exclude=exc,
                               print_skipped=False)
 
-            return None
 
-    def get_meta(self, path='/%/instrument/detector/collection/shutter_time'):
+    def get_meta(self, path: str = '/%/instrument/detector/collection/shutter_time') -> pd.Series:
+        """Gets an instrument metadata field in NeXus format from the HDF5 files. 
+        
+        As those metadata are per-file and not per-shot, a series is returned which then can be joined into
+        the dataset manually. If you want to have this done automatically, use `merge_meta` instead.
+
+        Args:
+            path (str, optional): Path to metadata to be grabbed. Can include CrystFEL-stype % placeholder. 
+                Defaults to '/%/instrument/detector/collection/shutter_time'.
+
+        Returns:
+            pd.Series: pandas Series holding the metadata for each file.
+        """
+        
         meta = {}    
         for lbl, _ in self.shots.groupby(['file', 'subset']):
             with h5py.File(lbl[0]) as fh:
@@ -663,6 +761,17 @@ class Dataset:
         return pd.Series(meta, name=path.rsplit('/',1)[-1])
 
     def merge_meta(self, path='%/instrument/detector/collection/shutter_time'):
+        """Gets an instrument metadata field in NeXus format from the HDF5 files, and merges it into
+        the shot table of the data set.
+        
+        Note, that the name of the new column in the shot table will correspond to the HDF5 dataset name,
+        ignoring the group (as included in the full path). E.g., for the default value, it will be
+        just 'shutter_time'.
+
+        Args:
+            path (str, optional): Path to metadata to be grabbed. Can include CrystFEL-style % placeholder. 
+                Defaults to '%/instrument/detector/collection/shutter_time'.
+        """
         meta = self.get_meta(path)
         self.shots = self.shots.join(meta, on=['file', 'subset'])
 
@@ -670,16 +779,25 @@ class Dataset:
                       file_suffix: Optional[str] = '_sel.h5', file_prefix: str = '',
                       new_folder: Union[str, None] = None,
                       reset_id: bool = True) -> 'Dataset':
-        """
-        Returns a new dataset object by applying a selection. By default, returns all shots with selected == True.
+        """Returns a new dataset object by applying a selection. 
+        
+        By default, returns a new Dataset object, including all shots with selected == True in the current shot list.
         Optionally, a different query string can be supplied (which leaves the selection unaffected).
-        The stored file names will be changed, to avoid collisions. This can be controlled with the file_suffix and
-        file_prefix parameters.
-        :param query: Optional query string, as in the select method
-        :param file_suffix: as in Dataset.change_filenames
-        :param file_prefix: as in Dataset.change_filenames
-        :param new_folder: as in Dataset.change_filenames
-        :return: new data set.
+        The file names of the new data set will be changed, to avoid collisions. This can be controlled with the file_suffix and
+        file_prefix parameters. Otherwise, the returned dataset will include everything from the existing one.
+        
+        Hint: 
+
+        Args:
+            query (Union[str, None], optional): Optional query string, as in the `select` method. Defaults to None, that is,
+                use the `selected` column in the shot list.
+            file_suffix (Optional[str], optional): as in `change_filenames`. Defaults to '_sel.h5'.
+            file_prefix (str, optional): as in `change_filenames`. Defaults to ''.
+            new_folder (Union[str, None], optional): as in `change_filenames`. Defaults to None.
+            reset_id (bool, optional): reset the shot in subset. Defaults to True.
+
+        Returns:
+            Dataset: New dataset with all the same attributes, but containing only the desired sub-selection of shots.
         """
 
         if query is not None:
@@ -712,23 +830,61 @@ class Dataset:
 
         return newset
 
-    def aggregate(self, by: Union[list, tuple] = ('sample', 'region', 'run', 'crystal_id'),
-                  how: Union[dict, str] = 'mean',
-                  file_suffix: str = '_agg.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
-                  query: Union[str, None] = None, force_commensurate: bool = True,
-                  exclude_stacks: Optional[list] = None) -> 'Dataset':
+    def copy(self, file_suffix: Optional[str] = '_copy.h5', 
+                    file_prefix: str = '', 
+                    new_folder: Union[str, None] = None):
+        """Makes a (deep) copy of a dataset, changing the file names.
+        
+        Internally, this just calls `get_selection` with `query='True'`.
+
+        Args:
+            file_suffix (Optional[str], optional): as in `change_filenames`. Defaults to '_copy.h5'.
+            file_prefix (str, optional): as in `change_filenames`. Defaults to ''.
+            new_folder (Union[str, None], optional): as in `change_filenames`. Defaults to None.
+
+        Returns:
+            [type]: [description]
         """
-        Aggregate sub-sets of stacks using different aggregation functions. Typical application: sum sub-stacks of
-        dose fractionation movies, or shots with different tilt angles (quasi-precession)
-        :param by: shot table columns to group by for aggregation. Default: ('run', 'region', 'crystal_id', 'sample')
-        :param how: aggregation types. 'sum', 'mean', and 'cumsum' are supported. Can be a single operation for all
-            stacks, or a dict, specifying different ones for each, in which case all non-explicitly specified stacks
-            will default to 'mean', e.g. how={'raw_counts': 'sum'}.
-        :param file_suffix: as in Dataset.change_filenames
-        :param file_prefix: as in Dataset.change_filenames
-        :param new_folder: as in Dataset.change_filenames
-        :param query: apply a query (see select or get_selection)
-        :return: a new data set with aggregation applied
+        
+        return self.get_selection('True', file_suffix, file_prefix, new_folder)
+
+    def aggregate(self, by: Union[list, tuple] = ('sample', 'region', 'run', 'crystal_id'),
+                  how: Union[dict, str] = 'sum',
+                  file_suffix: str = '_agg.h5', file_prefix: str = '', new_folder: Union[str, None] = None,
+                  query: Union[str, None] = None,
+                  exclude_stacks: Optional[list] = None) -> 'Dataset':
+        """Aggregate sub-sets of stacks (like individual diffraction movies) using different aggregation functions.
+        
+        Each set of shots with identical values of the columns specified in `by` will be squashed into a single
+        one, using aggregation functions applied to the stacks as described in `how`. These can be different for each of
+        the stacks. Unlike for the stacks, inconsistent fields in the shot list within each group are simply killed.
+        The function finally returns a new dataset containing the aggregated data, it leaves the existing set untouched.
+        
+        The typical application is to sum sub-stacks of dose fractionation movies, or shots with different tilt angles 
+        (quasi-precession). If you're familiar with pandas a bit, it's sort of like a `DataSet.GroupBy(by).agg' operation.
+        
+        In most cases (well-ordered data sets), this function should just work. More pathological ones are not
+        sufficiently tested, though some sanity checks and precautions are taken.
+        
+        As an example: setting how=['sample', 'region', 'run', 'crystal_id'] (which is the default) will aggregate over
+        all shots taken in a single run, and if you set how='sum', the stacks will be added.
+        
+        Args:
+            by (Union[list, tuple], optional): shot table columns to group by for aggregation. 
+                Defaults to ('sample', 'region', 'run', 'crystal_id').
+            how (Union[dict, str], optional): string specifying the aggregation method for stacks. Allowed
+                values are 'mean', 'sum', 'first', 'last'. You can also specify a dict with different values
+                for each stack, like {'raw_counts': 'sum', 'nPeaks': 'first'}. Defaults to 'sum'.
+            file_suffix (str, optional): as in `change_filenames`. Defaults to '_agg.h5'.
+            file_prefix (str, optional): as in `change_filenames`. Defaults to ''.
+            new_folder (Union[str, None], optional): as in `change_filenames`. Defaults to None.
+            query (Union[str, None], optional): additional query to sub-select data before aggregation (as in 
+                `select` or `get_selection). E.g. query='frame >= 1 and frame < 5" would only aggregate frames
+                1 to 4. Defaults to None.
+            exclude_stacks (Optional[list], optional): Exclude stacks from the aggregated dataset. Defaults to None.
+
+        Returns:
+            Dataset: Dataset containing the aggregated data
         """
 
         #TODO: fast agg only works on 3D arrays currently!
@@ -841,26 +997,29 @@ class Dataset:
     def transform_stack_groups(self, stacks: Union[List[str], str], 
                                func: Callable[[np.ndarray], np.ndarray] = lambda x: np.cumsum(x, axis=0),
                                by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id')):
-        """For all data stacks listed in stacks, transforms sub-stacks within groups defined by "by".
-        As a common example, applies some function to all frames of a diffraction movie. The dimensions of
-        each sub-stack must not change in the process. Note that this happens in place, i.e., the stacks
-        will be overwritten by a transformed version.
+        """
+        For all data stacks listed in stacks, transforms sub-stacks within groups defined by `by` using the
+        function in `func`.
+        
+        The dimensions of each sub-stack must not change in the process. 
+        Note that, unlike for `get_selection` or `aggregate`,
+        this happens *in place*, i.e., the stacks will be **overwritten** by a transformed version! If this
+        is not what you want, first make a copy of your data set, using `copy`.
+        
         A typical application is to calculate a cumulative sum of patterns wittin each diffraction movie. This
-        is what the default parameter for func is doing. Can do all kinds of other fun things, i.e. calculating
-        directly the difference between frames, the difference of each w.r.t. the first,
+        is what the default parameters for `by` and `func` is doing. Can do all kinds of other fun things, i.e. 
+        calculating directly the difference between frames, the difference of each w.r.t. the first,
         normalizing them to sth, etc.
 
-        Arguments:
-            stacks {List or str} -- Name(s) of data stacks to be transformed
+        Args:
+            stacks: Name(s) of data stacks to be transformed
+            func: Function applied to each sub-stack. Must act on a numpy
+                array and return one of the same dimensions. Defaults to `lambda x: np.cumsum(x, axis=0)`.
+            by: Shot table columns to identify groups - similar to how it's done in `aggregate`.
+                Defaults to `('sample', 'region', 'run', 'crystal_id')`.
 
-        Keyword Arguments:
-            func {Callable} -- Function applied to each sub-stack. Must act on a numpy
-                array and return one of the same dimensions. 
-                Defaults to: lambda x: np.cumsum(x, axis=0)
-            by {List} -- Shot table columns to identify groups. 
-                Defaults to ['sample', 'region', 'run', 'crystal_id']
         """
-        
+
         stacks = [stacks] if isinstance(stacks, str) else stacks
         by = list(by)
         feature_id = self.shots.groupby(by, sort=False).ngroup().values
@@ -871,53 +1030,65 @@ class Dataset:
         self.persist_stacks([sn for sn in stacks if self._stack_in_memory[sn]])
 
     def init_stacks(self, **kwargs):
-        """
-        Opens stacks briefly, to check their sizes etc., and closes them again right away. Helpful to just get their
-        names and sizes...
-        :return:
-        """
-        warn('init_stacks is pretty much never required. Double-check if you really need it.', DeprecationWarning)
-        self.open_stacks(init=True, readonly=True, **kwargs)
-        self.close_stacks()
+        """Opens files briefly in readonly mode, to check stack names shapes etc., and closes them again right away. 
 
-    def close_stacks(self):
+        Args:
+            **kwargs: any arguments are passed to `open_stacks`
+        
         """
-        Close the stacks by closing the HDF5 data file handles.
-        :return:
+        # warn('init_stacks is often not required. Double-check if you really need it.', DeprecationWarning)
+        self.open_stacks(init=True, readonly=True, **kwargs)
+        self.close_files()
+
+    def close_files(self):
+        """Closes all HDF5 files.
+        
+        Note that this might have side effects: if stacks are accessible that depend on non-persisted HDF5 datasets
+        in the files, they will not be usable anymore after issuing this command and cause trouble especially
+        for the distributed scheduler. So don't close the files unless you really have to.
+        
         """
         for f in self._file_handles.values():
             f.close()
             del f
         self._file_handles = {}
 
+    close_stacks = close_files
+
     def open_stacks(self, labels: Union[None, list] = None, checklen=True, init=False, 
         readonly=True, swmr=False, chunking: Union[int, str, list, tuple] = 'dataset'):
-        """
-        Opens data stacks from HDF5 (NeXus) files (found by the "data_pattern" attribute), and assigns dask array
+        """Opens data stacks from HDF5 (NeXus) files (found by the "data_pattern" attribute), and assigns dask array
         objects to them. After opening, the arrays or parts of them can be accessed through the stacks attribute,
-        or directly using a dataset.stack syntax, and loaded using the .compute() method of the arrays.
-        Note that, while the stacks are open, no other python kernel will be able to access the data files, and other
-        codes may not see the modifications made. You will have to call dataset.close_stacks() before.
-        :param labels: list of stacks to open. Default: None -> opens all stacks
-        :param checklen: check if stack heights (first dimension) is equal to shot list length
-        :param init: do not load stacks, just make empty dask arrays. Usually the init_stacks method is more useful.
-        :param readonly: open HDF5 files in read-only mode (Default: True)
-        :param swmr: open HDF5 files in SWMR mode (Default: False)
-        :param chunking: how should the dask arrays be chunked along the 0th (stack) direction. Options are,
-            in decreasing order of recommendation: 
-            * None, which tries all good options and fails if none works
-            * 'dataset' to use what is set in the current dataset zchunks property (default)
-            * 'existing' to use the chunking of an already-existing stack which is about to be overwritten.
-                Should usually be the same as 'dataset'
-            * 'hdf5' to use the chunksize recommended in the HDF5 file ('recommended_zchunks' attribute) of the
-                data stacks group
-            * an integer number for a defined (approximate) chunk size, which ignores shots with frame number < -1,
-            * an iterable to explicitly set the chunk sizes
-            * 'auto' to use the dask automatic mode
-        Generally, a fixed number (integer or iterable) is recommended and gives the least trouble.
-        already been chunked before. For a fixed number, the chunks are done such that after filtering of frame == -1 shots,
-        a constant chunk size is achieved.
-        :return:
+        or directly using a dataset.stack syntax, and loaded using the .compute() or .persist() method of the arrays.
+        
+        A critical point here is how the chunking of the dask arrays is done. Especially for the initial opening
+        of raw data this is crucial for (as in: orders of magnitude) the performance of downstream tasks. You have
+        several options, those are, in decreasing order of recommendation:
+        
+        * 'dataset' to use what is set in the current dataset zchunks property (default). This will not work for a fresh
+          dataset, in which case you have to specify it from scratch.
+        * 'hdf5' to use the chunksize recommended in the HDF5 file ('recommended_zchunks' attribute) of the
+          data stacks group.
+        * an integer number for a defined (approximate) chunk size, which ignores shots with frame number < -1. This means,
+          that after a get_selection command or anything that filters out dummy shots, equal chunk sizes are achieved.
+          This is the recommended way of chunking for totally from-scratch datasets which don't yet have the
+          recommended_zchunks attribute set. Something of the order of 10 is often a good choice if you want to work
+          with the set as is, if you want to aggregate early on, choose something bigger (rather 100).
+          **If your dataset comprises diffraction movies, this should be an integer
+          multiple of the number of frames within each.**
+        * an iterable to explicitly set the chunk sizes
+        * 'existing' to use the chunking of an already-existing stack which is about to be overwritten.
+          Should usually be the same as 'dataset', but still works if your stacks have inconsistent chunking.
+        * 'auto' to use the dask automatic mode, with inevitably sub-optimal results.
+
+        Args:
+            labels (Union[None, list], optional): lLst of stacks to open. To open all stacks, set to None. Defaults to None.
+            checklen (bool, optional): check if stack heights (first dimension) is equal to shot list length. Defaults to True.
+            init (bool, optional): do not load stacks, just make empty dask arrays.  Defaults to False.
+            readonly (bool, optional): open HDF5 files in read-only mode. Defaults to True.
+            swmr (bool, optional): open HDF5 files in SWMR mode. Defaults to False.
+            chunking (Union[int, str, list, tuple], optional): [description]. Defaults to 'dataset'.
+
         """
         
         if (not readonly and self._files_open and not self._files_writable) or \
@@ -928,7 +1099,7 @@ class Dataset:
                 chunking = 'existing'
                 
             # reopen the stacks in a different mode!
-            self.close_stacks()
+            self.close_files()
             
         if not readonly and self._files_writable and not swmr:
             # write access already. Nobody else had access anyway
@@ -946,8 +1117,11 @@ class Dataset:
             chunking = list(chunking)[::-1]
             
         elif(isinstance(chunking, str) and chunking=='dataset'):
-            chunking = list(self.zchunks)[::-1]
-                
+            if self.zchunks is not None:
+                chunking = list(self.zchunks)[::-1]
+            else:
+                raise ValueError('Dataset chunking is undefined (yet). You have to pick an explicit chunking option.')
+            
         for (fn, subset), subgrp in sets.groupby(['file', 'subset']):
             self._file_handles[fn] = fh = h5py.File(fn, swmr=swmr, mode='r' if readonly else 'a')
             if isinstance(chunking, int) and (subgrp.frame == -1).any():
@@ -967,7 +1141,10 @@ class Dataset:
                         raise ValueError('Requested chunking is incommensurate with file/subset boundaries!')
                 zchunks = tuple(chk)      
             elif isinstance(chunking, str) and chunking == 'hdf5':
-                zchunks = tuple(fh[self.data_pattern.replace('%', subset)].attrs['recommended_zchunks'])
+                try:
+                    zchunks = tuple(fh[self.data_pattern.replace('%', subset)].attrs['recommended_zchunks'])
+                except KeyError:
+                    raise ValueError('The HDF5 files do\'nt have a chunking preset. Please specify chunking explicitly.')
             else:
                 zchunks = None
 
@@ -1029,26 +1206,36 @@ class Dataset:
             with ds.Stacks(readonly=True, chunking='dataset') as stk:
                 center = stk.beam_center.compute()
             print('Have', center.shape[0], 'centers.')
+        **This is deprecated, and using it is horribly discouraged**
         """
         warn('Use of the Stacks context manager is deprecated and may cause pain and sorrow.', DeprecationWarning)
         self.open_stacks(**kwargs)
         yield self.stacks
-        self.close_stacks()
+        self.close_files()
 
     def add_stack(self, label: str, stack: Union[da.Array, np.ndarray, h5py.Dataset], 
-                  overwrite: bool = False, diff_stack: bool = False, 
+                  overwrite: bool = False, set_diff_stack: bool = False, 
                   persist: bool = True, rechunk: bool = True):
-        """
-        Adds a data stack to the data set
-        :param label: label of the new stack
-        :param stack: new stack, can be anything array-like
-        :param overwrite: allows overwriting an existing stack
-        :param diff_stack: marks this stack as the main diffraction data
-        :param persist: persists the dask array to memory, if it is generated
-            from a numpy array
-        :param rechunk: if True, a dask array with chunks along the stack direction that don't match the datasets
-            other stacks chunks will be rechunked. Otherwise, a warning is shown.
-        :return:
+        """Adds a data stack to the data set.
+        
+        The new data stack can be either a dask array or a numpy array. The only restriction is that its
+        first dimension's length (i.e. total number of shots) has to equal the rest of the dataset. The
+        stack is *not* stored to disk yet, but it's placed under the control of the dataset object.
+        
+        If the new data is a numpy array, it will be turned into a dask array with appropriate properties. By
+        default (persist=True), it will be eagerly persisted, that is, a copy will be made and the dask graph will
+        be simplified.
+
+        Args:
+            label (str): Label for the new stack
+            stack (Union[da.Array, np.ndarray, h5py.Dataset]): New data stack
+            overwrite (bool, optional): Overwrite, if an identically named stack exists already. Defaults to False.
+            set_diff_stack (bool, optional): Set the new stack as the 'diffraction data' stack, which will
+                recieve some special treatment (e.g. it is never loaded into memory). Defaults to False.
+            persist (bool, optional): If the stack is a numpy array, make the dask array persited right away. 
+                There is little speaking against it except for some edge cases. Defaults to True.
+            rechunk (bool, optional): If the stack is a dask array with a chunk along the first dimension that
+                does not match the dataset's overall chunking, rechunk it. This is highly recommended. Defaults to True.
         """
 
         if stack.shape[0] != self.shots.shape[0]:
@@ -1071,17 +1258,19 @@ class Dataset:
                 else:
                     warn('Stack has a different chunking than the dataset!')
 
-        if diff_stack:
+        if set_diff_stack:
             self._diff_stack_label = label
 
         self._stacks[label] = stack
 
     def delete_stack(self, label: str, from_files: bool = False):
-        """
-        Delete a data stack
-        :param label: stack label
-        :param from_files: if True, the stack is also deleted in the HDF5 files. Default False.
-        :return:
+        """Delete a data stack from the dataset
+
+        Args:
+            label (str): label of the stack to delete
+            from_files (bool, optional): Also delete stack from the data files. Note that this will
+            actually not free up disk space (you need to make a copy of the files for this), and only
+            works if the files are open in writable mode. Defaults to False.
         """
 
         try:
@@ -1105,17 +1294,27 @@ class Dataset:
                     
     def persist_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None,
                        include_3d: bool = False, scheduler: Union[str, Client] = 'threading'):
-        """
-        Persist the stacks to memory (locally and/or on the cluster workers), that is, they are computed.
+        """Persist the stacks to memory (locally and/or on the cluster workers), that is, they are computed.
         but actually not changed to numpy arrays, just immediately available dask arrays without an actual
         task graph. It is recommended to have as many stacks persisted as possible.
-        The diffraction data stack is automatically excluded.
+        The diffraction data stack is automatically excluded, as are any 3D arrays (be default).
+        
+        Note:
+            There are important subtleties about which dask scheduler to use here. If you have a 
+            dask.distributed cluster running (and you often will), the underlying dask.persist() function if 
+            called without parameters will
+            compute and persist the data on the *workers* of the cluster, not the local machine. For our typical
+            applications (making access to small meta stacks faster and less error-prone), that's the wrong
+            choice. Hence, scheduler='threading' by default (you might as well use 'single-threaded'). However,
+            there might be cases where persisting on the workers make sense - in that case just set the scheduler
+            argument to your client object.
 
-        Keyword Arguments:
-            labels {Union[None, str, list]} -- [description] (default: {None})
-            exclude {Union[None, str, list]} -- [description] (default: {None})
-            include_3d {bool} -- [description] (default: {False})
-            scheduler {} -- 
+        Args:
+            labels (Union[None, str, list], optional): Labels of stacks to persist (None: all except for the one 
+                set in diff_stack_label). Defaults to None.
+            exclude (Union[None, str, list], optional): Stacks to exclude. Defaults to None.
+            include_3d (bool, optional): Include 3D stacks. Defaults to False.
+            scheduler (Union[str, Client], optional): What scheduler to use. Defaults to 'threading'.
         """
         
         if labels is None:
@@ -1142,24 +1341,39 @@ class Dataset:
     def store_stacks(self, labels: Union[None, str, list] = None, exclude: Union[None, str, list] = None, overwrite: bool = False, 
                     compression: Union[str, int] = 32004, lazy: bool = False, data_pattern: Union[None,str] = None, 
                     progress_bar=True, scheduler: str = 'threading', **kwargs):
-        """
-        Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
-        typically not yet computed, so at this point the actual data crunching is done. Note that this way of computing
-        and storing data is restricted to threading or single-threaded computation, i.e. it's not recommended for
-        heavy lifting. In this case, better use store_stack_fast.
-        :param labels: stack(s) to be written
-        :param exclude: stack(s) to be excluded
-        :param overwrite: overwrite stacks already existing in the files?
-        :param compression: compression algorithm to be used. 32004 corresponds to bz4, which we mostly use.
-        :param lazy: if True, instead of writing the shots, returns two lists containing the arrays and dataset objects
-                        which can be used to later pass them to dask.array.store. Default False (store right away)
-        :param data_pattern: store stacks to this data path (% is replaced by subset) instead of standard path.
-                        Note that stacks stored this way will not be retrievable through Dataset objects.
-        :param progress_bar: show a progress bar during calculation/storing. Disable if you're running store_stacks
-                        in multiple processes simultaneously.
-        :param scheduler: dask scheduler to be used. Can be 'threading' or 'single-threaded'
-        :param **kwargs: will be forwarded to h5py.create_dataset
-        :return:
+        """Stores stacks with given labels to the HDF5 data files. For stacks which are not
+        persisted, at this point the actual calculation is done here. 
+        
+        Note:
+            This way of computing
+            and storing data is restricted to threading (which does not help much) or single-threaded computation, i.e. 
+            it's **not** recommended for heavy lifting, like computing corrected/aggregated/modified diffraction patterns. 
+            In this case, better use true parallelism provided by `store_stack_fast`, which uses `dask.distributed` for
+            scheduling.
+
+        Args:
+            labels (Union[None, str, list], optional): Stacks to be written. If None, write all stacks, *including* 
+                the diffraction data stack. Defaults to None.
+            exclude (Union[None, str, list], optional): Stacks to exclude. It might be wise to set the diffraction
+                data stack here. Defaults to None.
+            overwrite (bool, optional): Overwrite existing stacks (HDF5 datasets) in the files. Defaults to False.
+            compression (Union[str, int], optional): HDF5 compression filter to use. Common choices are 'gzip', 'none',
+                or 32004, which is the lz4 filter often used for diffraction data. Defaults to 32004.
+            lazy (bool, optional): Instead of computing and storing the arrays, return a list of dask arrays and HDF5
+                data sets, which can be inserted into dask.array.store. Defaults to False.
+            data_pattern (Union[None,str], optional): store stacks to this data path (% is replaced by subset) instead 
+                of standard data path if not None.
+                Note that stacks stored this way will not be retrievable through Dataset objects. Defaults to None.
+            progress_bar (bool, optional): show a progress bar during calculation/storing. To prevent a mess,
+                disable if you're running store_stacks in multiple processes simultaneously. Defaults to True.
+            scheduler (str, optional): dask scheduler to be used. Can be 'threading' or 'single-threaded'. It is not
+                possible to use 'multiprocessing' due to conflicting access to HDF5 files. (If you want true parallel
+                computation, you have to use `store_stack_fast` instead.) Defaults to 'threading'.
+            **kwargs: Will be forwarded to h5py.create_dataset
+
+        Returns:
+            None (if lazy=False)
+            da.Array, h5py.Dataset: dask arrays and HDF5 dataset to pass to dask.array.store (if lazy=True)
         """
 
         if not self._files_writable:
@@ -1227,6 +1441,9 @@ class Dataset:
 
                 arrays.append(arr)
                 datasets.append(ds)
+                
+            if self._diff_stack_label in labels:
+                fh[path.rsplit('/',1)[0]].attrs['signal'] = label
 
         if lazy:
             return arrays, datasets
@@ -1242,37 +1459,35 @@ class Dataset:
             for fh in self.file_handles.values():
                 fh.flush()
                 
-    def store_stack_fast(self, label: Optional[str], client: Optional[Client] = None, sync: bool = True,
-                         compression: Union[int, str] = 32004):
+    def store_stack_fast(self, label: Optional[str] = None, client: Optional[Client] = None, sync: bool = True,
+                         compression: Union[int, str] = 32004) -> pd.DataFrame:
         """Store (and compute) a single stack to HDF5 file(s), using a dask.distributed cluster.
-        This allows for proper parallel computation (even on many machines) and is wa(aaa)y faster
-        than the standard store_stacks, which only works with threads.
-        It also sets the signal attribute in the NeXus-compliant data group to the given label.
-
-        Arguments:
-            label {str} -- Label of the stack to be computed and stored. If None, use the _diff_stack
-                setting.
-
-        Keyword Arguments:
-            client {Optional[Client]} -- dask.distributed client object. Mandatorily required 
-                if sync=True. (default: {None})
-            sync {bool} -- if True (default), computes and stores immediately, and returns a pandas 
-                dataframe containing metadata of everything stored, for validation. If False,
-                returns a list of dask.delayed objects which encapsulate the computation/storage.
-            compression {Union[int, str]} -- Compression of the dataset to be stored. 
-                Defaults to 32004, which is LZ4. Viable alternatives are 'gzip', 'lzf', or 'none'.
-
-        Raises:
-            ValueError: [description]
-
-        Returns:
-            pd.DataFrame (if sync=True), list of dask.delayed (if sync=False)
+        
+        This allows for proper parallel computation (on single or many machines) and is wa(aaa)y faster
+        than the standard `store_stacks`, which only works with threads.
+        Typically, you'll want to use this method to store a processed diffraction data stack.
             
-        Remarks:
+        Note:
             If the stack to be stored depends on computationally heavy (but memory-fitting) dask
             arrays which you want to retain outside this computation (e.g. to store them using
-            store_stacks), consider persisting them (using da.persist) before calling sthis function.
+            store_stacks), make sure they are persisted before calling this function.
             Otherwise, they will be re-calculated from scratch.
+
+        Args:
+            label (Optional[str]): Label of the stack to be computed and stored. If None, use the value
+                stored in diff_stack_label. Defaults to None
+            client (Optional[Client], optional): dask.distributed client connected to a cluster to perform
+                the computation on. Defaults to None.
+            sync (bool, optional): if True (default), computes and stores immediately, and returns a pandas 
+                dataframe containing metadata of everything stored, for validation. If False,
+                returns a list of dask.delayed objects which encapsulate the computation/storage. Defaults to True.
+            compression (Union[int, str], optional): HDF5 compression filter to use. Common choices are 'gzip', 'none',
+                or 32004, which is the lz4 filter often used for diffraction data. Defaults to 32004.
+
+        Returns:
+            pd.DataFrame: pandas DataFrame holding ID columns of the computed shots. They can be merged
+                with the shot list to cross-check if everything went ok. If sync=False, a list of futures to tuples
+                (file, subset, path, idcs) for each dask array chunk is returned instead.
         """
 
         if label is None:
@@ -1294,9 +1509,10 @@ class Dataset:
                                         dtype=stack.dtype, 
                                         chunks=(1,) + stack.shape[1:], 
                                         compression=compression)
-                fh[path].attrs['signal'] = label
+                if label == self._diff_stack_label:
+                    fh[path].attrs['signal'] = label
         
-        self.close_stacks()
+        self.close_files()
         
         chunk_label = np.concatenate([np.repeat(ii, cs) for ii, cs in enumerate(stack.chunks[0])])
         stk_del = stack.to_delayed().squeeze()
@@ -1326,25 +1542,35 @@ class Dataset:
     def compute_and_save(self, diff_stack_label: Optional[str] = None, list_file: Optional[str] = None, client: Optional[Client] = None, 
                          exclude_stacks: Union[str,List[str]] = None, overwrite: bool = False, persist_diff: bool = True, 
                          persist_all: bool = False, compression: Union[str, int] = 32004):
-        """
-        Compound method to fully compute a dataset and write it to disk. It is designed for completely writing HDF5 
-        files from scratch, not to append to existing ones. Internally calls init_files, store_tables, store_stacks,
-        store_stack_fast, and write_list. 
+        """Compound method to fully compute a dataset and write it to disk. 
+        
+        It is designed for completely writing HDF5 files from scratch, not to append to or modify existing ones,
+        in which case you have to use the more fine-grained methods for data storage.
+        The foolowing steps are taken:
+        
+        * Initialize the HDF5 files (using `init_files`)
+        * Store the metadata tables (shots, features, peaks, predictions)
+        * Compute/store all non-diffraction-data stacks (using `store_stacks`). If this step takes too long, make
+          sure that computation-heavy but small stacks are already persisted in memory.
+        * Compute/store the diffraction data set (identified by `diff_stack_label`) using `store_stack_fast`.
+        * Write a list file which can be used to reload the dataset or to feed into CrystFEL.
 
-        Keyword Arguments:
-            diff_stack_label {Optional[str]} -- [description] (default: {None})
-            list_file {Optional[str]} -- [description] (default: {None})
-            client {Optional[Client]} -- [description] (default: {None})
-            exclude_stacks {Optional[List[str]]} -- [description] (default: {None})
-            overwrite {bool} -- [description] (default: {False})
-            persist_diff {bool} -- [description] (default: {True})
-            persist_all {bool} -- [description] (default: {False})
-            compression {Union[str, int]} -- [description] (default: {32004})
-
-        Raises:
-            ValueError: [description]
-            ValueError: [description]
-            ValueError: [description]
+        Args:
+            diff_stack_label (Optional[str], optional): Label of the diffraction data stack. If None, use
+                the one stored in `diff_stack_label`. Defaults to None.
+            list_file (Optional[str], optional): Name of the list file to be written. Defaults to None.
+            client (Optional[Client], optional): dask.distributed client for computation of the diffraction
+                data. Defaults to None.
+            exclude_stacks (Union[str,List[str]], optional): Labels of data stacks to exclude. Defaults to None.
+            overwrite (bool, optional): Overwrite existing files. Defaults to False.
+            persist_diff (bool, optional): Changes the dask array underlying diffraction data stack from the 
+                computed one to the one stored in the HDF5 file. This is different from persisting to memory (as is
+                done otherwise), as it persists the data *from disk*: if you access it using e.g. .compute(), it will be loaded
+                from disk instead of being recomputed. Defaults to True.
+            persist_all (bool, optional): Changes dask arrays underlying *all* stacks from the 
+                computed one to the one stored in the HDF5 file. Defaults to False.
+            compression (Union[str, int], optional): HDF5 compression filter to use. Common choices are 'gzip', 'none',
+                or 32004, which is the lz4 filter often used for diffraction data. Defaults to 32004.
         """
         #TODO generalize to storing several diffraction stacks using sync=False.
         
@@ -1364,7 +1590,7 @@ class Dataset:
         exclude_stacks = [exclude_stacks] if isinstance(exclude_stacks, str) else exclude_stacks
         exclude_stacks = [diff_stack_label] if exclude_stacks is None else [diff_stack_label] + exclude_stacks
 
-        self.close_stacks()
+        self.close_files()
 
         print('Initializing data files...')
         self.init_files(overwrite=overwrite)
@@ -1424,21 +1650,27 @@ class Dataset:
     def merge_pattern_info(self, ds_from: 'Dataset', merge_cols: Optional[List[str]] = None, 
                            by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id'), 
                            persist: bool = True):
-        """Merge shot table columns and peak data from another data set into this one, based
-        on matching of the shot table columns specified in "by".
+        """Merge shot-table and CXI peak data from another data set into this one, based
+        on matching of the shot table columns specified in "by". Default is ('sample', 'region', 'run', 'crystal_id'),
+        which matches the shot information based on individual crystals.
+        
+        The typical application of this function is to take over diffraction pattern information such as pattern center
+        and peak positions from an aggregated data set (where each pattern corresponds to exactly one shot) to a
+        full data set (where each pattern often corresponds to many shots, such as frames of a diffraction movie).
+        
+        In this case you'd call the method like: `ds_all.merge_pattern_info(ds_agg)`, where ds_agg is the
+        aggregated data set to get the information from.
 
-        Arguments:
-            ds_from {Dataset} -- Diffractem Dataset to take information from
-
-        Keyword Arguments:
-            merge_cols {List} -- Shot table columns to take over from other data set. If None (default),
-                all columns are taken over which are not present in the shot table currently
-            by {List} -- Shot table columns to match by. 
-                Defaults to ['sample', 'region', 'run', 'crystal_id']
-
-        Raises:
-            ValueError: [description] d
+        Args:
+            ds_from (Dataset): Diffractem Dataset to take information from
+            merge_cols (Optional[List[str]], optional): Shot table columns to take over from other data set. If None,
+                all columns are taken over which are not present in the shot table currently. Defaults to None.
+            by (Union[List[str], Tuple[str]], optional): Shot table columns to match by. 
+                Defaults to ('sample', 'region', 'run', 'crystal_id').
+            persist (bool, optional): Persist the merged CXI peak data to memory. Defaults to True.
         """
+        #TODO Figure out a good way to handle predictions
+        
         by = list(by)
         
         merge_cols = ds_from.shots.columns.difference(list(self.shots.columns) + 
@@ -1473,8 +1705,9 @@ class Dataset:
     def write_list(self, listfile: str):
         """
         Writes the files in the dataset into a list file, containing each file on a line.
-        :param listfile: list file name
-        :return:
+        
+        Args:
+            listfile (str): list file name
         """
         #TODO allow to export CrystFEL-style single-pattern lists
         with open(listfile, 'w') as fh:
@@ -1482,17 +1715,18 @@ class Dataset:
 
     def generate_virtual_file(self, filename: str, diff_stack_label: str,
                               kind: str = 'fake', virtual_size: int = 1024):
-        """Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
+        """NOT IMPLEMENTED YET (but soon will)
+        
+        Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
         diffraction. Instead of the diffraction stack, either a dummy stack containing a constant only,
         or a virtual dataset with external links to the actual data files is created. While the former
         is useful for indexing using CrystFEL, the latter can serve to generate a file for quick preview.
 
-        Arguments:
-            filename {str} -- [description]
-
-        Keyword Arguments:
-            kind {str} -- [description] (default: {'fake'})
-            virtual_size {int} -- [description] (default: {1024})
+        Args:
+            filename (str): [description]
+            diff_stack_label (str): [description]
+            kind (str, optional): [description]. Defaults to 'fake'.
+            virtual_size (int, optional): [description]. Defaults to 1024.
 
         Raises:
             NotImplementedError: [description]

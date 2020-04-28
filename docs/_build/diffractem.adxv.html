@@ -90,6 +90,8 @@
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -191,13 +193,13 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.contrast_max">
-<code class="sig-name descname">contrast_max</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.contrast_max"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.contrast_max" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">contrast_max</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.contrast_max"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.contrast_max" title="Permalink to this definition">¶</a></dt>
 <dd><p>contrast_max - sets the max contrast value</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.contrast_min">
-<code class="sig-name descname">contrast_min</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.contrast_min"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.contrast_min" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">contrast_min</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.contrast_min"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.contrast_min" title="Permalink to this definition">¶</a></dt>
 <dd><p>contrast_min - sets the min contrast value</p>
 </dd></dl>
 
@@ -231,7 +233,7 @@
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.load_image">
-<code class="sig-name descname">load_image</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">image_file</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.load_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.load_image" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">load_image</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">image_file</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.load_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.load_image" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load an image file</p>
 </dd></dl>
 
@@ -250,7 +252,7 @@ most common one.</p>
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.raise_window">
-<code class="sig-name descname">raise_window</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">window</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.raise_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.raise_window" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">raise_window</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">window</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.raise_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.raise_window" title="Permalink to this definition">¶</a></dt>
 <dd><p>Raises a Window. &lt;window&gt; must be one of
 ‘Control’, ‘Image’, ‘Magnify’, ‘Line’, or
 ‘Load’.</p>
@@ -258,7 +260,7 @@ most common one.</p>
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.save_image">
-<code class="sig-name descname">save_image</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path_name_format</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.save_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.save_image" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">save_image</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path_name_format</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.save_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.save_image" title="Permalink to this definition">¶</a></dt>
 <dd><p>Save an image file (jpeg or tiff)</p>
 </dd></dl>
 
@@ -270,25 +272,25 @@ most common one.</p>
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.set_slab">
-<code class="sig-name descname">set_slab</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.set_slab"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.set_slab" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">set_slab</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.set_slab"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.set_slab" title="Permalink to this definition">¶</a></dt>
 <dd><p>Same as slab, but don’t load the image</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.set_slabs">
-<code class="sig-name descname">set_slabs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.set_slabs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.set_slabs" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">set_slabs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.set_slabs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.set_slabs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Same as slabs, but don’t load the image</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.slab">
-<code class="sig-name descname">slab</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.slab"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.slab" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">slab</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.slab"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.slab" title="Permalink to this definition">¶</a></dt>
 <dd><p>Display slab N</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.slabs">
-<code class="sig-name descname">slabs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.slabs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.slabs" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">slabs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.slabs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.slabs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Slab thickness to display</p>
 </dd></dl>
 
@@ -299,7 +301,7 @@ most common one.</p>
 
 <dl class="py method">
 <dt id="diffractem.adxv.Adxv.stride">
-<code class="sig-name descname">stride</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.stride"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.stride" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">stride</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">N</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/adxv.html#Adxv.stride"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.adxv.Adxv.stride" title="Permalink to this definition">¶</a></dt>
 <dd><p>stride - sets Stride in the Load Window</p>
 </dd></dl>
 
@@ -318,7 +320,7 @@ most common one.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>
