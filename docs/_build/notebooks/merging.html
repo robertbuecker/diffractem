@@ -1,0 +1,1135 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Merging of serial data sets &mdash; diffractem  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/jupyter-sphinx.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The Dataset object" href="../dataset.html" />
+    <link rel="prev" title="Serial diffraction data preprocessing using diffractem" href="preprocessing.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> diffractem
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../notebooks.html">Tutorial notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="indexing.html">Indexing using PinkIndexer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">Serial diffraction data preprocessing using <em>diffractem</em></a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Merging of serial data sets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Preparation-of-a-command-script-for-partialator">Preparation of a command script for partialator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Analysis-of-shell-data">Analysis of shell data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Print-overall-and-per-shell-statistics">Print overall and per-shell statistics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Export">Export</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Plot">Plot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Congratulations">Congratulations</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../file_format.html">Diffractem NeXus files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystfel.html">CrystFEL integration</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">diffractem</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../notebooks.html">Tutorial notebooks</a> &raquo;</li>
+        
+      <li>Merging of serial data sets</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notebooks/merging.nblink.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container,
+div.nbinput.container div.prompt,
+div.nbinput.container div.input_area,
+div.nbinput.container div[class*=highlight],
+div.nbinput.container div[class*=highlight] pre,
+div.nboutput.container,
+div.nboutput.container div.prompt,
+div.nboutput.container div.output_area,
+div.nboutput.container div[class*=highlight],
+div.nboutput.container div[class*=highlight] pre {
+    background: none;
+    border: none;
+    padding: 0 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    min-width: 5ex;
+    padding-top: 0.3rem;
+    padding-right: 0.3rem;
+    text-align: right;
+    flex: 0;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    background: #f5f5f5;
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 0.3rem;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+<span class="o">%</span><span class="k">pwd</span>
+<span class="kn">import</span> <span class="nn">hdf5plugin</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">diffractem</span> <span class="kn">import</span> <span class="n">io</span><span class="p">,</span> <span class="n">tools</span><span class="p">,</span> <span class="n">pre_process</span><span class="p">,</span> <span class="n">version</span>
+<span class="kn">from</span> <span class="nn">diffractem.stream_parser</span> <span class="kn">import</span> <span class="n">StreamParser</span><span class="p">,</span> <span class="n">chop_stream</span>
+<span class="kn">from</span> <span class="nn">diffractem.dataset</span> <span class="kn">import</span> <span class="n">Dataset</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">matplotlib</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+
+<span class="n">bin_path</span> <span class="o">=</span> <span class="s1">&#39;/opts/crystfel_eminus/bin/&#39;</span> <span class="c1"># might be different than standard</span>
+<span class="n">cfver</span> <span class="o">=</span> <span class="o">!{</span>bin_path + <span class="s1">&#39;partialator&#39;</span><span class="o">}</span> --version
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Running on diffractem:&#39;</span><span class="p">,</span> <span class="n">version</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Running on&#39;</span><span class="p">,</span> <span class="n">cfver</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Current path is:&#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Running on diffractem: v0.2.1-52-g0d34dce
+Running on CrystFEL: 0.8.0+f9101682
+Current path is: /nas/processing/serialed/GV/publication
+</pre></div></div>
+</div>
+<div class="section" id="Merging-of-serial-data-sets">
+<h1>Merging of serial data sets<a class="headerlink" href="#Merging-of-serial-data-sets" title="Permalink to this headline">¶</a></h1>
+<p>…from stream files, using partialator and ambigator from CrystFEL. Handles parallel processing of merging runs with different parameters and/or input stream files, as well as creation of custom-split files.</p>
+<p>Also includes calculation, export and visualization of shell data.</p>
+<div class="section" id="Preparation-of-a-command-script-for-partialator">
+<h2>Preparation of a command script for partialator<a class="headerlink" href="#Preparation-of-a-command-script-for-partialator" title="Permalink to this headline">¶</a></h2>
+<p>The next section prepares command strings comprised of NaN removal from stream files, ambigator, and partialator. Often, you will want to run partialator (which does not parallelize well) for many settings streams in parallel, hence the loop(s). The command strings are written into a shell script (patialator_run.sh), including terminating ampersands for parallel execution. Run this in an external terminal (it won’t work with a Jupyter cell magic).</p>
+<p>In this example, we will try to run it with three settings for <code class="docutils literal notranslate"><span class="pre">push-res</span></code>, and also compare the stream files derived from the initial aggregated images, and the ones with optimized integration.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">!</span><span class="nb">echo</span> <span class="s2">&quot;#!/bin/sh&quot;</span> &gt; partialator_run.sh
+<span class="n">stream_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;stream/frame0to4.stream&#39;</span><span class="p">,</span> <span class="s1">&#39;stream/aggregated.stream&#39;</span><span class="p">]</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;merged&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">pr</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]:</span>
+    <span class="k">for</span> <span class="n">stream_name</span> <span class="ow">in</span> <span class="n">stream_list</span><span class="p">:</span>
+
+        <span class="c1"># change these parameters to control the merging ---</span>
+        <span class="n">original</span> <span class="o">=</span> <span class="n">stream_name</span>
+        <span class="n">partialator_out</span> <span class="o">=</span> <span class="s1">&#39;merged/&#39;</span> <span class="o">+</span> <span class="n">original</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> \
+            <span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">pr</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span><span class="s1">&#39;_&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;.hkl&#39;</span> <span class="c1"># output filename</span>
+        <span class="n">point_group</span> <span class="o">=</span> <span class="s1">&#39;m-3&#39;</span>
+        <span class="n">apparent_symmetry</span> <span class="o">=</span> <span class="s1">&#39;m-3m&#39;</span> <span class="c1"># see ambigator documentation</span>
+        <span class="n">fix_nans</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1"># required if some peak integrations went wrong</span>
+        <span class="n">procs</span> <span class="o">=</span> <span class="mi">40</span>      <span class="c1"># number of processes (rather hypothetical)</span>
+        <span class="n">it</span> <span class="o">=</span> <span class="mi">3</span>          <span class="c1"># number of scaling iterations</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="kc">False</span>   <span class="c1"># use custom-split?</span>
+        <span class="n">min_meas</span> <span class="o">=</span> <span class="mi">10</span>   <span class="c1"># minimum number of peak observations to count as observed</span>
+        <span class="c1"># find many more settings below in call_partialator</span>
+        <span class="c1"># ----</span>
+
+        <span class="n">callstr</span> <span class="o">=</span> <span class="s1">&#39;(&#39;</span>
+
+        <span class="k">if</span> <span class="n">fix_nans</span><span class="p">:</span>
+            <span class="n">ambigator_in</span> <span class="o">=</span> <span class="n">original</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;_nonan.stream&#39;</span>
+            <span class="n">callstr</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;sed /nan/d </span><span class="si">{</span><span class="n">original</span><span class="si">}</span><span class="s1"> &gt; </span><span class="si">{</span><span class="n">ambigator_in</span><span class="si">}</span><span class="s1">; &#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ambigator_in</span> <span class="o">=</span> <span class="n">original</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">point_group</span> <span class="o">!=</span> <span class="n">apparent_symmetry</span><span class="p">)</span> <span class="ow">and</span> <span class="n">point_group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ambigator_out</span> <span class="o">=</span> <span class="n">original</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;_amb.stream&#39;</span>
+            <span class="n">amstr</span> <span class="o">=</span> <span class="n">tools</span><span class="o">.</span><span class="n">make_command</span><span class="p">(</span><span class="n">bin_path</span> <span class="o">+</span> <span class="s1">&#39;ambigator&#39;</span><span class="p">,</span> <span class="n">ambigator_in</span><span class="p">,</span>
+                               <span class="p">{</span><span class="s1">&#39;o&#39;</span><span class="p">:</span> <span class="n">ambigator_out</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">point_group</span><span class="p">,</span>
+                                <span class="s1">&#39;w&#39;</span><span class="p">:</span> <span class="n">apparent_symmetry</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">:</span> <span class="n">procs</span><span class="p">},</span>
+                               <span class="n">highres</span><span class="o">=</span><span class="mf">2.5</span><span class="p">,</span> <span class="n">lowres</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">ncorr</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+            <span class="n">callstr</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">amstr</span><span class="si">}</span><span class="s1">; &#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ambigator_out</span> <span class="o">=</span> <span class="n">ambigator_in</span>
+
+        <span class="n">partstr</span> <span class="o">=</span> <span class="n">tools</span><span class="o">.</span><span class="n">call_partialator</span><span class="p">(</span><span class="n">ambigator_out</span><span class="p">,</span> <span class="n">point_group</span><span class="p">,</span> <span class="n">partialator_out</span><span class="p">,</span>
+                                         <span class="n">opts</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;no-polarisation&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                                               <span class="s1">&#39;no-Bscale&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;no-scale&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                                               <span class="s1">&#39;force-radius&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span>
+                                               <span class="s1">&#39;force-bandwidth&#39;</span><span class="p">:</span> <span class="mf">0.0005</span><span class="p">,</span> <span class="s1">&#39;push-res&#39;</span><span class="p">:</span> <span class="n">pr</span><span class="p">,</span>
+                                               <span class="s1">&#39;custom-split&#39;</span><span class="p">:</span> <span class="n">original</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> \
+                                               <span class="o">+</span> <span class="s1">&#39;_frames.txt&#39;</span> <span class="k">if</span> <span class="n">split</span> <span class="k">else</span> <span class="kc">False</span><span class="p">,</span>
+                                               <span class="s1">&#39;min-measurements&#39;</span><span class="p">:</span> <span class="n">min_meas</span>
+                                              <span class="p">},</span> <span class="n">procs</span><span class="o">=</span><span class="n">procs</span><span class="p">,</span>
+                                         <span class="n">exc</span><span class="o">=</span> <span class="n">bin_path</span> <span class="o">+</span> <span class="s1">&#39;partialator&#39;</span><span class="p">,</span> <span class="n">iterations</span><span class="o">=</span><span class="n">it</span><span class="p">)</span>
+
+        <span class="n">callstr</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">partstr</span><span class="si">}</span><span class="s1">) &amp;&#39;</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="n">callstr</span><span class="p">)</span>
+        <span class="o">!</span><span class="nb">echo</span> <span class="s2">&quot;{callstr}&quot;</span> &gt;&gt; partialator_run.sh
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(sed /nan/d stream/frame0to4.stream &gt; stream/frame0to4_nonan.stream; /opts/crystfel_eminus/bin/ambigator stream/frame0to4_nonan.stream -o stream/frame0to4_amb.stream -y m-3 -w m-3m -j 40 --highres=2.5 --lowres=10 --ncorr=1000; /opts/crystfel_eminus/bin/partialator -y m-3 -i stream/frame0to4_amb.stream -o merged/frame0to4_1_00.hkl -j 40 -n 3 -m unity --no-polarisation --force-radius=0.01 --force-bandwidth=0.0005 --push-res=1 --min-measurements=10) &amp;
+(sed /nan/d stream/aggregated.stream &gt; stream/aggregated_nonan.stream; /opts/crystfel_eminus/bin/ambigator stream/aggregated_nonan.stream -o stream/aggregated_amb.stream -y m-3 -w m-3m -j 40 --highres=2.5 --lowres=10 --ncorr=1000; /opts/crystfel_eminus/bin/partialator -y m-3 -i stream/aggregated_amb.stream -o merged/aggregated_1_00.hkl -j 40 -n 3 -m unity --no-polarisation --force-radius=0.01 --force-bandwidth=0.0005 --push-res=1 --min-measurements=10) &amp;
+(sed /nan/d stream/frame0to4.stream &gt; stream/frame0to4_nonan.stream; /opts/crystfel_eminus/bin/ambigator stream/frame0to4_nonan.stream -o stream/frame0to4_amb.stream -y m-3 -w m-3m -j 40 --highres=2.5 --lowres=10 --ncorr=1000; /opts/crystfel_eminus/bin/partialator -y m-3 -i stream/frame0to4_amb.stream -o merged/frame0to4_2_00.hkl -j 40 -n 3 -m unity --no-polarisation --force-radius=0.01 --force-bandwidth=0.0005 --push-res=2 --min-measurements=10) &amp;
+(sed /nan/d stream/aggregated.stream &gt; stream/aggregated_nonan.stream; /opts/crystfel_eminus/bin/ambigator stream/aggregated_nonan.stream -o stream/aggregated_amb.stream -y m-3 -w m-3m -j 40 --highres=2.5 --lowres=10 --ncorr=1000; /opts/crystfel_eminus/bin/partialator -y m-3 -i stream/aggregated_amb.stream -o merged/aggregated_2_00.hkl -j 40 -n 3 -m unity --no-polarisation --force-radius=0.01 --force-bandwidth=0.0005 --push-res=2 --min-measurements=10) &amp;
+(sed /nan/d stream/frame0to4.stream &gt; stream/frame0to4_nonan.stream; /opts/crystfel_eminus/bin/ambigator stream/frame0to4_nonan.stream -o stream/frame0to4_amb.stream -y m-3 -w m-3m -j 40 --highres=2.5 --lowres=10 --ncorr=1000; /opts/crystfel_eminus/bin/partialator -y m-3 -i stream/frame0to4_amb.stream -o merged/frame0to4_3_00.hkl -j 40 -n 3 -m unity --no-polarisation --force-radius=0.01 --force-bandwidth=0.0005 --push-res=3 --min-measurements=10) &amp;
+(sed /nan/d stream/aggregated.stream &gt; stream/aggregated_nonan.stream; /opts/crystfel_eminus/bin/ambigator stream/aggregated_nonan.stream -o stream/aggregated_amb.stream -y m-3 -w m-3m -j 40 --highres=2.5 --lowres=10 --ncorr=1000; /opts/crystfel_eminus/bin/partialator -y m-3 -i stream/aggregated_amb.stream -o merged/aggregated_3_00.hkl -j 40 -n 3 -m unity --no-polarisation --force-radius=0.01 --force-bandwidth=0.0005 --push-res=3 --min-measurements=10) &amp;
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="Analysis-of-shell-data">
+<h2>Analysis of shell data<a class="headerlink" href="#Analysis-of-shell-data" title="Permalink to this headline">¶</a></h2>
+<p>Theses cells calculate per-shell and overall merging statistics, using CrystFELs <em>check_hkl</em> and <em>compare_hkl</em>. Returns pandas DataFrames for overall and shell statistics.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;shell&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># get a list of all hkl files</span>
+<span class="n">hklfiles</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;merged/aggregated_?_??.hkl&#39;</span><span class="p">))</span>
+<span class="n">hklfiles</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;merged/frame0to4_?_??.hkl&#39;</span><span class="p">)))</span>
+
+<span class="c1"># set up the shells</span>
+<span class="n">lowres</span> <span class="o">=</span> <span class="mf">72.973</span>
+<span class="n">highres</span> <span class="o">=</span> <span class="mf">1.55</span>
+<span class="n">nshells</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="c1"># load the cell file you used, and set the point group</span>
+<span class="n">cell</span> <span class="o">=</span> <span class="s1">&#39;GV.cell&#39;</span>
+<span class="n">point_group</span> <span class="o">=</span> <span class="s1">&#39;m-3&#39;</span>
+
+<span class="c1"># chose figures of merit for compare_hkl (see help)</span>
+<span class="n">foms</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CC&#39;</span><span class="p">,</span> <span class="s1">&#39;CCstar&#39;</span><span class="p">,</span> <span class="s1">&#39;Rsplit&#39;</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">analyze_hkl</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+    <span class="n">fnroot</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Analyzing &#39;</span> <span class="o">+</span> <span class="n">fnroot</span> <span class="o">+</span> <span class="s1">&#39;...&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">callstr</span> <span class="o">=</span> <span class="n">tools</span><span class="o">.</span><span class="n">make_command</span><span class="p">(</span><span class="n">bin_path</span> <span class="o">+</span> <span class="s1">&#39;check_hkl&#39;</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span>
+                                     <span class="p">{</span><span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">point_group</span><span class="p">,</span> <span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="n">cell</span><span class="p">},</span>
+                                      <span class="p">{</span><span class="s1">&#39;shell-file&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;shell/hkl_</span><span class="si">{</span><span class="n">fnroot</span><span class="si">}</span><span class="s1">.dat&#39;</span><span class="p">},</span>
+                                     <span class="n">nshells</span><span class="o">=</span><span class="n">nshells</span><span class="p">,</span> <span class="n">lowres</span><span class="o">=</span><span class="n">lowres</span><span class="p">,</span> <span class="n">highres</span><span class="o">=</span><span class="n">highres</span><span class="p">)</span>
+        <span class="n">so</span> <span class="o">=</span> <span class="o">!{</span>callstr<span class="o">}</span>
+
+        <span class="n">sd1</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;shell/hkl_</span><span class="si">{</span><span class="n">fnroot</span><span class="si">}</span><span class="s1">.dat&#39;</span><span class="p">,</span> <span class="n">delim_whitespace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">sd1</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Center 1/nm&#39;</span><span class="p">,</span> <span class="s1">&#39;nref&#39;</span><span class="p">,</span> <span class="s1">&#39;Possible&#39;</span><span class="p">,</span>
+                                        <span class="s1">&#39;Compl&#39;</span><span class="p">,</span> <span class="s1">&#39;Meas&#39;</span><span class="p">,</span> <span class="s1">&#39;Red&#39;</span><span class="p">,</span> <span class="s1">&#39;SNR&#39;</span><span class="p">,</span> <span class="s1">&#39;Std dev&#39;</span><span class="p">,</span>
+                                        <span class="s1">&#39;Mean&#39;</span><span class="p">,</span> <span class="s1">&#39;d/a&#39;</span><span class="p">,</span> <span class="s1">&#39;Min 1/nm&#39;</span><span class="p">,</span> <span class="s1">&#39;Max 1/nm&#39;</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">fom</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">foms</span><span class="p">):</span>
+            <span class="n">callstr</span> <span class="o">=</span> <span class="n">tools</span><span class="o">.</span><span class="n">make_command</span><span class="p">(</span><span class="n">bin_path</span> <span class="o">+</span> <span class="s1">&#39;compare_hkl&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">fn</span> <span class="o">+</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="n">fn</span> <span class="o">+</span> <span class="s1">&#39;2&#39;</span><span class="p">],</span>
+                                     <span class="p">{</span><span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">point_group</span><span class="p">,</span> <span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="n">cell</span><span class="p">},</span>
+                                      <span class="p">{</span><span class="s1">&#39;shell-file&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;shell/cmp_</span><span class="si">{</span><span class="n">fnroot</span><span class="si">}</span><span class="s1">.dat&#39;</span><span class="p">,</span> <span class="s1">&#39;sigma-cutoff&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">},</span>
+                                         <span class="n">nshells</span><span class="o">=</span><span class="n">nshells</span><span class="p">,</span> <span class="n">lowres</span><span class="o">=</span><span class="n">lowres</span><span class="p">,</span> <span class="n">highres</span><span class="o">=</span><span class="n">highres</span><span class="p">,</span> <span class="n">fom</span><span class="o">=</span><span class="n">fom</span><span class="p">)</span>
+
+            <span class="n">so2</span> <span class="o">=</span> <span class="o">!{</span>callstr<span class="o">}</span>
+            <span class="n">so</span> <span class="o">+=</span> <span class="n">so2</span>
+
+            <span class="k">if</span> <span class="n">idx</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                <span class="n">sd2</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;shell/cmp_</span><span class="si">{</span><span class="n">fnroot</span><span class="si">}</span><span class="s1">.dat&#39;</span><span class="p">,</span> <span class="n">delim_whitespace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                     <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">sd2</span> <span class="o">=</span> <span class="n">sd2</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sd2</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">sd2</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;shell/cmp_</span><span class="si">{</span><span class="n">fnroot</span><span class="si">}</span><span class="s1">.dat&#39;</span><span class="p">,</span> <span class="n">delim_whitespace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                     <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">usecols</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">sd2</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Center 1/nm&#39;</span><span class="p">,</span> <span class="s1">&#39;nref&#39;</span><span class="p">,</span> <span class="s1">&#39;d/A&#39;</span><span class="p">,</span> <span class="s1">&#39;Min 1/n&#39;</span><span class="p">,</span> <span class="s1">&#39;Max 1/nm&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">foms</span>
+
+        <span class="n">sd</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">sd1</span><span class="p">,</span> <span class="n">sd2</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s1">&#39;Center 1/nm&#39;</span><span class="p">,</span> <span class="n">suffixes</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;__2&#39;</span><span class="p">))</span>
+        <span class="n">sd</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">sd</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;__2&#39;</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">sd</span><span class="p">[</span><span class="s1">&#39;hklfile&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error during analyzing file&#39;</span><span class="p">,</span> <span class="n">fn</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">err</span>
+
+    <span class="k">return</span> <span class="n">fn</span><span class="p">,</span> <span class="n">sd</span><span class="p">,</span> <span class="n">so</span>
+
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ProcessPoolExecutor</span>
+<span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">exc</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">analyze_hkl</span><span class="p">,</span> <span class="n">hklfiles</span><span class="p">)</span>
+
+<span class="n">out</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+<span class="c1"># output data mangling</span>
+<span class="n">stdout</span> <span class="o">=</span> <span class="p">{</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">s</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">out</span><span class="p">}</span>
+<span class="n">sd</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">out</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">overall</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">fn</span><span class="p">,</span> <span class="n">lst</span> <span class="ow">in</span> <span class="n">stdout</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">vals</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="p">[</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lst</span> <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;overall&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span> <span class="ow">and</span> <span class="p">(</span><span class="s1">&#39;=&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">)]:</span>
+        <span class="n">sect</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">)</span>
+        <span class="n">fld</span> <span class="o">=</span> <span class="n">sect</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1">#print(l)</span>
+        <span class="n">vals</span><span class="p">[</span><span class="n">fld</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">sect</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">overall</span><span class="p">[</span><span class="n">fn</span><span class="p">]</span> <span class="o">=</span> <span class="n">vals</span>
+<span class="n">overall</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">overall</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Analyzing aggregated_1_00...
+Analyzing aggregated_2_00...
+Analyzing aggregated_3_00...
+Analyzing frame0to4_1_00...
+Analyzing frame0to4_2_00...
+Analyzing frame0to4_3_00...
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># give friendly names datasets... in this case we just assign IDs...</span>
+<span class="n">idnums</span> <span class="o">=</span> <span class="p">{</span><span class="n">fn</span><span class="p">:</span> <span class="n">ident</span> <span class="k">for</span> <span class="n">ident</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">overall</span><span class="p">)),</span><span class="nb">sorted</span><span class="p">(</span><span class="n">overall</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">))}</span>
+<span class="n">sd</span><span class="p">[</span><span class="s1">&#39;identifier&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sd</span><span class="o">.</span><span class="n">hklfile</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">idnums</span><span class="p">)</span>
+<span class="n">overall</span><span class="p">[</span><span class="s1">&#39;identifier&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">overall</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">to_series</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">idnums</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="Print-overall-and-per-shell-statistics">
+<h2>Print overall and per-shell statistics<a class="headerlink" href="#Print-overall-and-per-shell-statistics" title="Permalink to this headline">¶</a></h2>
+<p>Overall: just show DataFrame Per-shell: use pivot table to display a particular FOM, like CC.</p>
+<p>In this case, we’ll see that the re-integration makes quite some difference, especially in terms of the CC drop-off at high resolutions. push-res=2 (it’s 1/nm, actually) helps to squeeze out high-resolution data, which still have an acceptable CC and would be discarded by a more conservative resolution estimation. push-res=3 does not make a significant difrence.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">overall</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>&lt;snr&gt;</th>
+      <th>CC</th>
+      <th>CC*</th>
+      <th>Rsplit</th>
+      <th>completeness</th>
+      <th>redundancy</th>
+      <th>identifier</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>merged/aggregated_1_00.hkl</th>
+      <td>5.806275</td>
+      <td>0.996842</td>
+      <td>0.999209</td>
+      <td>11.57</td>
+      <td>63.488345</td>
+      <td>67.788847</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>merged/aggregated_2_00.hkl</th>
+      <td>5.034441</td>
+      <td>0.993877</td>
+      <td>0.998463</td>
+      <td>12.96</td>
+      <td>78.480089</td>
+      <td>62.034986</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>merged/aggregated_3_00.hkl</th>
+      <td>5.031179</td>
+      <td>0.993873</td>
+      <td>0.998462</td>
+      <td>12.98</td>
+      <td>78.545371</td>
+      <td>62.020876</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>merged/frame0to4_1_00.hkl</th>
+      <td>5.478837</td>
+      <td>0.990242</td>
+      <td>0.997546</td>
+      <td>11.81</td>
+      <td>65.462156</td>
+      <td>72.186954</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <th>merged/frame0to4_2_00.hkl</th>
+      <td>4.539161</td>
+      <td>0.990040</td>
+      <td>0.997494</td>
+      <td>13.38</td>
+      <td>81.532967</td>
+      <td>66.227157</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>merged/frame0to4_3_00.hkl</th>
+      <td>4.532576</td>
+      <td>0.990044</td>
+      <td>0.997495</td>
+      <td>13.39</td>
+      <td>81.655850</td>
+      <td>66.180822</td>
+      <td>5</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sd</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s1">&#39;d/A&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s1">&#39;identifier&#39;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;CC&#39;</span><span class="p">,</span><span class="s1">&#39;Compl&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">sort_index</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead tr th {
+        text-align: left;
+    }
+
+    .dataframe thead tr:last-of-type th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr>
+      <th></th>
+      <th colspan="6" halign="left">CC</th>
+      <th colspan="6" halign="left">Compl</th>
+    </tr>
+    <tr>
+      <th>identifier</th>
+      <th>0</th>
+      <th>1</th>
+      <th>2</th>
+      <th>3</th>
+      <th>4</th>
+      <th>5</th>
+      <th>0</th>
+      <th>1</th>
+      <th>2</th>
+      <th>3</th>
+      <th>4</th>
+      <th>5</th>
+    </tr>
+    <tr>
+      <th>d/A</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>6.39</th>
+      <td>0.997389</td>
+      <td>0.994392</td>
+      <td>0.994390</td>
+      <td>0.990068</td>
+      <td>0.990168</td>
+      <td>0.990169</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+    </tr>
+    <tr>
+      <th>2.96</th>
+      <td>0.962490</td>
+      <td>0.962677</td>
+      <td>0.962679</td>
+      <td>0.969382</td>
+      <td>0.969146</td>
+      <td>0.969146</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+    </tr>
+    <tr>
+      <th>2.47</th>
+      <td>0.858409</td>
+      <td>0.844447</td>
+      <td>0.844450</td>
+      <td>0.908125</td>
+      <td>0.902326</td>
+      <td>0.902390</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>100.00</td>
+      <td>99.96</td>
+      <td>99.96</td>
+      <td>99.96</td>
+    </tr>
+    <tr>
+      <th>2.20</th>
+      <td>0.792263</td>
+      <td>0.771637</td>
+      <td>0.771465</td>
+      <td>0.873670</td>
+      <td>0.856109</td>
+      <td>0.856087</td>
+      <td>99.69</td>
+      <td>99.96</td>
+      <td>99.96</td>
+      <td>99.85</td>
+      <td>99.96</td>
+      <td>99.96</td>
+    </tr>
+    <tr>
+      <th>2.03</th>
+      <td>0.755510</td>
+      <td>0.713491</td>
+      <td>0.712252</td>
+      <td>0.858776</td>
+      <td>0.825072</td>
+      <td>0.823978</td>
+      <td>97.48</td>
+      <td>99.81</td>
+      <td>99.81</td>
+      <td>98.03</td>
+      <td>99.96</td>
+      <td>99.96</td>
+    </tr>
+    <tr>
+      <th>1.89</th>
+      <td>0.566242</td>
+      <td>0.495958</td>
+      <td>0.498973</td>
+      <td>0.741910</td>
+      <td>0.698647</td>
+      <td>0.696229</td>
+      <td>84.18</td>
+      <td>98.31</td>
+      <td>98.31</td>
+      <td>88.83</td>
+      <td>98.81</td>
+      <td>98.81</td>
+    </tr>
+    <tr>
+      <th>1.79</th>
+      <td>0.496555</td>
+      <td>0.358398</td>
+      <td>0.357416</td>
+      <td>0.606059</td>
+      <td>0.521002</td>
+      <td>0.523039</td>
+      <td>45.77</td>
+      <td>90.81</td>
+      <td>90.92</td>
+      <td>56.87</td>
+      <td>94.45</td>
+      <td>94.49</td>
+    </tr>
+    <tr>
+      <th>1.71</th>
+      <td>NaN</td>
+      <td>0.348273</td>
+      <td>0.338661</td>
+      <td>0.604582</td>
+      <td>0.401499</td>
+      <td>0.403964</td>
+      <td>4.42</td>
+      <td>61.58</td>
+      <td>61.89</td>
+      <td>7.92</td>
+      <td>70.20</td>
+      <td>70.66</td>
+    </tr>
+    <tr>
+      <th>1.64</th>
+      <td>NaN</td>
+      <td>0.307089</td>
+      <td>0.303675</td>
+      <td>NaN</td>
+      <td>0.201995</td>
+      <td>0.201892</td>
+      <td>0.00</td>
+      <td>24.77</td>
+      <td>24.92</td>
+      <td>0.00</td>
+      <td>35.19</td>
+      <td>35.66</td>
+    </tr>
+    <tr>
+      <th>1.58</th>
+      <td>NaN</td>
+      <td>0.828246</td>
+      <td>0.828248</td>
+      <td>NaN</td>
+      <td>0.413056</td>
+      <td>0.413035</td>
+      <td>0.00</td>
+      <td>7.59</td>
+      <td>7.67</td>
+      <td>0.00</td>
+      <td>15.10</td>
+      <td>15.38</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+</div>
+<div class="section" id="Export">
+<h2>Export<a class="headerlink" href="#Export" title="Permalink to this headline">¶</a></h2>
+<p>…to CSV, and Excel (the latter only works with some packages installed)</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lbl</span> <span class="o">=</span> <span class="s1">&#39;10_shell_data&#39;</span>
+<span class="n">sd</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;shell/</span><span class="si">{</span><span class="n">lbl</span><span class="si">}</span><span class="s1">.csv&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># Export to Excel file</span>
+<span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">ExcelWriter</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;shell/</span><span class="si">{</span><span class="n">lbl</span><span class="si">}</span><span class="s1">.xlsx&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">grp</span> <span class="ow">in</span> <span class="n">sd</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;identifier&#39;</span><span class="p">):</span>
+        <span class="n">grp</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">ii</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># re-load if you want (for later re-execution)</span>
+<span class="n">lbl</span> <span class="o">=</span> <span class="s1">&#39;10_shell_data&#39;</span>
+<span class="n">sd</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;shell/&#39;</span> <span class="o">+</span> <span class="n">lbl</span> <span class="o">+</span> <span class="s1">&#39;.csv&#39;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="Plot">
+<h2>Plot<a class="headerlink" href="#Plot" title="Permalink to this headline">¶</a></h2>
+<p>…ideally using an interactive backend, like <code class="docutils literal notranslate"><span class="pre">qt</span></code>, <code class="docutils literal notranslate"><span class="pre">notebook</span></code> (for Jupyter notebook) or <code class="docutils literal notranslate"><span class="pre">ipympl</span></code> (for Jupyter lab). You can choose which 4 FOMs to plot as a function of resolution, and their display ranges. From the <span class="math notranslate nohighlight">\(CC=1/7\)</span>, or <span class="math notranslate nohighlight">\(CC^*=1/2\)</span> criterion, we can read off that a good cut-off would be at around 1.7 Angstrom, though completeness gets already low-ish around there.</p>
+<p>In our serial electron protein diffraction paper, with 10x the shots, we pushed it to 1.55.</p>
+<p>Note that the apparently higher Mean signal and SNR for the initial aggregated sets (0-2) are an artefact arising from CrystFEL’s background gradient correction, which is switched off in the re-integrated sets.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">%</span><span class="k">matplotlib</span> ipympl
+
+<span class="n">fh</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="o">/</span><span class="mf">2.54</span><span class="p">,</span><span class="mi">22</span><span class="o">/</span><span class="mf">2.54</span><span class="p">),</span><span class="n">dpi</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span><span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+
+<span class="c1"># pick your FOMs and their y ranges</span>
+<span class="n">FOMs</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;CC&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;Mean&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;SNR&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;Compl&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">)]</span>
+
+<span class="k">for</span> <span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">ident</span><span class="p">),</span> <span class="n">grp</span> <span class="ow">in</span> <span class="n">sd</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;hklfile&#39;</span><span class="p">,</span><span class="s1">&#39;identifier&#39;</span><span class="p">]):</span>
+
+    <span class="k">if</span> <span class="n">ident</span> <span class="o">&gt;=</span> <span class="mi">20</span><span class="p">:</span>
+        <span class="n">ls</span> <span class="o">=</span> <span class="s1">&#39;:&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ls</span> <span class="o">=</span> <span class="s1">&#39;-&#39;</span>
+
+    <span class="n">lbl</span> <span class="o">=</span> <span class="n">ident</span>
+    <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="p">(</span><span class="n">fom</span><span class="p">,</span> <span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">FOMs</span><span class="p">):</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">grp</span><span class="p">[</span><span class="s1">&#39;Center 1/nm&#39;</span><span class="p">],</span> <span class="n">grp</span><span class="p">[</span><span class="n">fom</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="n">lbl</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="n">ls</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">fom</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">((</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">))</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fom</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;CC&#39;</span><span class="p">,</span> <span class="s1">&#39;CCstar&#39;</span><span class="p">]:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mf">0.143</span> <span class="k">if</span> <span class="n">fom</span> <span class="o">==</span> <span class="s1">&#39;CC&#39;</span> <span class="k">else</span> <span class="mf">0.5</span><span class="p">,</span><span class="n">ls</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+
+<span class="n">axs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">ncol</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="s1">&#39;xx-small&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Resolution shell/nm$^{-1}$&#39;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="s1">&#39;nbagg&#39;</span> <span class="ow">in</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">get_backend</span><span class="p">():</span> <span class="c1"># hack for ipympl backend</span>
+    <span class="n">fh</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fh</span><span class="o">.</span><span class="n">get_size_inches</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">in&#39;</span>
+<span class="n">fh</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">wspace</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "4fff09be1eab4dc388ba3212e1167038", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+</div>
+<div class="section" id="Congratulations">
+<h2>Congratulations<a class="headerlink" href="#Congratulations" title="Permalink to this headline">¶</a></h2>
+<p>Now you have hopefully picked an optimized <code class="docutils literal notranslate"><span class="pre">.hkl</span></code> file, which you can load into your favorite phasing software!</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../dataset.html" class="btn btn-neutral float-right" title="The Dataset object" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="preprocessing.html" class="btn btn-neutral float-left" title="Serial diffraction data preprocessing using diffractem" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Robert Buecker
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

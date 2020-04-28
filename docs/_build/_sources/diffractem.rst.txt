@@ -6,6 +6,7 @@ Submodules
 
 .. toctree::
    :maxdepth: 4
+   :hidden:
 
    diffractem.adxv
    diffractem.compute

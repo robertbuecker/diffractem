@@ -8,11 +8,24 @@ Welcome to diffractem's documentation!
 
 .. toctree::
    :maxdepth: 3
+   :hidden:
    
-   Welcome<diffractem>
+   installation
+   notebooks
+   dataset
+   file_format
    Preprocessing<pre_processing>
    CrystFEL integration<crystfel>
-   Full API<api>
+
+Playground
+----------
+
+.. jupyter-execute::
+
+   import matplotlib.pyplot as plt
+   %matplotlib inline
+   plt.plot([1,2,2.1],[3,4,1])
+
 
 Indices and tables
 ==================

@@ -18,3 +18,7 @@ opencv-python-headless
 PyQt5
 cfelpyutils
 onda
+ipykernel
+nbsphinx
+jupyter-sphinx
+nbsphinx-link

@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,10 +38,11 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="diffractem.pre_process module" href="diffractem.pre_process.html" />
-    <link rel="prev" title="diffractem.nexus module" href="diffractem.nexus.html" /> 
+    <link rel="prev" title="Pre-processing with diffractem" href="pre_processing.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -81,12 +87,16 @@
             
             
               <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="diffractem.html">Welcome</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="pre_processing.html">Preprocessing</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Pre-processing options</a></li>
 <li class="toctree-l2"><a class="reference internal" href="diffractem.pre_process.html">Pre-processing macros (old)</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
             
@@ -132,7 +142,7 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="diffractem.html">diffractem package</a> &raquo;</li>
+          <li><a href="pre_processing.html">Pre-processing with diffractem</a> &raquo;</li>
         
       <li>diffractem.pre_proc_opts module</li>
     
@@ -153,7 +163,31 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="diffractem-pre-proc-opts-module">
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="diffractem-pre-proc-opts-module">
 <h1>diffractem.pre_proc_opts module<a class="headerlink" href="#diffractem-pre-proc-opts-module" title="Permalink to this headline">¶</a></h1>
 <p>The preprocessing options class.</p>
 <dl class="py class">
@@ -162,19 +196,19 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.agg_file_suffix">
-<code class="sig-name descname">agg_file_suffix</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.agg_file_suffix" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">agg_file_suffix</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.agg_file_suffix" title="Permalink to this definition">¶</a></dt>
 <dd><p>file suffix for aggregated patterns</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.agg_query">
-<code class="sig-name descname">agg_query</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.agg_query" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">agg_query</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.agg_query" title="Permalink to this definition">¶</a></dt>
 <dd><p>query string for aggregation of patterns</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.aggregate">
-<code class="sig-name descname">aggregate</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.aggregate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">aggregate</code><em class="property">: bool</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.aggregate" title="Permalink to this definition">¶</a></dt>
 <dd><p>calculate aggregated patterns</p>
 </dd></dl>
 
@@ -210,13 +244,13 @@
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.indexing_params">
-<code class="sig-name descname">indexing_params</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.indexing_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">indexing_params</code><em class="property">: dict</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.indexing_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>indexamajig parameters for indexing (of virtual files)</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.integration_params">
-<code class="sig-name descname">integration_params</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.integration_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">integration_params</code><em class="property">: dict</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.integration_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>indexamajig parameters for integration</p>
 </dd></dl>
 
@@ -227,25 +261,25 @@
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.lorentz_maxshift">
-<code class="sig-name descname">lorentz_maxshift</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.lorentz_maxshift" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">lorentz_maxshift</code><em class="property">: float</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.lorentz_maxshift" title="Permalink to this definition">¶</a></dt>
 <dd><p>maximum shift (px) of Lorentz fit center from center of mass</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.lorentz_radius">
-<code class="sig-name descname">lorentz_radius</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.lorentz_radius" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">lorentz_radius</code><em class="property">: int</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.lorentz_radius" title="Permalink to this definition">¶</a></dt>
 <dd><p>radius (px) around center of mass for Lorentz fit of zero order</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.max_peaks">
-<code class="sig-name descname">max_peaks</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.max_peaks" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">max_peaks</code><em class="property">: int</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.max_peaks" title="Permalink to this definition">¶</a></dt>
 <dd><p>maximum number of peaks for peak finding</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.peak_search_params">
-<code class="sig-name descname">peak_search_params</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.peak_search_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">peak_search_params</code><em class="property">: dict</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.peak_search_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>parameters for peak finding using peakfinder8</p>
 </dd></dl>
 
@@ -257,7 +291,7 @@
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.proc_dir">
-<code class="sig-name descname">proc_dir</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.proc_dir" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">proc_dir</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.proc_dir" title="Permalink to this definition">¶</a></dt>
 <dd><p>directory for pre-processed data</p>
 </dd></dl>
 
@@ -269,13 +303,13 @@
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.r_adf1">
-<code class="sig-name descname">r_adf1</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.r_adf1" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">r_adf1</code><em class="property">: tuple</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.r_adf1" title="Permalink to this definition">¶</a></dt>
 <dd><p>inner/outer radii for virtual ADF 1 (px)</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.r_adf2">
-<code class="sig-name descname">r_adf2</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.r_adf2" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">r_adf2</code><em class="property">: tuple</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.r_adf2" title="Permalink to this definition">¶</a></dt>
 <dd><p>inner/outer radii for virtual ADF 2 (px)</p>
 </dd></dl>
 
@@ -292,13 +326,13 @@
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.scratch_dir">
-<code class="sig-name descname">scratch_dir</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.scratch_dir" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">scratch_dir</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.scratch_dir" title="Permalink to this definition">¶</a></dt>
 <dd><p>scratch directory for temporary data</p>
 </dd></dl>
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.select_query">
-<code class="sig-name descname">select_query</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.select_query" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">select_query</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.select_query" title="Permalink to this definition">¶</a></dt>
 <dd><p>query string for selection of shots from raw data</p>
 </dd></dl>
 
@@ -310,7 +344,7 @@
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.xsize">
-<code class="sig-name descname">xsize</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.xsize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">xsize</code><em class="property">: int</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.xsize" title="Permalink to this definition">¶</a></dt>
 <dd><p>x image size (px)</p>
 </dd></dl>
 
@@ -322,7 +356,7 @@
 
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.ysize">
-<code class="sig-name descname">ysize</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.ysize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">ysize</code><em class="property">: int</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.ysize" title="Permalink to this definition">¶</a></dt>
 <dd><p>y image size (px)</p>
 </dd></dl>
 
@@ -341,7 +375,7 @@
         <a href="diffractem.pre_process.html" class="btn btn-neutral float-right" title="diffractem.pre_process module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="diffractem.nexus.html" class="btn btn-neutral float-left" title="diffractem.nexus module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="pre_processing.html" class="btn btn-neutral float-left" title="Pre-processing with diffractem" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
