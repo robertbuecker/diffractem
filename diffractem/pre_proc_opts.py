@@ -9,7 +9,9 @@ class PreProcOpts:
         self._filename = None
         self._help = {}
 
-        # raw-image corrections
+       
+        self.filter_len = 5
+        self.nobg_file_suffix = '_nobg.h5' # raw-image corrections
         self.verbose: bool = True
         self.reference: str = 'Ref12_reference.tif'  #: Name of reference image for flat-field correction in TIF format
         self.pxmask: str = 'Ref12_pxmask.tif'        #: Name of pixelmask TIF image
@@ -24,38 +26,38 @@ class PreProcOpts:
         self.com_threshold:float = 0.9
         self.com_xrng: int = 800                     #: x range (px) around pattern center in which to look for center of mass
         self.com_yrng: int = 800                     #: y range (px) around pattern center in which to look for center of mass
-        self.lorentz_radius = 30                #: radius (px) around center of mass for Lorentz fit of zero order
-        self.lorentz_maxshift = 36              #: maximum shift (px) of Lorentz fit center from center of mass
-        self.xsize = 1556                       #: x image size (px)
-        self.ysize = 516                        #: y image size (px)
-        self.r_adf1 = (50, 100)                 #: inner/outer radii for virtual ADF 1 (px)
-        self.r_adf2 = (100, 200)                #: inner/outer radii for virtual ADF 2 (px)
-        self.select_query = 'frame >= 0'        #: query string for selection of shots from raw data
-        self.agg_query = 'frame >= 0 and frame <= 5'    #: query string for aggregation of patterns
-        self.agg_file_suffix = '_agg.h5'        #: file suffix for aggregated patterns
-        self.aggregate = True                   #: calculate aggregated patterns
-        self.scratch_dir = '/scratch/diffractem'#: scratch directory for temporary data
-        self.proc_dir = 'proc_data'             #: directory for pre-processed data
-        self.rechunk = None
-        self.peak_search_params = \
+        self.lorentz_radius: int= 30                #: radius (px) around center of mass for Lorentz fit of zero order
+        self.lorentz_maxshift: float = 36              #: maximum shift (px) of Lorentz fit center from center of mass
+        self.xsize: int = 1556                       #: x image size (px)
+        self.ysize: int = 516                        #: y image size (px)
+        self.r_adf1: tuple = (50, 100)                 #: inner/outer radii for virtual ADF 1 (px)
+        self.r_adf2: tuple = (100, 200)                #: inner/outer radii for virtual ADF 2 (px)
+        self.select_query: str = 'frame >= 0'        #: query string for selection of shots from raw data
+        self.agg_query: str = 'frame >= 0 and frame <= 5'    #: query string for aggregation of patterns
+        self.agg_file_suffix: str = '_agg.h5'        #: file suffix for aggregated patterns
+        self.aggregate: bool = True                   #: calculate aggregated patterns
+        self.scratch_dir: str = '/scratch/diffractem'#: scratch directory for temporary data
+        self.proc_dir: str = 'proc_data'             #: directory for pre-processed data
+        self.rechunk: bool = None
+        self.peak_search_params: dict = \
             {'min-res': 5, 'max-res': 600,
             'local-bg-radius': 3, 'threshold': 8,
             'min-pix-count': 3,
             'min-snr': 3, 'int-radius': '3,4,5',
             'peaks': 'peakfinder8'}             #: parameters for peak finding using peakfinder8
-        self.indexing_params = \
+        self.indexing_params: dict = \
             {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
             'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
             'peaks': 'peakfinder8', 
             'indexing': 'none'}                 #: indexamajig parameters for indexing (of virtual files)
-        self.integration_params = \
+        self.integration_params: dict = \
             {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
             'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
             'peaks': 'peakfinder8', 
             'indexing': 'none'}                 #: indexamajig parameters for integration
         self.peak_search_params.update({'temp-dir': self.scratch_dir})
         self.indexing_params.update({'temp-dir': self.scratch_dir})
-        self.max_peaks = 500                    #: maximum number of peaks for peak finding
+        self.max_peaks: int = 500                    #: maximum number of peaks for peak finding
         self.crystfel_procs = 40 # number of processes
         self.im_exc = 'indexamajig'
         self.geometry = 'calibrated.geom'
@@ -78,8 +80,6 @@ class PreProcOpts:
         self.cum_first_frame = 0
         self.rerun_peak_finder = False
         self.peak_radius = 4
-        self.filter_len = 5
-        self.nobg_file_suffix = '_nobg.h5'
 
         if fn is not None:
             self.load(fn)
