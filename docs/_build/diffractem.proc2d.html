@@ -185,21 +185,31 @@
 <span id="diffractem-proc2d-module"></span><h1>diffractem.proc2d module<a class="headerlink" href="#module-diffractem.proc2d" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="diffractem.proc2d.apply_flatfield">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">apply_flatfield</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">reference</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">keep_type</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">ref_smooth_range</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalize_reference</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#apply_flatfield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.apply_flatfield" title="Permalink to this definition">¶</a></dt>
-<dd><p>Applies a flatfield (gain reference) image to a single image or stack.
-:param img              : Input image or image stack
-:param reference        : Gain reference image (usually normalized to 1)
-:param keep_type        : Keep integer data type of the initial image,</p>
-<blockquote>
-<div><p>: even if it requires rounding</p>
-</div></blockquote>
-<p>:param ref_smooth_range : Optionally, smooth the reference image out
-:param normalize_reference</p>
-<blockquote>
-<div><p>: Optionally, re-normalize the image</p>
-</div></blockquote>
-<p>:param kwargs           : Nothing, currently
-:return                 : Corrected image</p>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">apply_flatfield</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">reference</span></em>, <em class="sig-param"><span class="n">keep_type</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">ref_smooth_range</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalize_reference</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#apply_flatfield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.apply_flatfield" title="Permalink to this definition">¶</a></dt>
+<dd><p>Corrects the detector response by dividing the images in the image (stack) by a reference
+image (gain reference image), which should vary around 1.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – Input image</p></li>
+<li><p><strong>reference</strong> (<em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>str</em><em>]</em>) – array containing the reference image, or filename of
+a TIF file containing the reference image</p></li>
+<li><p><strong>keep_type</strong> (<em>bool</em><em>, </em><em>optional</em>) – Keep the image data type, that is, round the pixel values
+back to integers if the input is an integer image. If False, the output image
+will always be a float. Defaults to True.</p></li>
+<li><p><strong>ref_smooth_range</strong> (<em>Optional</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – If not None, applies a Gaussian blur to the
+reference image before correction, use this parameter to set its width. Defaults to None.</p></li>
+<li><p><strong>normalize_reference</strong> (<em>bool</em><em>, </em><em>optional</em>) – Re-normalize the reference image such that its
+average value is exactly 1. Defaults to False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>flatfield-corrected image</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -209,31 +219,74 @@
 Uses a 5th order polynomial approximation to the Lambert function, which is appropriate
 for a paralyzable detector, up to the point where its signal starts inverting (which is where
 nothing can be done anymore)</p>
+<p>The default dead time value of 1.9 microseconds has been determined for a Medipix3 sensor.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>{np.ndarray} -- Input image</strong><strong> or </strong><strong>image stack</strong> (<em>img</em>) – </p></li>
-<li><p><strong>{float} -- Exposure time in ms</strong> (<em>exp</em>) – </p></li>
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – Input image or image stack</p></li>
+<li><p><strong>exp</strong> (<em>float</em>) – Exposure time in ms</p></li>
+<li><p><strong>dead_time</strong> (<em>float</em><em>, </em><em>optional</em>) – Dead time of detector in ms. Defaults to 1.9e-3.</p></li>
 </ul>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><p><strong>{float} -- Dead time of detector in ms</strong><strong> (</strong><strong>default</strong> (<a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.dead_time" title="diffractem.pre_proc_opts.PreProcOpts.dead_time"><em>dead_time</em></a>) – {1.9e-3})</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.apply_virtual_detector">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">apply_virtual_detector</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stack</span></em>, <em class="sig-param"><span class="n">r_inner</span></em>, <em class="sig-param"><span class="n">r_outer</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#apply_virtual_detector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.apply_virtual_detector" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">apply_virtual_detector</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">r_inner</span></em>, <em class="sig-param"><span class="n">r_outer</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#apply_virtual_detector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.apply_virtual_detector" title="Permalink to this definition">¶</a></dt>
 <dd><p>Apply a “virtual STEM detector” to stack, with given inner and outer radii. Returns the mean value of all pixels
 that fall inside this annulus.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – input image (or stack thereof)</p></li>
+<li><p><strong>r_inner</strong> (<em>float</em>) – Inner radius</p></li>
+<li><p><strong>r_outer</strong> (<em>float</em>) – Outer radius</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>mean value of pixels inside the annulus defined by r_inner and r_outer</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.center_image">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">center_image</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">imgs</span></em>, <em class="sig-param"><span class="n">x0</span></em>, <em class="sig-param"><span class="n">y0</span></em>, <em class="sig-param"><span class="n">xsize</span></em>, <em class="sig-param"><span class="n">ysize</span></em>, <em class="sig-param"><span class="n">padval</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#center_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.center_image" title="Permalink to this definition">¶</a></dt>
-<dd><p>Centers a whole stack of images. See center_sgl_image for details… now, imgs is a 3D stack,
-x0 and y0 are 1d arrays. imgs can be a dask array, map_blocks is automatically invoked then</p>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">center_image</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">imgs</span></em>, <em class="sig-param"><span class="n">x0</span></em>, <em class="sig-param"><span class="n">y0</span></em>, <em class="sig-param"><span class="n">xsize</span></em>, <em class="sig-param"><span class="n">ysize</span></em>, <em class="sig-param"><span class="n">padval</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#center_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.center_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Shifts a stack of images, such that the original image coordinates x0, y0
+are in the center of the output image, which has a size of xsize, ysize.</p>
+<p>This function is typically used to change diffraction images such that the zero-order beam sits in the
+center of the image. The size of the output image should be sufficiently larger as to not truncate
+the shifted diffraction pattern.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The coordinates in this function refer to pixel centers (CXI convention), <em>not</em> pixel corners
+(CrystFEL convention). I.e., if shifting based on CrystFEL output or similar, the shifts
+must be increased by 0.5.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>imgs</strong> (<em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>da.Array</em><em>]</em>) – Input image stack</p></li>
+<li><p><strong>x0</strong> (<em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>da.Array</em><em>]</em>) – x position in input image to be shifted to the center of the output image</p></li>
+<li><p><strong>y0</strong> (<em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>da.Array</em><em>]</em>) – y position in input image to be shifted to the center of the output image</p></li>
+<li><p><strong>xsize</strong> (<em>int</em>) – x size of the output image</p></li>
+<li><p><strong>ysize</strong> (<em>int</em>) – y size of the output image</p></li>
+<li><p><strong>padval</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>int</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – value of the pixels used to pad the output image.
+If None, use nan for float images and -1 for integer images. Defaults to None.</p></li>
+<li><p><strong>parallel</strong> (<em>bool</em><em>, </em><em>optional</em>) – execute operation in parallel. Defaults to True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>output image stack of size (ysize, xsize) with centered diffraction patterns</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Union[np.ndarray, da.Array]</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -241,120 +294,145 @@ x0 and y0 are 1d arrays. imgs can be a dask array, map_blocks is automatically i
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">center_of_mass</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">0.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#center_of_mass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.center_of_mass" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the center of mass of an image using all the pixels larger than
 the threshold. Automatically skips values below threshold. Fast for sparse
-images.
-:param img              : Input image
-:param threshold        : minimum pixel value to include
-:return (x0,y0)         :Return location</p>
+images, for more crowded ones <cite>center_of_mass2</cite> may be faster.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – Input image</p></li>
+<li><p><strong>threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – minimum pixel value to include. Defaults to 0.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>[x0, y0] -&gt; image center of mass</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.center_of_mass2">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">center_of_mass2</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#center_of_mass2"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.center_of_mass2" title="Permalink to this definition">¶</a></dt>
-<dd><p>Alternative COM function, acting on 3D arrays directly,
-including lazy dask arrays. Tends to be slower than center_of_mass for
-sparse images with high thresholds, otherwise faster.
-:param img:
-:return:</p>
+<dd><p>Returns the center of mass of an image using all the pixels larger than
+the threshold. Automatically skips values below threshold. Can be faster
+than <cite>center_of_mass</cite> for crowded images (just try it out).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – Input image</p></li>
+<li><p><strong>threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – minimum pixel value to include. If None,
+does not apply a threshold. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>[x0, y0] -&gt; image center of mass</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.correct_dead_pixels">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">correct_dead_pixels</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">pxmask</span></em>, <em class="sig-param"><span class="n">strategy</span><span class="o">=</span><span class="default_value">'interpolate'</span></em>, <em class="sig-param"><span class="n">interp_range</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">replace_val</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">mask_gaps</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">edge_mask_x</span><span class="o">=</span><span class="default_value">70</span></em>, <em class="sig-param"><span class="n">edge_mask_y</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#correct_dead_pixels"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.correct_dead_pixels" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">correct_dead_pixels</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">pxmask</span></em>, <em class="sig-param"><span class="n">strategy</span><span class="o">=</span><span class="default_value">'interpolate'</span></em>, <em class="sig-param"><span class="n">interp_range</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">replace_val</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">mask_gaps</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">edge_mask_x</span><span class="o">=</span><span class="default_value">70</span></em>, <em class="sig-param"><span class="n">edge_mask_y</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">invert_mask</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#correct_dead_pixels"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.correct_dead_pixels" title="Permalink to this definition">¶</a></dt>
 <dd><p>Corrects a set of images for dead pixels by either replacing values with a
-constant (e.g. for Diffraction Analysis with mask support), or
-interpolation from a Gaussian-smoothed version of the image (e.g. for SPA
-or general imaging). It requires a binary array (pxmask) which is
-1/255/True for dead pixels. The function accepts a 3D array where the first
-dimension corresponds to a stack/movie. The convolution used for the Gauss
-filter is taken from the astropy package, which allows to ignore NaNs.
-While the function does support stacks, this may be slow, especially with
-interpolation. In these cases, better apply to single images in parallel
-(e.g. using diffractem.compute.process_stack).
-:param img      : the image or image stack (first dimension is stack)</p>
-<blockquote>
-<div><p>: to process. For replace strategy it can be a dask array.</p>
-</div></blockquote>
-<dl class="simple">
-<dt>:param pxmask<span class="classifier">pixel mask with dimension of the image, or TIF file</span></dt><dd><p>: containing pixel mask</p>
-</dd>
-<dt>:param strategy<span class="classifier">‘replace’ with constant or ‘interpolate’ with smoothed</span></dt><dd><p>: adjacent region</p>
-</dd>
-<dt>:param interp_range<span class="classifier">range over which interpolation pixels are calculated</span></dt><dd><p>: (if strategy is ‘interpolate’)</p>
-</dd>
-</dl>
+constant, or interpolation from a Gaussian-smoothed version of the image. It
+requires a binary array (pxmask) which is 1 (or 255 or True) for dead pixels.
+The function accepts a 3D array where the first dimension corresponds to a stack/movie.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>replace_val</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]) – value with which dead pixels are replaced
-: (if strategy is ‘replace’)</p></li>
-<li><p><strong>mask_gaps</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – treat the interpolated pixels between the panels as dead</p></li>
-<li><p><strong>edge_mask_</strong><strong>[</strong><strong>x/y</strong><strong>]</strong> – number of pixels at outer [left/right]/[upper/lower] edges to treat as
-: dead (because of shading)</p></li>
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – the image or image stack (first dimension is stack).
+For strategy==’replace’ it can be a dask or numpy array, otherwise numpy only.</p></li>
+<li><p><strong>pxmask</strong> (<em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>str</em><em>]</em>) – pixel mask with values as described above, or name of
+a TIF file containing the pixel mask</p></li>
+<li><p><strong>strategy</strong> (<em>str</em><em>, </em><em>optional</em>) – ‘interpolate’ or ‘replace’. Defaults to ‘interpolate’.</p></li>
+<li><p><strong>interp_range</strong> (<em>int</em><em>, </em><em>optional</em>) – range of interpolation for ‘interpolate’ strategy, in pixels.
+Defaults to 1.</p></li>
+<li><p><strong>replace_val</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>int</em><em>]</em><em>, </em><em>optional</em>) – replacement value for ‘replace’ strategy. If None, use
+-1 for integer images and nan for float images. Defaults to None.</p></li>
+<li><p><strong>mask_gaps</strong> (<em>bool</em><em>, </em><em>optional</em>) – mask gaps between detector panels as returned by the gap_pixels() function.
+Defaults to False.</p></li>
+<li><p><strong>edge_mask_x</strong> (<em>int</em><em>, </em><em>optional</em>) – Declare this number of pixels near the edges along x as
+invalid and replace them with replaceval. Defaults to 70.</p></li>
+<li><p><strong>edge_mask_y</strong> (<em>int</em><em>, </em><em>optional</em>) – Declare this number of pixels near the edges along y as
+invalid and replace them with replaceval. Defaults to 0.</p></li>
+<li><p><strong>invert_mask</strong> (<em>bool</em><em>, </em><em>optional</em>) – invert the pixel mask, i.e., invalid pixels are zero/False. Defaults to False.</p></li>
 </ul>
 </dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>dead-pixel corrected image. Can be da.Array for ‘replace’ strategy.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
 </dl>
-<p>:param kwargs   : not doing anything so far
-:return         : corrected image</p>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.correct_image">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">correct_image</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">opts</span></em>, <em class="sig-param"><span class="n">x0</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">y0</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">peakinfo</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">reference</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#correct_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.correct_image" title="Permalink to this definition">¶</a></dt>
-<dd><p>Runs correction pipeline on stack of diffraction images (numpy or dask). The pipeline comprises
-flat-field, saturation and dead-pixel correction, as well as background subtraction, optionally
-including peak exclusion (recommended).</p>
+<dd><p>Runs correction pipeline on stack of diffraction images (numpy or dask).</p>
+<p>The correction pipeline comprises flat-field, saturation and dead-pixel correction, as well as
+background subtraction, optionally including exclusion of diffraction peaks for computation of the
+background (recommended).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function essentially wraps <cite>proc2d._get_corr_image</cite> with smart functions to take care
+of dask input arrays. If you want to change the
+correction pipeline, that is the function to modify.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>{Union</strong><strong>[</strong><strong>np.ndarray</strong><strong>, </strong><strong>da.Array</strong><strong>]</strong><strong>} -- Diffraction pattern stack</strong> (<em>img</em>) – </p></li>
-<li><p><strong>{PreProcOpts} -- Pre-processing options. Options used are</strong> (<em>opts</em>) – (…)</p></li>
+<li><p><strong>img</strong> (<em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>da.Array</em><em>]</em>) – Diffraction pattern stack</p></li>
+<li><p><strong>opts</strong> (<a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts" title="diffractem.pre_proc_opts.PreProcOpts"><em>PreProcOpts</em></a>) – Pre-processing options. Options used are: (…)</p></li>
+<li><p><strong>x0</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>np.ndarray</em><em>, </em><em>da.Array</em><em>, </em><em>pd.Series</em><em>]</em><em>, </em><em>optional</em>) – Pattern X centers
+(None: use image center). Defaults to None.</p></li>
+<li><p><strong>y0</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>np.ndarray</em><em>, </em><em>da.Array</em><em>, </em><em>pd.Series</em><em>]</em><em>, </em><em>optional</em>) – Pattern Y centers
+(None: use image center). Defaults to None.</p></li>
+<li><p><strong>peakinfo</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>da.Array</em><em>]</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Diffraction peak dict
+in CXI format  (None: no peak exclusion during background subtraction). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Flat-field reference
+(None: use reference file specified in options). Defaults to None.</p></li>
+<li><p><strong>pxmask</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Pixel mask reference
+(default: use reference file specified in options). Defaults to None.</p></li>
 </ul>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>{Union</strong><strong>[</strong><strong>None</strong><strong>, </strong><strong>np.ndarray</strong><strong>, </strong><strong>da.Array</strong><strong>]</strong><strong>} -- Pattern X centers</strong> (<em>x0</em>) – (default: use image center)</p></li>
-<li><p><strong>{Union</strong><strong>[</strong><strong>None</strong><strong>, </strong><strong>np.ndarray</strong><strong>, </strong><strong>da.Array</strong><strong>]</strong><strong>} -- Pattern Y centers</strong> (<em>y0</em>) – (default: use image center)</p></li>
-<li><p><strong>{Union</strong><strong>[</strong><strong>None</strong><strong>, </strong><strong>Dict</strong><strong>[</strong><strong>Union</strong><strong>[</strong><strong>np.ndarray</strong><strong>, </strong><strong>da.Array</strong><strong>]</strong><strong>]</strong><strong>]</strong><strong>} -- Diffraction peak dict in CXI format</strong> (<em>peakinfo</em>) – (default: no peak exclusion during background subtraction)</p></li>
-<li><p><strong>{Union</strong><strong>[</strong><strong>None</strong><strong>, </strong><strong>Union</strong><strong>[</strong><strong>np.ndarray</strong><strong>, </strong><strong>str</strong><strong>]</strong><strong>]</strong><strong>} -- Flat-field reference</strong> (<a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.reference" title="diffractem.pre_proc_opts.PreProcOpts.reference"><em>reference</em></a>) – (default: use reference file specified in options)</p></li>
-<li><p><strong>{Union</strong><strong>[</strong><strong>None</strong><strong>, </strong><strong>Union</strong><strong>[</strong><strong>np.ndarray</strong><strong>, </strong><strong>str</strong><strong>]</strong><strong>]</strong><strong>} --</strong><strong> [</strong><strong>description</strong><strong>]</strong> (<a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.pxmask" title="diffractem.pre_proc_opts.PreProcOpts.pxmask"><em>pxmask</em></a>) – (default: use pixel mask file specified in options)</p></li>
-</ul>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Array</span></code>]</p>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>[Union[np.ndarray, da.Array]] – Corrected diffraction image stack.</p>
+<dd class="field-even"><p>Corrected image stack of identical dimension as input stack.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Union[np.ndarray, da.Array]</p>
 </dd>
 </dl>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This function essentially wraps proc2d._compute_corr_image. If you want to change the
-correction pipeline, that is the function to modify.</p>
-</div>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.cut_peaks">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">cut_peaks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">nPeaks</span></em>, <em class="sig-param"><span class="n">peakXPosRaw</span></em>, <em class="sig-param"><span class="n">peakYPosRaw</span></em>, <em class="sig-param"><span class="n">radius</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">replaceval</span><span class="o">=</span><span class="default_value">- 1</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#cut_peaks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.cut_peaks" title="Permalink to this definition">¶</a></dt>
-<dd><p>Cuts peaks out of an image and replaces them with replaceval.
-Peak positions are provided in CXI format.</p>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">cut_peaks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">nPeaks</span></em>, <em class="sig-param"><span class="n">peakXPosRaw</span></em>, <em class="sig-param"><span class="n">peakYPosRaw</span></em>, <em class="sig-param"><span class="n">radius</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">replaceval</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#cut_peaks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.cut_peaks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cuts peaks out of an image and replaces them with replaceval. Peak positions are provided in CXI format.</p>
+<p>This function is mainly interesting for calculation of radial profiles, ignoring Bragg peaks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>{np.array} -- Input image</strong> (<em>img</em>) – </p></li>
-<li><p><strong>{np.array} -- Number of peaks</strong> (<em>nPeaks</em>) – </p></li>
-<li><p><strong>{np.array} -- X position of peaks</strong> (<em>peakXPosRaw</em>) – </p></li>
-<li><p><strong>{np.array} -- Y position of peaks</strong> (<em>peakYPosRaw</em>) – </p></li>
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – Input image (or stack thereof)</p></li>
+<li><p><strong>nPeaks</strong> (<em>np.ndarray</em>) – number of peaks</p></li>
+<li><p><strong>peakXPosRaw</strong> (<em>np.ndarray</em>) – peak X positions</p></li>
+<li><p><strong>peakYPosRaw</strong> (<em>np.ndarray</em>) – peak y positions</p></li>
+<li><p><strong>radius</strong> (<em>int</em><em>, </em><em>optional</em>) – Radius of circle within which image values are replaced around each peak.
+Defaults to 2.</p></li>
+<li><p><strong>replaceval</strong> (<em>Union</em><em>[</em><em>int</em><em>, </em><em>float</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – Value to paint into the circles. If None,
+uses -1 on integer images and np.nan otherwise. Defaults to None.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>{int} -- Radius in pixel of peak cut-out region</strong><strong> (</strong><strong>default</strong> (<em>radius</em>) – {2})</p></li>
-<li><p><strong>{int} -- Value to change the cut pixels to</strong><strong> (</strong><strong>default</strong> (<em>replaceval</em>) – {-1})</p></li>
-</ul>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Image with cut-out peaks.</p>
 </dd>
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>[as img] – Image with peaks cut out</p>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
@@ -363,108 +441,182 @@ Peak positions are provided in CXI format.</p>
 <dt id="diffractem.proc2d.func_lorentz">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">func_lorentz</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">p</span></em>, <em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#func_lorentz"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.func_lorentz" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function that returns a Student’t distribution or generalised Cauchy
-distribution in Two Dimensions(x,y).
-:param p    :  [amp x_0 y_0 scale shape]
-:param x    : x coordinate
-:param y    : y coordinate</p>
+distribution in Two Dimensions(x,y):</p>
+<p>amp * [(1 + ((x-x_0)/scale)**2) + (1 + ((y-y_0)/scale)**2)] ** (-shape/2)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>p</strong> (<em>Union</em><em>[</em><em>list</em><em>, </em><em>tuple</em><em>, </em><em>np.ndarray</em><em>]</em>) – Parameter array: [amp, x_0, y_0, scale, shape]</p></li>
+<li><p><strong>x</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>np.ndarray</em><em>]</em>) – x coordinate(s)</p></li>
+<li><p><strong>y</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>np.ndarray</em><em>]</em>) – y coordinate(s)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>function value at (x, y)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Union[float, np.ndarray]</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.get_pattern_info">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">get_pattern_info</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">opts</span></em>, <em class="sig-param"><span class="n">client</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">reference</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">lazy</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">sync</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#get_pattern_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.get_pattern_info" title="Permalink to this definition">¶</a></dt>
-<dd><p>PATTERN PROCESSING MACRO
-…returns a DataFrame + dict!
-get_pattern_info computes information on a given diffraction pattern or stack thereof
-(as 3D numpy array), returned as a dask.delayed object that computes to a dictionary.
-It can be altered as required, but in this incarnation it computes center of mass,
-Parameters of a Lorentzian fit, Pattern center as determined from Friedel pair
-matching, and Found peaks using peakfinder8 in CXI format (as a sub-dict).</p>
+<dd><p>‘Macro’ function for getting information about diffraction patterns.</p>
+<p><cite>get_pattern_info</cite> finds diffraction peaks and computes information such as pattern center on a given diffraction
+pattern or stack thereof. By default (<cite>lazy=False</cite> and <cite>sync=True</cite>) it will return a pandas DataFrame containing
+general information on each pattern, and a dict holding the found peaks in CXI format.</p>
+<p>The options for preprocessing are passed as a <cite>PreProcOpts</cite> object.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function is essentially a smart wrapper around <cite>prof2d._generate_pattern_info</cite>. If you’d like to change
+what is actually calculated and how, that is the function to modify!</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As this function is computationally heavy, it is <strong>very</strong> advisable to use a <em>dask.distributed</em> cluster for
+computation, with a client object supplied to the function call.</p>
+</div>
 <dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>Union</em><em>[</em><em>np.ndarray</em><em>, </em><em>da.Array</em><em>]</em>) – stack of diffraction patterns, typically a dask array</p></li>
+<li><p><strong>opts</strong> (<a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts" title="diffractem.pre_proc_opts.PreProcOpts"><em>PreProcOpts</em></a>) – pre-processing options.</p></li>
+<li><p><strong>client</strong> (<em>Optional</em><em>[</em><em>Client</em><em>]</em><em>, </em><em>optional</em>) – Client object for dask.distributed cluster. If None, runs
+computation by simply calling <cite>compute</cite> on the stack dask array (discouraged). Defaults to None.</p></li>
+<li><p><strong>reference</strong> (<em>Optional</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>optional</em>) – Flat-field reference image. If None, load the one specified in
+preprocessing options. Defaults to None.</p></li>
+<li><p><strong>pxmask</strong> (<em>Optional</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>optional</em>) – Pixel mask image. If None, load the one specified in
+preprocessing options. Defaults to None.</p></li>
+<li><p><strong>lazy</strong> (<em>bool</em><em>, </em><em>optional</em>) – Return <cite>dask.delayed</cite> objects for pattern info generation tasks instead of the final
+results. Mostly useful for debugging or embedding into more complex workflows. Defaults to False.</p></li>
+<li><p><strong>sync</strong> (<em>bool</em><em>, </em><em>optional</em>) – Immediately compute pattern info. If False, returns futures to pattern info dictionaries
+instead of DataFrame and peak dict. Defaults to True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>pandas DataFrame holding general pattern information, and dict holding CXI-format</dt><dd><p>peaks. (note that return values are different when using <cite>lazy=True</cite> or <cite>sync=False</cite> - see above)</p>
+</dd>
+</dl>
+</p>
+</dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]</p>
+<dd class="field-odd"><p>Tuple[pd.DataFrame, dict]</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.get_peaks">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">get_peaks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">x0</span></em>, <em class="sig-param"><span class="n">y0</span></em>, <em class="sig-param"><span class="n">max_peaks</span><span class="o">=</span><span class="default_value">500</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">min_snr</span><span class="o">=</span><span class="default_value">4.0</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">8</span></em>, <em class="sig-param"><span class="n">min_pix_count</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">max_pix_count</span><span class="o">=</span><span class="default_value">20</span></em>, <em class="sig-param"><span class="n">local_bg_radius</span><span class="o">=</span><span class="default_value">3</span></em>, <em class="sig-param"><span class="n">min_res</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">max_res</span><span class="o">=</span><span class="default_value">500</span></em>, <em class="sig-param"><span class="n">as_dict</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#get_peaks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.get_peaks" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">get_peaks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">x0</span></em>, <em class="sig-param"><span class="n">y0</span></em>, <em class="sig-param"><span class="n">max_peaks</span><span class="o">=</span><span class="default_value">500</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">min_snr</span><span class="o">=</span><span class="default_value">4.0</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">8</span></em>, <em class="sig-param"><span class="n">min_pix_count</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">max_pix_count</span><span class="o">=</span><span class="default_value">20</span></em>, <em class="sig-param"><span class="n">local_bg_radius</span><span class="o">=</span><span class="default_value">3</span></em>, <em class="sig-param"><span class="n">min_res</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">max_res</span><span class="o">=</span><span class="default_value">500</span></em>, <em class="sig-param"><span class="n">as_dict</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#get_peaks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.get_peaks" title="Permalink to this definition">¶</a></dt>
 <dd><p>Find peaks in diffraction pattern using the peakfinder8 algorithm as used in
-CrystFEL, OnDA and Cheetah. Requires installation of OnDA.</p>
+CrystFEL, OnDA and Cheetah. For explanation of the finding parameters, please consult the
+CrystFEL documentation (or just run <cite>man indexamajig</cite>).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>-- Input image</strong><strong> or </strong><strong>stack</strong> (<em>img</em>) – </p></li>
-<li><p><strong>-- Beam center along x</strong> (<em>x0</em>) – </p></li>
-<li><p><strong>-- Beam center along y</strong> (<em>y0</em>) – </p></li>
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – image stack</p></li>
+<li><p><strong>x0</strong> (<em>float</em>) – image stack x center</p></li>
+<li><p><strong>y0</strong> (<em>float</em>) – image stack y center</p></li>
+<li><p><strong>max_peaks</strong> (<em>int</em><em>, </em><em>optional</em>) – maximum number of peaks. Defaults to 500.</p></li>
+<li><p><strong>pxmask</strong> (<em>Optional</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>optional</em>) – pixel mask. Defaults to None.</p></li>
+<li><p><strong>min_snr</strong> (<em>float</em><em>, </em><em>optional</em>) – minimum peak SNR. Defaults to 4..</p></li>
+<li><p><strong>threshold</strong> (<em>float</em><em>, </em><em>optional</em>) – count threshold. Defaults to 8.</p></li>
+<li><p><strong>min_pix_count</strong> (<em>int</em><em>, </em><em>optional</em>) – minimum number of pixels in peak. Defaults to 2.</p></li>
+<li><p><strong>max_pix_count</strong> (<em>int</em><em>, </em><em>optional</em>) – maximum number of pixels in peak. Defaults to 20.</p></li>
+<li><p><strong>local_bg_radius</strong> (<em>int</em><em>, </em><em>optional</em>) – radius for peak backgroud estimation. Defaults to 3.</p></li>
+<li><p><strong>min_res</strong> (<em>int</em><em>, </em><em>optional</em>) – minimum resolution (= radial range) in pixels. Defaults to 0.</p></li>
+<li><p><strong>max_res</strong> (<em>int</em><em>, </em><em>optional</em>) – maximum resolution (= radial range) in pixels. Defaults to 500.</p></li>
+<li><p><strong>as_dict</strong> (<em>bool</em><em>, </em><em>optional</em>) – return results as a dictionary instead of a
+single numpy array. Defaults to True.</p></li>
 </ul>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>{int} -- Maximum number of peaks</strong><strong> (</strong><strong>default</strong> (<a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.max_peaks" title="diffractem.pre_proc_opts.PreProcOpts.max_peaks"><em>max_peaks</em></a>) – {500})</p></li>
-<li><p><strong>{float} -- Pixel mask. Pixels with value greater than 0 are ignored.</strong><strong> (</strong><strong>default</strong> (<a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts.pxmask" title="diffractem.pre_proc_opts.PreProcOpts.pxmask"><em>pxmask</em></a>) – {None})</p></li>
-<li><p><strong>{float} -- minimum signal-to-noise ratio for peak detection</strong><strong> (</strong><strong>default</strong> (<em>min_snr</em>) – {4})</p></li>
-<li><p><strong>{float} -- minimum pixel value for peak detection</strong><strong> (</strong><strong>default</strong> (<em>threshold</em>) – {8})</p></li>
-<li><p><strong>{int} -- minimum size of a peak in pixels</strong><strong> (</strong><strong>default</strong> (<em>min_pix_count</em>) – {2})</p></li>
-<li><p><strong>{int} -- maximum size of a peak in pixels</strong><strong> (</strong><strong>default</strong> (<em>max_pix_count</em>) – {20})</p></li>
-<li><p><strong>{int} -- radius for the estimation of the local background in pixels</strong><strong> (</strong><strong>default</strong> (<em>local_bg_radius</em>) – {3})</p></li>
-<li><p><strong>{int} --  minimum resolution for a peak in pixels</strong><strong> (</strong><strong>default</strong> (<em>min_res</em>) – {0})</p></li>
-<li><p><strong>{int} -- maximum resolution for a peak in pixels</strong><strong> (</strong><strong>default</strong> (<em>max_res</em>) – {500})</p></li>
-</ul>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></p>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>[ndarray] – Vector of shape (3 * pkmax) + 1, or stack thereof (matrix). First {pkmax} entries are peak
-x postions, then {pkmax} y positions, {pkmax} intensities, and finally the number of peaks.</p>
+<dd class="field-even"><p><dl class="simple">
+<dt>CXI-format peaks information. If as_dict=False, instead returns a 1d array</dt><dd><p>of size (3 * max_peaks + 1), which contains x positions, y positions, intensities,
+and number of peaks concatenated.</p>
 </dd>
 </dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The returned peak positions follow CXI convention, that is, they refer to pixel <em>centers</em>,
+not corners (as in <cite>CrystFEL</cite>). For <cite>CrystFEL</cite>-convention you have to add 0.5 to the
+returned peak positions.</p>
+</div>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.loop_over_stack">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">loop_over_stack</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fun</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#loop_over_stack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.loop_over_stack" title="Permalink to this definition">¶</a></dt>
-<dd><p>Decorator to (sequentially) loop a 2D processing function over a stack.
-Works on all functions with signature fun(imgs, <a href="#id1"><span class="problematic" id="id2">*</span></a>args, <a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs), where
-imgs is a 3D stack or a 2D single image.
+<dd><p>Decorator to (sequentially) loop a 2D processing function over a stack.</p>
+<p>In brief, if you have a function that either modifies a (single) image or extracts some reduced
+data from it, this decorator wraps it such that it can operate on a whole stack of images.</p>
+<p>Works on all functions with signature fun(imgs: np.ndarray, <a href="#id1"><span class="problematic" id="id2">*</span></a>args, <a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs),
+where imgs is a numpy 3D stack or a 2D single image. It has to return either
+a numpy array,n which case it returns a stacked array of the function output,
+or a collection containing numpy arrays, each of which is stacked individually.
 If any of the positional/named arguments is an iterable of the same length
 as the image stack, it is distributed over the function calls for each
 image.</p>
-<p>:param fun     : function to be decorated
-:return         : decorated function</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><cite>loop_over_stack</cite> only works on functions eating numpy arrays, <em>not</em> dask arrays.
+If you want to apply a function to a dask-array image stack, you have to <em>additionally</em>
+wrap it in <cite>dask.array.map_blocks</cite>, <cite>diffractem.dataset._map_sub_blocks</cite>,
+<cite>diffractem.compute.map_reduction_func</cite> or similar.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fun</strong> (<em>Callable</em>) – function to be decorated</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>function that loops over an image stack automatically</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Callable</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.lorentz_fast">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">lorentz_fast</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">x_0</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">y_0</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">amp</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">scale</span><span class="o">=</span><span class="default_value">5.0</span></em>, <em class="sig-param"><span class="n">radius</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">limit</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">threads</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#lorentz_fast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.lorentz_fast" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">lorentz_fast</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">x_0</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">y_0</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">amp</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">scale</span><span class="o">=</span><span class="default_value">5.0</span></em>, <em class="sig-param"><span class="n">radius</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">limit</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">threads</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#lorentz_fast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.lorentz_fast" title="Permalink to this definition">¶</a></dt>
 <dd><p>Fast Lorentzian fit for finding beam center; especially suited for refinement after a reasonable estimate
 (i.e. to a couple of pixels) has been made by another method such as truncated COM.
 Compared to the other fits, it always assumes a shape parameter 2 (i.e. standard Lorentzian with asymptotic x^-2).
 It can restrict the fit to only a small region around the initial value for the beam center, which massively speeds
-up the function. Also, it auto-estimates the intial parameters somewhat reasonably if nothing else is given.
-:param img: input image or image stack. If a stack is supplied, it is serially looped. Not accepting dask directly.
-:param x_0: estimated x beam center. If None, is assumed to be in the center of the image.
-:param y_0: analogous.
-:param amp: estimated peak amplitude. If None, is set to the 99.99% percentile of img.
-:param scale: peak HWHM estimate. Default: 5 pixels
-:param radius: radius of a box around x_0, y_0 where the fit is actually done. If None, the entire image is used.
-:param limit: If not None, the fit result is discarded if the found beam_center is further away than this value from</p>
-<blockquote>
-<div><p>the initial estimate.</p>
-</div></blockquote>
+up the function. Also, it auto-estimates the intial parameters somewhat reasonably if nothing else is given.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>threshold</strong> – pixel value threshold below which pixels are ignored. Best left at 0 usually.</p></li>
-<li><p><strong>threads</strong> – if True, uses scipy.optimize.least_squares, which for larger arrays (radius more than around 15)
+<li><p><strong>img</strong> (<em>float</em>) – input image or image stack. If a stack is supplied, it is serially looped. Not accepting dask directly.</p></li>
+<li><p><strong>x_0</strong> (<em>float</em><em>, </em><em>optional</em>) – estimated x beam center. If None, is assumed to be in the center of the image. Defaults to None.</p></li>
+<li><p><strong>y_0</strong> (<em>float</em><em>, </em><em>optional</em>) – analogous. Defaults to None.</p></li>
+<li><p><strong>amp</strong> (<em>float</em><em>, </em><em>optional</em>) – estimated peak amplitude. If None, is set to the 99.99% percentile of img. Defaults to None.</p></li>
+<li><p><strong>scale</strong> (<em>float</em><em>, </em><em>optional</em>) – peak HWHM estimate in pixels. Defaults to 5.0.</p></li>
+<li><p><strong>radius</strong> (<em>float</em><em>, </em><em>optional</em>) – radius of a box around x_0, y_0 where the fit is actually done. If None, the entire image is used. Defaults to None.</p></li>
+<li><p><strong>limit</strong> (<em>float</em><em>, </em><em>optional</em>) – If not None, the fit result is discarded if the found beam_center is further away than this value from
+the initial estimate. Defaults to None.</p></li>
+<li><p><strong>threshold</strong> (<em>int</em><em>, </em><em>optional</em>) – pixel value threshold below which pixels are ignored. Defaults to 0.</p></li>
+<li><p><strong>threads</strong> (<em>bool</em><em>, </em><em>optional</em>) – if True, uses scipy.optimize.least_squares, which for larger arrays (radius more than around 15)
 uses multithreaded function evaluation. Especially for radius &lt; 50, this may be slower than single-threaded.
-In this case, best set to False</p></li>
-<li><p><strong>verbose</strong> – if True, a message is printed on some occasions</p></li>
+In this case, best set to False. Defaults to False.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – if True, a message is printed on some occasions. Defaults to False.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>numpy array of refined parameters [amp, x0, y0, scale]</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
@@ -472,102 +624,184 @@ In this case, best set to False</p></li>
 <dl class="py function">
 <dt id="diffractem.proc2d.lorentz_fit">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">lorentz_fit</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">amp</span><span class="o">=</span><span class="default_value">1.0</span></em>, <em class="sig-param"><span class="n">x_0</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">y_0</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">scale</span><span class="o">=</span><span class="default_value">5.0</span></em>, <em class="sig-param"><span class="n">shape</span><span class="o">=</span><span class="default_value">2.0</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#lorentz_fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.lorentz_fit" title="Permalink to this definition">¶</a></dt>
-<dd><p>Fits a Lorentz profile to find the centroid (x_0,y_0) of an image.
-Build upon optimize.least_squares function  which is thread safe
+<dd><p>Fits a Lorentz profile to find the center (x_0, y_0) of a diffraction
+pattern, ignoring any pixels with values &lt; threshold.</p>
+<p>The fit function is based on:</p>
+<p>amp * [(1 + ((x-x_0)/scale)**2) + (1 + ((y-y_0)/scale)**2)] ** (-shape/2)</p>
+<p>Build upon optimize.least_squares function  which is thread safe
 Note: least.sq is not. Analytical Jacobian has been added.</p>
-<p>:param amp      : normalisation of Lorentzian
-:param x_0      : initial x position of centroid
-:param y_0      : initial y position of centroid
-:param scale    : scale of Lorentzian
-:param shape    : shape of Lorentzian
-:return         : output of least_squares</p>
-</dd></dl>
-
-<dl class="py function">
-<dt id="diffractem.proc2d.lorentz_fit_moving">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">lorentz_fit_moving</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">com</span></em>, <em class="sig-param"><span class="n">update_init</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">block_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">minimum_data</span><span class="o">=</span><span class="default_value">500</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#lorentz_fit_moving"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.lorentz_fit_moving" title="Permalink to this definition">¶</a></dt>
-<dd><p>Find the center positions and peak heights from Lorentz fits for a stack
-of images, initializing each fit with the result of the previous one
-within the stack.</p>
-<p>:param img          : Image stack
-:param com          : Center-of-mass positions as N-by-2 array
-:param update_init  : If true, tries to initialize each fit with the</p>
-<blockquote>
-<div><p>: results of the previous one.</p>
-</div></blockquote>
-<p>:param block_id     : Optional, just used for status message.
-:return             : Numpy array of the fit results</p>
-</dd></dl>
-
-<dl class="py function">
-<dt id="diffractem.proc2d.lorentz_fit_simple">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">lorentz_fit_simple</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">profile</span></em>, <em class="sig-param"><span class="n">bin_min</span><span class="o">=</span><span class="default_value">3</span></em>, <em class="sig-param"><span class="n">bin_max</span><span class="o">=</span><span class="default_value">40</span></em>, <em class="sig-param"><span class="n">amp</span><span class="o">=</span><span class="default_value">500.0</span></em>, <em class="sig-param"><span class="n">scale</span><span class="o">=</span><span class="default_value">5.0</span></em>, <em class="sig-param"><span class="n">shape</span><span class="o">=</span><span class="default_value">2.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#lorentz_fit_simple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.lorentz_fit_simple" title="Permalink to this definition">¶</a></dt>
-<dd><p>Simplified Lorentz fit in the 1D-radial.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If possible (i.e. you leave shape at 2.0), do <strong>not</strong> use this function,
+it’s really slow. Instead use <cite>lorentz_fast</cite>.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fit function above</strong> (<em>see</em>) – </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>result of optimization</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>OptimizeResult</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.mean_clip">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">mean_clip</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">c</span></em>, <em class="sig-param"><span class="n">sigma</span><span class="o">=</span><span class="default_value">2.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#mean_clip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.mean_clip" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="simple">
-<dt>Iteratively keeps only the values from the array that satisfies</dt><dd><p>0 &lt; c &lt; c_mean + sigma*std</p>
-</dd>
-</dl>
-<p>and return the mean of the array. Assumes the
+<dt>Iteratively keeps only the values from the array that satisfies</dt><dd><p>0 &lt; c &lt; c_mean + sigma*std
+and return the mean of the array. Assumes the
 array contains positive entries,
 if it does not or the array is empty returns -1</p>
-<p>:param vector   : input vector of values.
-:param sigma    : number of standard deviations away from the mean</p>
-<blockquote>
-<div><p>: that is allowed.</p>
-</div></blockquote>
-<p>:return c_mean  : mean of clipped values</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>c</strong> (<em>np.ndarray</em>) – input value array</p></li>
+<li><p><strong>sigma</strong> (<em>float</em><em>, </em><em>optional</em>) – number of standard deviations away from the mean
+that is used for mean calculation. Defaults to 2.0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Mean of clipped values</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.radial_proj">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">radial_proj</code><span class="sig-paren">(</span><em class="sig-param">img</em>, <em class="sig-param">x0=None</em>, <em class="sig-param">y0=None</em>, <em class="sig-param">my_func=&lt;function nanmean&gt;</em>, <em class="sig-param">min_size=600</em>, <em class="sig-param">max_size=850</em>, <em class="sig-param">filter_len=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#radial_proj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.radial_proj" title="Permalink to this definition">¶</a></dt>
-<dd><p>Applies the function to the azimuthal bins of the image around
-the center (x0,y0) for each integer radius and returns the result
-in a np.array of size max_size. Skips values that are set to -1 or nan.
-:type img: <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>
-:param img: input image
-:type x0: <code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]
-:param x0: x center of mass of image
-:type y0: <code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]
-:param y0: y center of mass of image
-:type my_func: <code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>[[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>[[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]]]
-:param my_func: function to be applied to the bins, or list thereof
-:type min_size: <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>
-:param min_size: minimum length of output array
-:type max_size: <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>
-:param max_size: maximum length of output array
-:type filter_len: <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>
-:param filter_len: kernel size of median filter applied after profile calculation.</p>
-<blockquote>
-<div><p>filter_len must be odd, and filtering is at the moment incompatible with multiple functions</p>
-</div></blockquote>
+<dd><p>Applies a function to azimuthal bins of the image around
+the center (x0, y0) for each integer radius and returns the result
+in a np.array of size max_size, yielding a radial profile. Skips values that are set to -1 or nan.</p>
+<p>Optionally, a median filter can be applied to the output.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Return result</dt>
-<dd class="field-odd"><p>array of function returns on each radius.</p>
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – input image or stack</p></li>
+<li><p><strong>x0</strong> (<em>Optional</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – x center of pattern. Center of image is None. Defaults to None.</p></li>
+<li><p><strong>y0</strong> (<em>Optional</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – y center of pattern. Center of image is None. . Defaults to None.</p></li>
+<li><p><strong>my_func</strong> (<em>Union</em><em>[</em><em>Callable</em><em>[</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>np.ndarray</em><em>]</em><em>, </em><em>List</em><em>[</em><em>Callable</em><em>[</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>np.ndarray</em><em>]</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – function
+to call on all pixel values at a given radius, or iterable thereof. Defaults to np.nanmean.</p></li>
+<li><p><strong>min_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Minimum length of the output profile. Defaults to 600.</p></li>
+<li><p><strong>max_size</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum length of the output profile. Defaults to 850.</p></li>
+<li><p><strong>filter_len</strong> (<em>int</em><em>, </em><em>optional</em>) – Kernel size of median filter applied after profile calculation.</p></li>
+<li><p><strong>must be odd</strong><strong>, </strong><strong>and filtering is at the moment incompatible with multiple functions. Defaults to 1.</strong> (<em>filter_len</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>radial profile calculated using my_func</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
 </dd>
 </dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The median filter will currently only work, if a single function is used only! Sorry for that.</p>
+</div>
 </dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.remove_background">
 <code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">remove_background</code><span class="sig-paren">(</span><em class="sig-param">img</em>, <em class="sig-param">x0=None</em>, <em class="sig-param">y0=None</em>, <em class="sig-param">nPeaks=None</em>, <em class="sig-param">peakXPosRaw=None</em>, <em class="sig-param">peakYPosRaw=None</em>, <em class="sig-param">peak_radius=3</em>, <em class="sig-param">filter_len=5</em>, <em class="sig-param">rfunc=&lt;function nanmean&gt;</em>, <em class="sig-param">pxmask=None</em>, <em class="sig-param">truncate=False</em>, <em class="sig-param">offset=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#remove_background"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.remove_background" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Combines <cite>radial_proj</cite>, <cite>cut_peaks</cite> and <cite>strip_img</cite> into a background-removal protocol for diffration
+patterns, assuming radial symmetry of the background.</p>
+<p>The diffraction pattern is first azimuthally integrated, excluding Bragg peaks, and the resulting radial
+profile is further smoothed. The profile is then re-projected to the full image and subtracted. This procedure
+usually works excellently well - at least, if the peak finding has been done carefully. If there are hard
+issues with peak finding, it might be worth setting rfunc=np.nanmedian.</p>
+<p>Peaks have to be provided in CXI format and convention.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – Input image or stack thereof</p></li>
+<li><p><strong>x0</strong> (<em>Optional</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – Diffraction pattern center along x. If None, use the image center.
+Defaults to None.</p></li>
+<li><p><strong>y0</strong> (<em>Optional</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – Diffraction pattern center along y. If None, use the image center.
+Defaults to None.</p></li>
+<li><p><strong>nPeaks</strong> (<em>Optional</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>optional</em>) – Number of peaks. Defaults to None.</p></li>
+<li><p><strong>peakXPosRaw</strong> (<em>Optional</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>optional</em>) – peak X positions. Defaults to None.</p></li>
+<li><p><strong>peakYPosRaw</strong> (<em>Optional</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>optional</em>) – peak Y positions. Defaults to None.</p></li>
+<li><p><strong>peak_radius</strong> (<em>int</em><em>, </em><em>optional</em>) – Radius around each peak excluded from background calculation. Defaults to 3.</p></li>
+<li><p><strong>filter_len</strong> (<em>int</em><em>, </em><em>optional</em>) – Range of median filter applied to radial profile. Defaults to 5.</p></li>
+<li><p><strong>rfunc</strong> (<em>Callable</em><em>[</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>np.ndarray</em><em>]</em><em>, </em><em>optional</em>) – Function for calculation of the radial profile
+through azimuthal averaging. Defaults to np.nanmean.</p></li>
+<li><p><strong>pxmask</strong> (<em>[</em><em>type</em><em>]</em><em>, </em><em>optional</em>) – Pixel mask to be applied after correction. Defaults to None.</p></li>
+<li><p><strong>truncate</strong> (<em>bool</em><em>, </em><em>optional</em>) – Set all pixels of value &lt; offset to 0. Defaults to False.</p></li>
+<li><p><strong>offset</strong> (<em>int</em><em>, </em><em>optional</em>) – Offset for the output image. Defaults to 0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>[description]</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.stack_nested">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">stack_nested</code><span class="sig-paren">(</span><em class="sig-param">data_list</em>, <em class="sig-param">fun=&lt;function stack&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#stack_nested"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.stack_nested" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">stack_nested</code><span class="sig-paren">(</span><em class="sig-param">data_list</em>, <em class="sig-param">func=&lt;function stack&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#stack_nested"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.stack_nested" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a numpy/dask concatenation/stacking function recursively to a recursive
+python collection (tuple/list/dict) containing numpy or dask arrays on the lowest level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_list</strong> (<em>Union</em><em>[</em><em>tuple</em><em>, </em><em>list</em><em>, </em><em>dict</em><em>]</em>) – Collection of numpy arrays (can be recursive)</p></li>
+<li><p><strong>func</strong> (<em>Callable</em><em>, </em><em>optional</em>) – Concatenation function to apply. Defaults to np.stack.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>tuple/list/dict with concatenated/stacked numpy arrays</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>same as data_list</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.strip_img">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">strip_img</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">x0</span></em>, <em class="sig-param"><span class="n">y0</span></em>, <em class="sig-param"><span class="n">prof</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">truncate</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">offset</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">keep_edge_offset</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">replaceval</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">interp</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">dtype</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#strip_img"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.strip_img" title="Permalink to this definition">¶</a></dt>
-<dd><p>Given an image, center coordinate(x0,y0) and a radial profile, removes the
-radial profile from the image.</p>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">strip_img</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">prof</span></em>, <em class="sig-param"><span class="n">x0</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">y0</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">truncate</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">offset</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">keep_edge_offset</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">replaceval</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">interp</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">dtype</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#strip_img"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.strip_img" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subtract a radial profile from a diffraction pattern, assuming radial symmetry of the background.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>np.ndarray</em>) – Input image (or stack thereof)</p></li>
+<li><p><strong>prof</strong> (<em>np.ndarray</em>) – Radial profile to be subtracted</p></li>
+<li><p><strong>x0</strong> (<em>float</em><em>, </em><em>optional</em>) – Diffraction pattern center along x. If None, use the image center.
+Defaults to None.</p></li>
+<li><p><strong>y0</strong> (<em>float</em><em>, </em><em>optional</em>) – Diffraction pattern center along y. If None, use the image center.
+Defaults to None.</p></li>
+<li><p><strong>pxmask</strong> (<em>Optional</em><em>[</em><em>np.ndarray</em><em>]</em><em>, </em><em>optional</em>) – Pixel mask to apply <em>after</em> subtraction. Defaults to None.</p></li>
+<li><p><strong>truncate</strong> (<em>bool</em><em>, </em><em>optional</em>) – Replace all values below the offset by replaceval. Defaults to False.</p></li>
+<li><p><strong>offset</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>int</em><em>]</em><em>, </em><em>optional</em>) – Offset to apply to the output image. Required if
+you want to keep positive pixel values. Defaults to 0.</p></li>
+<li><p><strong>keep_edge_offset</strong> (<em>bool</em><em>, </em><em>optional</em>) – [description]. Defaults to False.</p></li>
+<li><p><strong>replaceval</strong> (<em>Optional</em><em>[</em><em>float</em><em>]</em><em>, </em><em>optional</em>) – Replace value for pixels falling below offset.
+Defaults to None.</p></li>
+<li><p><strong>interp</strong> (<em>bool</em><em>, </em><em>optional</em>) – Interpolate background pixel values, otherwise use nearest
+neighbour. Defaults to True.</p></li>
+<li><p><strong>dtype</strong> (<em>Optional</em><em>[</em><em>np.dtype</em><em>]</em><em>, </em><em>optional</em>) – If not None, convert output
+image to this data type. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Image with subtracted radial profile.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
 </dd></dl>
 
 </div>

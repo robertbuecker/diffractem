@@ -17,29 +17,58 @@ from typing import Optional, Tuple, Union, List, Callable, Dict
 from warnings import warn
 import pandas as pd
 
-def stack_nested(data_list, fun=np.stack): 
+
+def stack_nested(data_list: Union[tuple, list, dict], func: Callable = np.stack): 
+    """Applies a numpy/dask concatenation/stacking function recursively to a recursive 
+    python collection (tuple/list/dict) containing numpy or dask arrays on the lowest level.
+
+    Args:
+        data_list (Union[tuple, list, dict]): Collection of numpy arrays (can be recursive)
+        func (Callable, optional): Concatenation function to apply. Defaults to np.stack.
+
+    Returns:
+        same as data_list: tuple/list/dict with concatenated/stacked numpy arrays
+    """
+    
+    
     if np.ndim(data_list) == 0:
         data_list = [data_list]
     if isinstance(data_list[0], tuple):
-        return tuple(stack_nested(arr, fun) for arr in zip(*data_list))
+        return tuple(stack_nested(arr, func) for arr in zip(*data_list))
     elif isinstance(data_list[0], list):
-        return list(stack_nested(arr, fun) for arr in zip(*data_list))
+        return list(stack_nested(arr, func) for arr in zip(*data_list))
     elif isinstance(data_list[0], dict):
-        return {k: stack_nested(list(o[k] for o in data_list), fun) for k in data_list[0].keys()}
+        return {k: stack_nested(list(o[k] for o in data_list), func) for k in data_list[0].keys()}
     else:
-        return fun(data_list)
+        return func(data_list)
+
 
 def loop_over_stack(fun):
     """
     Decorator to (sequentially) loop a 2D processing function over a stack. 
-    Works on all functions with signature fun(imgs, *args, **kwargs), where 
-    imgs is a 3D stack or a 2D single image. 
+    
+    In brief, if you have a function that either modifies a (single) image or extracts some reduced
+    data from it, this decorator wraps it such that it can operate on a whole stack of images.
+    
+    Works on all functions with signature fun(imgs: np.ndarray, *args, **kwargs),
+    where imgs is a numpy 3D stack or a 2D single image. It has to return either
+    a numpy array,n which case it returns a stacked array of the function output, 
+    or a collection containing numpy arrays, each of which is stacked individually.
     If any of the positional/named arguments is an iterable of the same length 
     as the image stack, it is distributed over the function calls for each 
     image.
     
-    :param fun     : function to be decorated
-    :return         : decorated function
+    Note:
+        `loop_over_stack` only works on functions eating numpy arrays, *not* dask arrays.
+        If you want to apply a function to a dask-array image stack, you have to *additionally*
+        wrap it in `dask.array.map_blocks`, `diffractem.dataset._map_sub_blocks`, 
+        `diffractem.compute.map_reduction_func` or similar.
+         
+    Args:
+        fun (Callable): function to be decorated
+    
+    Returns:
+        Callable: function that loops over an image stack automatically
 
     """
     #TODO: handle functions with multiple outputs, and return a list of ndarrays
@@ -116,7 +145,30 @@ def loop_over_stack(fun):
 
 
 @loop_over_stack
-def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts, reference: Optional[np.ndarray] = None, pxmask: Optional[np.ndarray] = None):
+def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts, 
+                           reference: Optional[np.ndarray] = None, 
+                           pxmask: Optional[np.ndarray] = None) -> dict:
+    """'Macro' function computing information from diffraction data and returning it
+    as a dictionary. Primarily intended to be called from `get_pattern_info`.
+    
+    Note:
+        This function is different from most in `proc2d` in that it returns a
+        dictionary, *no* a `np.ndarray`. This has, among others, the implication, that
+        it cannot be called through the dask array interface via `map_blocks`.
+
+    Args:
+        img (np.ndarray): diffraction image or stack thereof as numpy array
+        opts (PreProcOpts): pre-processing options
+        reference (Optional[np.ndarray], optional): reference image for flat-field
+            correction. If None, grabs the file name from the options file and loads it. 
+            This is discouraged as it requires reloading it over and over. Defaults to None.
+        pxmask (Optional[np.ndarray], optional): similar, for pixel mask. Defaults to None.
+
+    Returns:
+        dict: Diffraction pattern information.
+    """
+    #TODO consider using a NamedTuple for return values instead of a dict
+    
     # computations on diffraction patterns. To be called from get_pattern_info.
     
     reference = opts.reference if reference is None else reference
@@ -174,19 +226,47 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts, reference: Option
     return pattern_info
 
 
-def get_pattern_info(img: np.ndarray, opts: PreProcOpts, client: Optional[Client] = None, 
+def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client: Optional[Client] = None, 
                      reference: Optional[np.ndarray] = None, 
                      pxmask: Optional[np.ndarray] = None, 
                      lazy: bool = False, sync: bool = True) -> Tuple[pd.DataFrame, dict]:
-    '''
-    PATTERN PROCESSING MACRO
-    ...returns a DataFrame + dict!
-    get_pattern_info computes information on a given diffraction pattern or stack thereof 
-    (as 3D numpy array), returned as a dask.delayed object that computes to a dictionary.
-    It can be altered as required, but in this incarnation it computes center of mass,
-    Parameters of a Lorentzian fit, Pattern center as determined from Friedel pair
-    matching, and Found peaks using peakfinder8 in CXI format (as a sub-dict).
-    '''
+    """'Macro' function for getting information about diffraction patterns.
+    
+    `get_pattern_info` finds diffraction peaks and computes information such as pattern center on a given diffraction 
+    pattern or stack thereof. By default (`lazy=False` and `sync=True`) it will return a pandas DataFrame containing
+    general information on each pattern, and a dict holding the found peaks in CXI format.
+    
+    The options for preprocessing are passed as a `PreProcOpts` object.
+    
+    Note:
+        This function is essentially a smart wrapper around `prof2d._generate_pattern_info`. If you'd like to change
+        what is actually calculated and how, that is the function to modify!
+    
+    Note:
+        As this function is computationally heavy, it is **very** advisable to use a *dask.distributed* cluster for 
+        computation, with a client object supplied to the function call.
+
+    Args:
+        img (Union[np.ndarray, da.Array]): stack of diffraction patterns, typically a dask array
+        opts (PreProcOpts): pre-processing options.
+        client (Optional[Client], optional): Client object for dask.distributed cluster. If None, runs
+            computation by simply calling `compute` on the stack dask array (discouraged). Defaults to None.
+        reference (Optional[np.ndarray], optional): Flat-field reference image. If None, load the one specified in
+            preprocessing options. Defaults to None.
+        pxmask (Optional[np.ndarray], optional): Pixel mask image. If None, load the one specified in
+            preprocessing options. Defaults to None.
+        lazy (bool, optional): Return `dask.delayed` objects for pattern info generation tasks instead of the final
+            results. Mostly useful for debugging or embedding into more complex workflows. Defaults to False.
+        sync (bool, optional): Immediately compute pattern info. If False, returns futures to pattern info dictionaries
+            instead of DataFrame and peak dict. Defaults to True.
+
+    Returns:
+        Tuple[pd.DataFrame, dict]: pandas DataFrame holding general pattern information, and dict holding CXI-format
+            peaks. (note that return values are different when using `lazy=True` or `sync=False` - see above)
+    """
+    #TODO could this be refactored into dataset, automatically applying it to the diffraction data set?
+    #TODO would including an option to return cts on top of res_del make sense?
+    
     reference = imread(opts.reference) if reference is None else reference
     pxmask = imread(opts.pxmask) if pxmask is None else pxmask
 #     print(type(pxmask))
@@ -204,7 +284,7 @@ def get_pattern_info(img: np.ndarray, opts: PreProcOpts, client: Optional[Client
                   f'Watch progress at {client.dashboard_link} (or forward port if remote).')
             if not sync:
                 return ftrs
-            alldat = stack_nested(client.gather(ftrs), fun=np.concatenate)
+            alldat = stack_nested(client.gather(ftrs), func=np.concatenate)
         else:
             warn('get_pattern_info is run on a dask array without distributed client - might be slow!')
             alldat = dask.compute()
@@ -219,7 +299,7 @@ def get_pattern_info(img: np.ndarray, opts: PreProcOpts, client: Optional[Client
 
 
 @loop_over_stack
-def _compute_corr_img(img: np.ndarray, 
+def _get_corr_img(img: np.ndarray, 
                       x0: np.ndarray, y0: Union[np.ndarray, None], 
                       nPeaks: Union[np.ndarray, None], 
                       peakXPosRaw: Union[np.ndarray, None], 
@@ -227,9 +307,11 @@ def _compute_corr_img(img: np.ndarray,
                       opts: PreProcOpts,
                       reference: Optional[Union[np.ndarray, str]] = None, 
                       pxmask: Optional[Union[np.ndarray, str]] = None):
-    '''
-    Inner function for image correction, to be called from correct_image
-    '''
+    """Inner function for full correction pipeline. To be called from `correct_image`. Other than
+    that function, this one can only run on numpy arrays.
+    
+    Please see doumentation of `correct_image` for further documentation.
+    """
     
     img = img.astype(np.float32)
     if opts.correct_saturation:
@@ -252,40 +334,40 @@ def correct_image(img: Union[np.ndarray, da.Array], opts: PreProcOpts,
                   peakinfo: Union[None, Dict[str, Union[np.ndarray, da.Array]]] = None, 
                   reference: Union[None, Union[np.ndarray, str]] = None, 
                   pxmask: Union[None, Union[np.ndarray, str]] = None) -> Union[np.ndarray, da.Array]:
-    """
-    Runs correction pipeline on stack of diffraction images (numpy or dask). The pipeline comprises
-    flat-field, saturation and dead-pixel correction, as well as background subtraction, optionally
-    including peak exclusion (recommended).
-
-    Arguments:
-        img {Union[np.ndarray, da.Array]} -- Diffraction pattern stack
-        opts {PreProcOpts} -- Pre-processing options. Options used are: (...)
-
-    Keyword Arguments:
-        x0 {Union[None, np.ndarray, da.Array]} -- Pattern X centers 
-            (default: use image center)
-        y0 {Union[None, np.ndarray, da.Array]} -- Pattern Y centers 
-            (default: use image center)
-        peakinfo {Union[None, Dict[Union[np.ndarray, da.Array]]]} -- Diffraction peak dict in CXI format
-            (default: no peak exclusion during background subtraction)
-        reference {Union[None, Union[np.ndarray, str]]} -- Flat-field reference 
-            (default: use reference file specified in options)
-        pxmask {Union[None, Union[np.ndarray, str]]} -- [description] 
-            (default: use pixel mask file specified in options)
-
-    Returns:
-        [Union[np.ndarray, da.Array]] -- Corrected diffraction image stack.
+    """Runs correction pipeline on stack of diffraction images (numpy or dask). 
+    
+    The correction pipeline comprises flat-field, saturation and dead-pixel correction, as well as 
+    background subtraction, optionally including exclusion of diffraction peaks for computation of the
+    background (recommended).
         
     Note:
-        This function essentially wraps proc2d._compute_corr_image. If you want to change the 
+        This function essentially wraps `proc2d._get_corr_image` with smart functions to take care
+        of dask input arrays. If you want to change the 
         correction pipeline, that is the function to modify.
+
+    Args:
+        img (Union[np.ndarray, da.Array]): Diffraction pattern stack
+        opts (PreProcOpts): Pre-processing options. Options used are: (...)
+        x0 (Union[None, np.ndarray, da.Array, pd.Series], optional): Pattern X centers 
+            (None: use image center). Defaults to None.
+        y0 (Union[None, np.ndarray, da.Array, pd.Series], optional): Pattern Y centers 
+            (None: use image center). Defaults to None.
+        peakinfo (Union[None, Dict[str, Union[np.ndarray, da.Array]]], optional): Diffraction peak dict 
+            in CXI format  (None: no peak exclusion during background subtraction). Defaults to None.
+        reference (Union[None, Union[np.ndarray, str]], optional): Flat-field reference 
+            (None: use reference file specified in options). Defaults to None.
+        pxmask (Union[None, Union[np.ndarray, str]], optional): Pixel mask reference 
+            (default: use reference file specified in options). Defaults to None.
+
+    Returns:
+        Union[np.ndarray, da.Array]: Corrected image stack of identical dimension as input stack.
     """
     
     if isinstance(img, np.ndarray):
         # take care of numpy image with dask arguments (just in case)
         innerargs = [x0, y0, peakinfo['nPeaks'], peakinfo['peakXPosRaw'], peakinfo['peakYPosRaw']]
         innerargs = [a.compute() if isinstance(a, da.Array) else a for a in innerargs]
-        return _compute_corr_img(img, *innerargs, opts, reference, pxmask)
+        return _get_corr_img(img, *innerargs, opts, reference, pxmask)
     
     reference = imread(opts.reference) if reference is None else reference
     pxmask = imread(opts.pxmask) if pxmask is None else pxmask
@@ -313,24 +395,27 @@ def correct_image(img: Union[np.ndarray, da.Array], opts: PreProcOpts,
         pkx = peakinfo['peakXPosRaw'].reshape((N,1,-1))
         pky = peakinfo['peakYPosRaw'].reshape((N,1,-1))
     
-    return da.map_blocks(_compute_corr_img, img, x0.reshape((N,1,1)), y0.reshape((N,1,1)), 
+    return da.map_blocks(_get_corr_img, img, x0.reshape((N,1,1)), y0.reshape((N,1,1)), 
                          npk, pkx, pky, 
                          reference=reference, pxmask=pxmask, opts=opts,
                          dtype=np.float32, chunks=img.chunks)
 
 
-def mean_clip(c,sigma=2.0):
-    """
-    Iteratively keeps only the values from the array that satisfies
-            0 < c < c_mean + sigma*std 
-    and return the mean of the array. Assumes the
-    array contains positive entries, 
-    if it does not or the array is empty returns -1 
-    
-    :param vector   : input vector of values.
-    :param sigma    : number of standard deviations away from the mean 
-                    : that is allowed.
-    :return c_mean  : mean of clipped values
+#TODO: this might not really belong here -> move to some tools module? Or make private?
+def mean_clip(c: np.ndarray, sigma: float = 2.0) -> float:
+    """Iteratively keeps only the values from the array that satisfies
+        0 < c < c_mean + sigma*std 
+        and return the mean of the array. Assumes the
+        array contains positive entries, 
+        if it does not or the array is empty returns -1 
+
+    Args:
+        c (np.ndarray): input value array
+        sigma (float, optional): number of standard deviations away from the mean 
+            that is used for mean calculation. Defaults to 2.0.
+
+    Returns:
+        float: Mean of clipped values
     """
     
     c = c[c>0]
@@ -345,79 +430,52 @@ def mean_clip(c,sigma=2.0):
     return c_mean
 
 
-def func_lorentz(p, x, y):
-    """
-    Function that returns a Student't distribution or generalised Cauchy
-    distribution in Two Dimensions(x,y).
-    :param p    :  [amp x_0 y_0 scale shape]
-    :param x    : x coordinate
-    :param y    : y coordinate
+#TODO: as before
+def func_lorentz(p: Union[list, tuple, np.ndarray], 
+                 x: Union[float, np.ndarray], 
+                 y: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    """Function that returns a Student't distribution or generalised Cauchy
+    distribution in Two Dimensions(x,y):
+    
+    amp * [(1 + ((x-x_0)/scale)**2) + (1 + ((y-y_0)/scale)**2)] ** (-shape/2)
+
+    Args:
+        p (Union[list, tuple, np.ndarray]): Parameter array: [amp, x_0, y_0, scale, shape]
+        x (Union[float, np.ndarray]): x coordinate(s)
+        y (Union[float, np.ndarray]): y coordinate(s)
+
+    Returns:
+        Union[float, np.ndarray]: function value at (x, y)
     """
     return p[0]*((1+((x-p[1])/p[3])**2.0 + ((y-p[2])/p[3])**2.0)**(-p[4]/2.0))
 
 
 @loop_over_stack
-def lorentz_fit_simple(profile, bin_min=3, bin_max = 40, amp=500.0, scale=5.0, shape=2.0):
+def lorentz_fit(img, amp: float = 1.0, 
+                x_0: float = 0.0, y_0: float = 0.0, 
+                scale: float = 5.0, shape: float = 2.0,
+                threshold: float = 0):    
     """
-    Simplified Lorentz fit in the 1D-radial.
-    """
-    assert isinstance(profile, np.ndarray)
+    Fits a Lorentz profile to find the center (x_0, y_0) of a diffraction
+    pattern, ignoring any pixels with values < threshold.
+    
+    The fit function is based on:
 
-    # section to handle arrays of profiles
-    if profile.ndim == 2:
-        xall = [lorentz_fit_simple(x, bin_min, bin_max, amp, scale, shape) for x in profile]
-        return np.stack(xall)
-
-    param = np.array([amp, scale, shape])
-    profile=profile.squeeze()
-    if np.isnan(profile).any() or (np.max(profile) < 10):
-        return np.array([1, 0, 0])
-    def jac_lorenz_rad(p,r,counts):
-        fun = (1.0+(r/p[1])**2.0)
-        d_amp = fun**(-p[2]/2.0)
-        d_scale =p[0]*(r**2.0)*p[2]*(p[1]**-3.0)*(fun**(-p[2]/2.0-1.0))
-        d_shape = -0.5*p[0]*(fun**(-p[2]/2.0))*np.log(fun)
-        return np.transpose([d_amp, d_scale, d_shape]/np.sqrt(counts))
-    def func_lorenz_rad(p,r):
-        return p[0]*(1.0+(r/p[1])**2.0)**(-p[2]/2.0)
-    def func_error(p, r, counts):
-        return (func_lorenz_rad(p,r) - counts)/np.sqrt(counts)
-    cut = np.flatnonzero(profile>0)
-    cut = cut[(cut >= bin_min) & (cut <= bin_max)]
-    out = optimize.least_squares(func_error,param, jac_lorenz_rad, 
-                                 max_nfev=1000, args=(cut,profile[cut]),
-                                 bounds=([1.0, 1.0, 1.0],np.inf))
-    return out.x
-
-
-def apply_virtual_detector(stack, r_inner, r_outer):
-    """
-    Apply a "virtual STEM detector" to stack, with given inner and outer radii. Returns the mean value of all pixels
-    that fall inside this annulus.
-    """
-    _, ysize, xsize = stack.shape
-    x = np.linspace(-xsize/2-0.5, xsize/2+0.5, xsize)
-    y = np.linspace(-ysize/2-0.5, ysize/2+0.5, ysize)
-    X, Y = np.meshgrid(x, y)
-    R = np.sqrt(X**2 + Y**2)[np.newaxis,:,:]
-    mask = ((R < r_outer) & (R >= r_inner)) | (stack >= 0)
-    return da.where(mask, stack, 0).mean(axis=(1,2))
-
-
-@loop_over_stack
-def lorentz_fit(img,amp = 1.0, x_0=0.0, y_0=0.0, scale=5.0,shape=2.0,
-                threshold=0):    
-    """
-    Fits a Lorentz profile to find the centroid (x_0,y_0) of an image. 
+    amp * [(1 + ((x-x_0)/scale)**2) + (1 + ((y-y_0)/scale)**2)] ** (-shape/2)
+    
     Build upon optimize.least_squares function  which is thread safe
     Note: least.sq is not. Analytical Jacobian has been added.
     
-    :param amp      : normalisation of Lorentzian
-    :param x_0      : initial x position of centroid
-    :param y_0      : initial y position of centroid
-    :param scale    : scale of Lorentzian
-    :param shape    : shape of Lorentzian
-    :return         : output of least_squares
+    Note:
+        If possible (i.e. you leave shape at 2.0), do **not** use this function, 
+        it's really slow. Instead use `lorentz_fast`.
+    
+    Args:
+        see fit function above
+        
+    Returns:
+        OptimizeResult: result of optimization
+    
     """
     param = np.array([amp,x_0,y_0,scale, shape])
     def jac_lorentz(p, x, y, img):
@@ -438,94 +496,33 @@ def lorentz_fit(img,amp = 1.0, x_0=0.0, y_0=0.0, scale=5.0,shape=2.0,
     return out
 
 
-def lorentz_fit_moving(img, com, update_init=True, block_id=None, 
-                       verbose=False, minimum_data = 500):
-    """
-    Find the center positions and peak heights from Lorentz fits for a stack 
-    of images, initializing each fit with the result of the previous one 
-    within the stack.
-    
-    :param img          : Image stack
-    :param com          : Center-of-mass positions as N-by-2 array
-    :param update_init  : If true, tries to initialize each fit with the 
-                        : results of the previous one.
-    :param block_id     : Optional, just used for status message.
-    :return             : Numpy array of the fit results
-    """
-    out = []
-    fres= []
-    success = False
-    np.set_printoptions(precision=2,suppress=True)
-
-    if com.ndim == 3:
-        # this case happens if function is called through a map_blocks
-        com = com.squeeze(axis=2)
-
-    if verbose:
-        print(com)
-
-    for ii, (im, c) in enumerate(zip(img, com)):
-
-        try:
-
-            if (not update_init) or not success:
-                x0 = [im.max(), c[0], c[1], 5, 2]
-            else:
-                x0 = fres.x
-
-            if verbose:
-                print('Block {}, Img {} \n in {}'\
-                      .format(block_id, ii, x0), end='')
-
-            if im.max() < minimum_data:
-                success = False
-                raise ValueError('Not enough values')
-
-
-            fres = lorentz_fit(im, amp=x0[0], x_0=x0[1], y_0=x0[2],
-                               scale=x0[3], shape=x0[4], threshold=10)
-            hes = np.matmul(np.transpose(fres.jac),fres.jac).flatten()
-            out.append(np.append(fres.x,hes))
-            success = fres.success
-
-        except Exception as err:
-            success = False
-            dummy = np.empty(30)
-            dummy.fill(np.nan)
-            out.append(dummy)
-            if verbose:
-                print('Exception during fit of block {}, img{}. skipped: {}'.format(block_id, ii, err))
-            continue
-
-        if verbose:
-            print(' out {}'.format(fres.x))
-
-    return np.stack(out)
-
-
 @loop_over_stack
-def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limit=None,
-                 threshold=0, threads=True, verbose=False):
-    """
-    Fast Lorentzian fit for finding beam center; especially suited for refinement after a reasonable estimate
+def lorentz_fast(img, x_0: float = None, y_0: float = None, amp: float = None, 
+                 scale: float = 5.0, radius: float = None, limit: float = None,
+                 threshold: int = 0, threads: bool = False, verbose: bool = False):
+    """Fast Lorentzian fit for finding beam center; especially suited for refinement after a reasonable estimate
     (i.e. to a couple of pixels) has been made by another method such as truncated COM.
     Compared to the other fits, it always assumes a shape parameter 2 (i.e. standard Lorentzian with asymptotic x^-2).
     It can restrict the fit to only a small region around the initial value for the beam center, which massively speeds
     up the function. Also, it auto-estimates the intial parameters somewhat reasonably if nothing else is given.
-    :param img: input image or image stack. If a stack is supplied, it is serially looped. Not accepting dask directly.
-    :param x_0: estimated x beam center. If None, is assumed to be in the center of the image.
-    :param y_0: analogous.
-    :param amp: estimated peak amplitude. If None, is set to the 99.99% percentile of img.
-    :param scale: peak HWHM estimate. Default: 5 pixels
-    :param radius: radius of a box around x_0, y_0 where the fit is actually done. If None, the entire image is used.
-    :param limit: If not None, the fit result is discarded if the found beam_center is further away than this value from
-        the initial estimate.
-    :param threshold: pixel value threshold below which pixels are ignored. Best left at 0 usually.
-    :param threads: if True, uses scipy.optimize.least_squares, which for larger arrays (radius more than around 15)
-        uses multithreaded function evaluation. Especially for radius < 50, this may be slower than single-threaded.
-        In this case, best set to False
-    :param verbose: if True, a message is printed on some occasions
-    :return: numpy array of refined parameters [amp, x0, y0, scale]
+    
+    Args:
+        img (float): input image or image stack. If a stack is supplied, it is serially looped. Not accepting dask directly.
+        x_0 (float, optional): estimated x beam center. If None, is assumed to be in the center of the image. Defaults to None.
+        y_0 (float, optional): analogous. Defaults to None.
+        amp (float, optional): estimated peak amplitude. If None, is set to the 99.99% percentile of img. Defaults to None.
+        scale (float, optional): peak HWHM estimate in pixels. Defaults to 5.0.
+        radius (float, optional): radius of a box around x_0, y_0 where the fit is actually done. If None, the entire image is used. Defaults to None.
+        limit (float, optional): If not None, the fit result is discarded if the found beam_center is further away than this value from
+            the initial estimate. Defaults to None.
+        threshold (int, optional): pixel value threshold below which pixels are ignored. Defaults to 0.
+        threads (bool, optional): if True, uses scipy.optimize.least_squares, which for larger arrays (radius more than around 15)
+            uses multithreaded function evaluation. Especially for radius < 50, this may be slower than single-threaded.
+            In this case, best set to False. Defaults to False.
+        verbose (bool, optional): if True, a message is printed on some occasions. Defaults to False.
+
+    Returns:
+        np.ndarray: numpy array of refined parameters [amp, x0, y0, scale]
     """
     if (x_0 is None) or (not np.isfinite(x_0)):
         x_0 = img.shape[1] / 2
@@ -562,6 +559,7 @@ def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limi
     function = lambda p: p[0] * ((1 + ((x - p[1]) / p[3]) ** 2.0 + ((y - p[2]) / p[3]) ** 2.0) ** (-1))
     error = lambda p: (function(p) - img) / norm
 
+    # The Jacobian is not used anymore, but let's keep it here, just in case
     def jacobian(p):
         radius = ((x - p[1]) / p[3]) ** 2.0 + ((y - p[2]) / p[3]) ** 2.0
         func = ((1 + radius) ** (-2.0))
@@ -606,27 +604,37 @@ def lorentz_fast(img, x_0=None, y_0=None, amp=None, scale=5.0, radius=None, limi
 
 
 @loop_over_stack
-def center_of_mass(img, threshold=0.0):
+def center_of_mass(img: np.ndarray, threshold: float = 0.0):
     """
     Returns the center of mass of an image using all the pixels larger than 
     the threshold. Automatically skips values below threshold. Fast for sparse 
-    images.
-    :param img              : Input image
-    :param threshold        : minimum pixel value to include
-    :return (x0,y0)         :Return location
+    images, for more crowded ones `center_of_mass2` may be faster.
+    
+    Args:
+        img (np.ndarray): Input image
+        threshold (float, optional): minimum pixel value to include. Defaults to 0.0.
+        
+    Returns:
+        np.ndarray: [x0, y0] -> image center of mass
     """
     cut = np.where(img>threshold)
     (y0,x0) = np.sum(img[cut]*cut,axis=1)/np.sum(img[cut])
     return np.array([x0,y0])
 
 
-def center_of_mass2(img, threshold=None):
+def center_of_mass2(img: np.ndarray, threshold: Optional[float] = None):
     """
-    Alternative COM function, acting on 3D arrays directly, 
-    including lazy dask arrays. Tends to be slower than center_of_mass for 
-    sparse images with high thresholds, otherwise faster.
-    :param img: 
-    :return: 
+    Returns the center of mass of an image using all the pixels larger than 
+    the threshold. Automatically skips values below threshold. Can be faster
+    than `center_of_mass` for crowded images (just try it out).
+    
+    Args:
+        img (np.ndarray): Input image
+        threshold (float, optional): minimum pixel value to include. If None,
+            does not apply a threshold. Defaults to None.
+        
+    Returns:
+        np.ndarray: [x0, y0] -> image center of mass
     """
     vec = np.stack(np.meshgrid(np.arange(0, img.shape[-1]), 
                                np.arange(0, img.shape[-2])), axis=-1)
@@ -639,41 +647,68 @@ def center_of_mass2(img, threshold=None):
     com = (np.tensordot(imgt, vec, 2)
             /imgt.sum(axis=(-2, -1)).reshape(-1, 1))
 
-    #if img.ndim < 3:
-    #   com = com.squeeze()
-
     return com
+
+
+def apply_virtual_detector(img: np.ndarray, r_inner: float, r_outer: float) -> float:
+    """
+    Apply a "virtual STEM detector" to stack, with given inner and outer radii. Returns the mean value of all pixels
+    that fall inside this annulus.
+
+    Args:
+        img (np.ndarray): input image (or stack thereof)
+        r_inner (float): Inner radius
+        r_outer (float): Outer radius
+
+    Returns:
+        float: mean value of pixels inside the annulus defined by r_inner and r_outer
+    """
+    _, ysize, xsize = img.shape
+    x = np.linspace(-xsize/2-0.5, xsize/2+0.5, xsize)
+    y = np.linspace(-ysize/2-0.5, ysize/2+0.5, ysize)
+    X, Y = np.meshgrid(x, y)
+    R = np.sqrt(X**2 + Y**2)[np.newaxis,:,:]
+    mask = ((R < r_outer) & (R >= r_inner)) | (img >= 0)
+    
+    return da.where(mask, img, 0).mean(axis=(1,2))
 
 
 @loop_over_stack
 def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500, 
-            pxmask: Optional[np.ndarray] = None, min_snr: float = 4., threshold: float = 8,
+              pxmask: Optional[np.ndarray] = None, min_snr: float = 4., threshold: float = 8,
               min_pix_count: int = 2, max_pix_count: int = 20, local_bg_radius: int = 3,
-             min_res: int = 0, max_res: int = 500, as_dict=False) -> np.ndarray:
+              min_res: int = 0, max_res: int = 500, as_dict: bool = True) -> Union[dict,np.ndarray]:
     """Find peaks in diffraction pattern using the peakfinder8 algorithm as used in
-    CrystFEL, OnDA and Cheetah. Requires installation of OnDA.
-    
-    Arguments:
-        img -- Input image or stack
-        x0 -- Beam center along x
-        y0 -- Beam center along y
-    
-    Keyword Arguments:
-        max_peaks {int} -- Maximum number of peaks (default: {500})
-        pxmask {float} -- Pixel mask. Pixels with value greater than 0 are ignored. (default: {None})
-        min_snr {float} -- minimum signal-to-noise ratio for peak detection (default: {4})
-        threshold {float} -- minimum pixel value for peak detection (default: {8})
-        min_pix_count {int} -- minimum size of a peak in pixels (default: {2})
-        max_pix_count {int} -- maximum size of a peak in pixels (default: {20})
-        local_bg_radius {int} -- radius for the estimation of the local background in pixels (default: {3})
-        min_res {int} --  minimum resolution for a peak in pixels (default: {0})
-        max_res {int} -- maximum resolution for a peak in pixels (default: {500})
-    
-    Returns:
-        [ndarray] -- Vector of shape (3 * pkmax) + 1, or stack thereof (matrix). First {pkmax} entries are peak
-        x postions, then {pkmax} y positions, {pkmax} intensities, and finally the number of peaks.
-    """
+    CrystFEL, OnDA and Cheetah. For explanation of the finding parameters, please consult the 
+    CrystFEL documentation (or just run `man indexamajig`).
 
+    Args:
+        img (np.ndarray): image stack
+        x0 (float): image stack x center
+        y0 (float): image stack y center
+        max_peaks (int, optional): maximum number of peaks. Defaults to 500.
+        pxmask (Optional[np.ndarray], optional): pixel mask. Defaults to None.
+        min_snr (float, optional): minimum peak SNR. Defaults to 4..
+        threshold (float, optional): count threshold. Defaults to 8.
+        min_pix_count (int, optional): minimum number of pixels in peak. Defaults to 2.
+        max_pix_count (int, optional): maximum number of pixels in peak. Defaults to 20.
+        local_bg_radius (int, optional): radius for peak backgroud estimation. Defaults to 3.
+        min_res (int, optional): minimum resolution (= radial range) in pixels. Defaults to 0.
+        max_res (int, optional): maximum resolution (= radial range) in pixels. Defaults to 500.
+        as_dict (bool, optional): return results as a dictionary instead of a 
+            single numpy array. Defaults to True.
+
+    Returns:
+        dict: CXI-format peaks information. If as_dict=False, instead returns a 1d array
+            of size (3 * max_peaks + 1), which contains x positions, y positions, intensities,
+            and number of peaks concatenated.
+            
+    Note:
+        The returned peak positions follow CXI convention, that is, they refer to pixel *centers*,
+        not corners (as in `CrystFEL`). For `CrystFEL`-convention you have to add 0.5 to the
+        returned peak positions.
+    """
+    
     from onda.algorithms.crystallography_algorithms import Peakfinder8PeakDetection
 
     X, Y = np.meshgrid(range(img.shape[1]), range(img.shape[0]))
@@ -704,25 +739,36 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
     else:
         return np.array(pks.fs + fill + pks.ss + fill + pks.intensity + fill + [len(pks.fs)])
 
+
 @loop_over_stack
 def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=None, 
     my_func: Union[Callable[[np.ndarray], np.ndarray], List[Callable[[np.ndarray], np.ndarray]]] = np.nanmean, 
-    min_size: int = 600, max_size: int = 850, filter_len: int = 1):
+    min_size: int = 600, max_size: int = 850, filter_len: int = 1) -> np.ndarray:
+    """ 
+    Applies a function to azimuthal bins of the image around 
+    the center (x0, y0) for each integer radius and returns the result 
+    in a np.array of size max_size, yielding a radial profile. Skips values that are set to -1 or nan.
+    
+    Optionally, a median filter can be applied to the output.
+
+    Args:
+        img (np.ndarray): input image or stack
+        x0 (Optional[float], optional): x center of pattern. Center of image is None. Defaults to None.
+        y0 (Optional[float], optional): y center of pattern. Center of image is None. . Defaults to None.
+        my_func (Union[Callable[[np.ndarray], np.ndarray], List[Callable[[np.ndarray], np.ndarray]]], optional): function
+            to call on all pixel values at a given radius, or iterable thereof. Defaults to np.nanmean.
+        min_size (int, optional): Minimum length of the output profile. Defaults to 600.
+        max_size (int, optional): Maximum length of the output profile. Defaults to 850.
+        filter_len (int, optional): Kernel size of median filter applied after profile calculation.
+        filter_len must be odd, and filtering is at the moment incompatible with multiple functions. Defaults to 1.
+        
+    Returns:
+        np.ndarray: radial profile calculated using my_func
+        
+    Note:
+        The median filter will currently only work, if a single function is used only! Sorry for that.
     """
-    Applies the function to the azimuthal bins of the image around 
-    the center (x0,y0) for each integer radius and returns the result 
-    in a np.array of size max_size. Skips values that are set to -1 or nan.
-    :param img: input image
-    :param x0: x center of mass of image
-    :param y0: y center of mass of image
-    :param my_func: function to be applied to the bins, or list thereof
-    :param min_size: minimum length of output array
-    :param max_size: maximum length of output array
-    :param filter_len: kernel size of median filter applied after profile calculation.
-        filter_len must be odd, and filtering is at the moment incompatible with multiple functions
-    :return result: array of function returns on each radius.
-    """
-    # BUG: median filter 
+    #TODO ellipticity correction?
 
     if isinstance(my_func, tuple) and (len(my_func) > 1) and (filter_len > 1):
         raise ValueError('radial_proj with filtering only works if a single function is used. Sorry.')
@@ -737,8 +783,8 @@ def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=N
     (y,x) = np.ogrid[0:ylen,0:xlen]
     #print(x0,y0)
 
-    x0 = img.shape[1]/2 if x0 is None else float(x0)
-    y0 = img.shape[0]/2 if y0 is None else float(y0)
+    x0 = img.shape[1]/2 - 0.5 if x0 is None else float(x0)
+    y0 = img.shape[0]/2 - 0.5 if y0 is None else float(y0)
 
     if np.isnan(x0) or np.isnan(y0) or x0<0 or x0>=xlen or y0<0 or y0>=ylen:
         result = np.empty(max_size*len(my_func))
@@ -776,24 +822,28 @@ def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=N
 
 
 @loop_over_stack
-def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray, peakYPosRaw: np.ndarray, radius=2, replaceval=-1):
-    """Cuts peaks out of an image and replaces them with replaceval.
-    Peak positions are provided in CXI format.
-    
-    Arguments:
-        img {np.array} -- Input image
-        nPeaks {np.array} -- Number of peaks
-        peakXPosRaw {np.array} -- X position of peaks
-        peakYPosRaw {np.array} -- Y position of peaks
-    
-    Keyword Arguments:
-        radius {int} -- Radius in pixel of peak cut-out region (default: {2})
-        replaceval {int} -- Value to change the cut pixels to (default: {-1})
-    
+def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray, 
+              peakYPosRaw: np.ndarray, radius: int = 2, replaceval: Union[int, float, None] = None) -> np.ndarray:
+    """Cuts peaks out of an image and replaces them with replaceval. Peak positions are provided in CXI format.
+
+    This function is mainly interesting for calculation of radial profiles, ignoring Bragg peaks.
+
+    Args:
+        img (np.ndarray): Input image (or stack thereof)
+        nPeaks (np.ndarray): number of peaks
+        peakXPosRaw (np.ndarray): peak X positions
+        peakYPosRaw (np.ndarray): peak y positions
+        radius (int, optional): Radius of circle within which image values are replaced around each peak. 
+            Defaults to 2.
+        replaceval (Union[int, float, None], optional): Value to paint into the circles. If None,
+            uses -1 on integer images and np.nan otherwise. Defaults to None.
+
     Returns:
-        [as img] -- Image with peaks cut out
+        np.ndarray: Image with cut-out peaks.
     """
     #print(nPeaks)
+    if replaceval is None:
+        replaceval = -1 if isinstance(img, np.integer) else np.nan
     nPeaks = nPeaks.squeeze()
     peakXPosRaw = peakXPosRaw.squeeze()
     peakYPosRaw = peakYPosRaw.squeeze()
@@ -805,13 +855,43 @@ def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray, peak
     img_nopeaks = np.where(mask,replaceval,img)
     return img_nopeaks
 
+
 @loop_over_stack
-def strip_img(img, x0, y0, prof: np.ndarray, pxmask: Optional[np.ndarray]=None, truncate=False, 
-    offset=0, keep_edge_offset=False, replaceval: Optional[float]=None, interp=True, dtype=None):
+def strip_img(img: np.ndarray, prof: np.ndarray, 
+              x0: Optional[float] = None, y0: Optional[float] = None, 
+              pxmask: Optional[np.ndarray] = None, truncate: bool = False, 
+              offset: Union[float, int] = 0, keep_edge_offset: bool = False, 
+              replaceval: Optional[float] = None, interp: bool = True, 
+              dtype: Optional[np.dtype] = None) -> np.ndarray:
+    """Subtract a radial profile from a diffraction pattern, assuming radial symmetry of the background.
+
+    Args:
+        img (np.ndarray): Input image (or stack thereof)
+        prof (np.ndarray): Radial profile to be subtracted
+        x0 (float, optional): Diffraction pattern center along x. If None, use the image center.
+            Defaults to None.
+        y0 (float, optional): Diffraction pattern center along y. If None, use the image center.
+            Defaults to None.
+        pxmask (Optional[np.ndarray], optional): Pixel mask to apply *after* subtraction. Defaults to None.
+        truncate (bool, optional): Replace all values below the offset by replaceval. Defaults to False.
+        offset (Union[float, int], optional): Offset to apply to the output image. Required if
+            you want to keep positive pixel values. Defaults to 0.
+        keep_edge_offset (bool, optional): [description]. Defaults to False.
+        replaceval (Optional[float], optional): Replace value for pixels falling below offset. 
+            Defaults to None.
+        interp (bool, optional): Interpolate background pixel values, otherwise use nearest
+            neighbour. Defaults to True.
+        dtype (Optional[np.dtype], optional): If not None, convert output
+            image to this data type. Defaults to None.
+
+    Returns:
+        np.ndarray: Image with subtracted radial profile.
     """
-    Given an image, center coordinate(x0,y0) and a radial profile, removes the
-    radial profile from the image.
-    """
+    #TODO ellipticity correction?
+    
+    x0 = img.shape[1]/2 - 0.5 if x0 is None else float(x0)
+    y0 = img.shape[0]/2 - 0.5 if y0 is None else float(y0)
+    
     if np.isnan(x0) or np.isnan(y0):
         return np.zeros(img.shape)
 
@@ -854,18 +934,48 @@ def strip_img(img, x0, y0, prof: np.ndarray, pxmask: Optional[np.ndarray]=None, 
 
 
 @loop_over_stack
-def remove_background(img, x0: Optional[Union[float]] = None, y0: Optional[Union[float]] = None,
+def remove_background(img: np.ndarray, x0: Optional[float] = None, y0: Optional[float] = None,
     nPeaks: Optional[np.ndarray] = None, peakXPosRaw: Optional[np.ndarray] = None, peakYPosRaw: Optional[np.ndarray] = None, 
     peak_radius=3, filter_len=5, rfunc: Callable[[np.ndarray], np.ndarray] = np.nanmean,
-    pxmask=None, truncate=False,  offset=0):
+    pxmask=None, truncate=False,  offset=0) -> np.ndarray:
+    """Combines `radial_proj`, `cut_peaks` and `strip_img` into a background-removal protocol for diffration
+    patterns, assuming radial symmetry of the background.
+    
+    The diffraction pattern is first azimuthally integrated, excluding Bragg peaks, and the resulting radial
+    profile is further smoothed. The profile is then re-projected to the full image and subtracted. This procedure
+    usually works excellently well - at least, if the peak finding has been done carefully. If there are hard
+    issues with peak finding, it might be worth setting rfunc=np.nanmedian.
+    
+    Peaks have to be provided in CXI format and convention.
+
+    Args:
+        img (np.ndarray): Input image or stack thereof
+        x0 (Optional[float], optional): Diffraction pattern center along x. If None, use the image center.
+            Defaults to None.
+        y0 (Optional[float], optional): Diffraction pattern center along y. If None, use the image center.
+            Defaults to None.
+        nPeaks (Optional[np.ndarray], optional): Number of peaks. Defaults to None.
+        peakXPosRaw (Optional[np.ndarray], optional): peak X positions. Defaults to None.
+        peakYPosRaw (Optional[np.ndarray], optional): peak Y positions. Defaults to None.
+        peak_radius (int, optional): Radius around each peak excluded from background calculation. Defaults to 3.
+        filter_len (int, optional): Range of median filter applied to radial profile. Defaults to 5.
+        rfunc (Callable[[np.ndarray], np.ndarray], optional): Function for calculation of the radial profile
+            through azimuthal averaging. Defaults to np.nanmean.
+        pxmask ([type], optional): Pixel mask to be applied after correction. Defaults to None.
+        truncate (bool, optional): Set all pixels of value < offset to 0. Defaults to False.
+        offset (int, optional): Offset for the output image. Defaults to 0.
+
+    Returns:
+        np.ndarray: [description]
+    """
 
     if np.issubdtype(img.dtype, np.integer) and offset == 0:
         warn('Removing background on an integer image with zero offset will likely cause trouble later on.')
 
     replace_val = np.nan if np.issubdtype(img.dtype, np.floating) else -1
 
-    x0 = img.shape[1]/2 if x0 is None else x0
-    y0 = img.shape[0]/2 if y0 is None else y0
+    x0 = img.shape[1]/2 - .5 if x0 is None else x0
+    y0 = img.shape[0]/2 - .5 if y0 is None else y0
 
     pxmask = ((img == np.nan) | (img == -1)) if pxmask is None else pxmask
     #print((pxmask == 0).sum())
@@ -878,7 +988,7 @@ def remove_background(img, x0: Optional[Union[float]] = None, y0: Optional[Union
         img_nopk = img
 
     r0 = radial_proj(img_nopk, x0, y0, my_func=rfunc, filter_len=filter_len)
-    img_nobg = strip_img(img, x0, y0, r0, pxmask=pxmask, truncate=truncate, 
+    img_nobg = strip_img(img, prof=r0, x0=x0, y0=y0, pxmask=pxmask, truncate=truncate, 
         keep_edge_offset=True, interp=True, dtype=img.dtype)
 
     return img_nobg
@@ -891,20 +1001,30 @@ def remove_background(img, x0: Optional[Union[float]] = None, y0: Optional[Union
       'float32[:,:](float32[:,:], float64, float64, int64, int64, float64)'],
      nopython=True, nogil=True)  # ahead-of-time compilation using numba. Otherwise painfully slow.
 def _center_sgl_image(img, x0, y0, xsize, ysize, padval):
+    """Shifts a *single* image (not applicable to stacks!), such that the original image coordinates x0, y0 
+    are in the center of the output image, which has a size of xsize, ysize.
+    
+    This function is typically used to change diffraction images such that the zero-order beam sits in the
+    center of the image. The size of the output image should be sufficiently larger as to not truncate
+    the shifted diffraction pattern.
+    
+    Note:
+        The coordinates in this function refer to pixel centers (CXI convention), *not* pixel corners
+        (CrystFEL convention). I.e., if shifting based on CrystFEL output or similar, the shifts
+        must be increased by 0.5.
+
+    Args:
+        img (np.ndarray): Input image
+        x0 (float): x position in input image to be shifted to the center of the output image
+        y0 (float): y position in input image to be shifted to the center of the output image
+        xsize (int): x size of the output image
+        ysize (int): y size of the output image
+        padval (float or int): value of the pixels used to pad the output image.
+
+    Returns:
+        np.ndarray: output image of size (ysize, xsize) with centered diffraction pattern
     """
-    Shits a single image, such that the original image coordinates x0, y0 are in the center of the
-    output image, which as a size of xsize, ysize.
-    IMPORTANT NOTE: the coordinates in this function refer to pixel centers, not pixel corners
-    (as e.g. CrystFELs peak positions). I.e., if shifting based on CrystFEL output or similar, the shifts
-    must be increased by 0.5.
-    :param img: input image (2D array, must be integer)
-    :param x0: x coordinate in img to be in center of output image
-    :param y0: y coordinate in img to be in center of output image
-    :param xsize: x size of output image
-    :param ysize: y size of output image
-    :param padval: padding value of undefined pixels in output image
-    :return: output image of shape (ysize, xsize)
-    """
+
     simg = np.array(padval).astype(img.dtype) * np.ones((ysize, xsize), dtype=img.dtype)
     #int64=np.int64
     #x0 -= 0.5
@@ -931,12 +1051,39 @@ def _center_sgl_image(img, x0, y0, xsize, ysize, padval):
     return simg
 
 
-def center_image(imgs, x0, y0, xsize, ysize, padval, parallel=True):
+def center_image(imgs: Union[np.ndarray, da.Array], x0: Union[np.ndarray, da.Array], 
+                 y0: Union[np.ndarray, da.Array], xsize: int, ysize: int, 
+                 padval: Union[float, int, None] = None, parallel: bool = True):
     """
-    Centers a whole stack of images. See center_sgl_image for details... now, imgs is a 3D stack,
-    x0 and y0 are 1d arrays. imgs can be a dask array, map_blocks is automatically invoked then
-    """
+    Shifts a stack of images, such that the original image coordinates x0, y0 
+    are in the center of the output image, which has a size of xsize, ysize.
+    
+    This function is typically used to change diffraction images such that the zero-order beam sits in the
+    center of the image. The size of the output image should be sufficiently larger as to not truncate
+    the shifted diffraction pattern.
+    
+    Note:
+        The coordinates in this function refer to pixel centers (CXI convention), *not* pixel corners
+        (CrystFEL convention). I.e., if shifting based on CrystFEL output or similar, the shifts
+        must be increased by 0.5.
 
+    Args:
+        imgs (Union[np.ndarray, da.Array]): Input image stack
+        x0 (Union[np.ndarray, da.Array]): x position in input image to be shifted to the center of the output image
+        y0 (Union[np.ndarray, da.Array]): y position in input image to be shifted to the center of the output image
+        xsize (int): x size of the output image
+        ysize (int): y size of the output image
+        padval (Union[float, int, None], optional): value of the pixels used to pad the output image. 
+            If None, use nan for float images and -1 for integer images. Defaults to None.
+        parallel (bool, optional): execute operation in parallel. Defaults to True.
+
+    Returns:
+        Union[np.ndarray, da.Array]: output image stack of size (ysize, xsize) with centered diffraction patterns
+    """
+    
+    if padval is None:
+        padval = np.nan if not isinstance(imgs, np.integer) else -1
+    
     if isinstance(imgs, da.Array):
         # Preprocess arguments and call function again, using map_blocks along the stack direction
         x0 = x0.reshape(-1, 1, 1)
@@ -975,12 +1122,12 @@ def apply_saturation_correction(img: np.ndarray, exp_time: float, dead_time: flo
     for a paralyzable detector, up to the point where its signal starts inverting (which is where
     nothing can be done anymore)
     
-    Arguments:
-        img {np.ndarray} -- Input image or image stack
-        exp {float} -- Exposure time in ms
+    The default dead time value of 1.9 microseconds has been determined for a Medipix3 sensor.
     
-    Keyword Arguments:
-        dead_time {float} -- Dead time of detector in ms (default: {1.9e-3})
+    Args:
+        img (np.ndarray): Input image or image stack
+        exp (float): Exposure time in ms
+        dead_time (float, optional): Dead time of detector in ms. Defaults to 1.9e-3.
     """
     lambert = lambda x: x - x**2 + 3/2*x**3 - 8/3*x**4 + 125/24*x**5
     satcorr = lambda y, sat: -lambert(-sat*y)/sat # saturation parameter: dead time/exposure time
@@ -988,24 +1135,30 @@ def apply_saturation_correction(img: np.ndarray, exp_time: float, dead_time: flo
     return satcorr(img, dead_time/exp_time)
 
 
-def apply_flatfield(img, reference=None, keep_type=True, ref_smooth_range=None, 
-                    normalize_reference=False, **kwargs):
-    """
-    Applies a flatfield (gain reference) image to a single image or stack.
-    :param img              : Input image or image stack
-    :param reference        : Gain reference image (usually normalized to 1)
-    :param keep_type        : Keep integer data type of the initial image, 
-                            : even if it requires rounding
-    :param ref_smooth_range : Optionally, smooth the reference image out
-    :param normalize_reference
-                            : Optionally, re-normalize the image
-    :param kwargs           : Nothing, currently
-    :return                 : Corrected image
+def apply_flatfield(img: np.ndarray, reference: Union[np.ndarray, str], keep_type: bool = True, 
+                    ref_smooth_range: Optional[float] = None,  
+                    normalize_reference: bool = False) -> np.ndarray:
+    """Corrects the detector response by dividing the images in the image (stack) by a reference
+    image (gain reference image), which should vary around 1.
+    
+    Args:
+        img (np.ndarray): Input image
+        reference (Union[np.ndarray, str]): array containing the reference image, or filename of
+            a TIF file containing the reference image
+        keep_type (bool, optional): Keep the image data type, that is, round the pixel values
+            back to integers if the input is an integer image. If False, the output image
+            will always be a float. Defaults to True.
+        ref_smooth_range (Optional[float], optional): If not None, applies a Gaussian blur to the
+            reference image before correction, use this parameter to set its width. Defaults to None.
+        normalize_reference (bool, optional): Re-normalize the reference image such that its
+            average value is exactly 1. Defaults to False.
+
+    Returns:
+        np.ndarray: flatfield-corrected image
     """
 
     if isinstance(reference, str):
-        with tifffile.TiffFile(reference) as tif:
-            reference = tif.asarray().astype(np.float32)
+        reference = imread(reference).astype(np.float32)
     elif isinstance(reference, np.ndarray):
         reference = reference.astype(np.float32)
     else:
@@ -1027,37 +1180,36 @@ def apply_flatfield(img, reference=None, keep_type=True, ref_smooth_range=None,
         return img/reference
 
 
-def correct_dead_pixels(img: np.ndarray, pxmask: Union[np.ndarray, str], 
+def correct_dead_pixels(img: [np.ndarray, da.Array], pxmask: Union[np.ndarray, str], 
                         strategy: str = 'interpolate', 
                         interp_range: int = 1, replace_val: Union[float, int] = None, 
-                        mask_gaps: bool = False, edge_mask_x: int = 70, edge_mask_y: int = 0,
-                        **kwargs):
-    """
-    Corrects a set of images for dead pixels by either replacing values with a 
-    constant (e.g. for Diffraction Analysis with mask support), or 
-    interpolation from a Gaussian-smoothed version of the image (e.g. for SPA 
-    or general imaging). It requires a binary array (pxmask) which is 
-    1/255/True for dead pixels. The function accepts a 3D array where the first 
-    dimension corresponds to a stack/movie. The convolution used for the Gauss 
-    filter is taken from the astropy package, which allows to ignore NaNs. 
-    While the function does support stacks, this may be slow, especially with 
-    interpolation. In these cases, better apply to single images in parallel 
-    (e.g. using diffractem.compute.process_stack).
-    :param img      : the image or image stack (first dimension is stack) 
-                    : to process. For replace strategy it can be a dask array.
-    :param pxmask   : pixel mask with dimension of the image, or TIF file 
-                    : containing pixel mask
-    :param strategy : 'replace' with constant or 'interpolate' with smoothed 
-                    : adjacent region
-    :param interp_range : range over which interpolation pixels are calculated 
-                    : (if strategy is 'interpolate')
-    :param replace_val: value with which dead pixels are replaced 
-                    : (if strategy is 'replace')
-    :param mask_gaps: treat the interpolated pixels between the panels as dead
-    :param edge_mask_[x/y]: number of pixels at outer [left/right]/[upper/lower] edges to treat as 
-                    : dead (because of shading)
-    :param kwargs   : not doing anything so far
-    :return         : corrected image
+                        mask_gaps: bool = False, edge_mask_x: int = 70, 
+                        edge_mask_y: int = 0, invert_mask: bool = False) -> np.ndarray:
+    """Corrects a set of images for dead pixels by either replacing values with a 
+    constant, or interpolation from a Gaussian-smoothed version of the image. It 
+    requires a binary array (pxmask) which is 1 (or 255 or True) for dead pixels. 
+    The function accepts a 3D array where the first dimension corresponds to a stack/movie.
+
+    Args:
+        img (np.ndarray): the image or image stack (first dimension is stack). 
+            For strategy=='replace' it can be a dask or numpy array, otherwise numpy only.
+        pxmask (Union[np.ndarray, str]): pixel mask with values as described above, or name of
+            a TIF file containing the pixel mask
+        strategy (str, optional): 'interpolate' or 'replace'. Defaults to 'interpolate'.
+        interp_range (int, optional): range of interpolation for 'interpolate' strategy, in pixels. 
+            Defaults to 1.
+        replace_val (Union[float, int], optional): replacement value for 'replace' strategy. If None, use
+            -1 for integer images and nan for float images. Defaults to None.
+        mask_gaps (bool, optional): mask gaps between detector panels as returned by the gap_pixels() function. 
+            Defaults to False.
+        edge_mask_x (int, optional): Declare this number of pixels near the edges along x as
+            invalid and replace them with replaceval. Defaults to 70.
+        edge_mask_y (int, optional): Declare this number of pixels near the edges along y as
+            invalid and replace them with replaceval. Defaults to 0.
+        invert_mask (bool, optional): invert the pixel mask, i.e., invalid pixels are zero/False. Defaults to False.
+
+    Returns:
+        np.ndarray: dead-pixel corrected image. Can be da.Array for 'replace' strategy.
     """
 
     assert strategy in ('interpolate', 'replace')
@@ -1069,6 +1221,8 @@ def correct_dead_pixels(img: np.ndarray, pxmask: Union[np.ndarray, str],
         pxmask = imread(pxmask)
     elif isinstance(pxmask, np.ndarray) or isinstance(pxmask, da.Array):
         pxmask = pxmask.astype(np.bool)
+        if invert_mask:
+            pxmask = np.logical_not(pxmask)
     else:
         raise TypeError('pxmask must be either Numpy array, or TIF file name')
 
@@ -1086,18 +1240,18 @@ def correct_dead_pixels(img: np.ndarray, pxmask: Union[np.ndarray, str],
     if strategy == 'interpolate':
 
         if (img.ndim > 2) and strategy == 'interpolate':
-            return np.stack([correct_dead_pixels(theImg, pxmask=pxmask, strategy='interpolate', interp_range=interp_range,replace_val=replace_val) for theImg in img])
+            return np.stack([correct_dead_pixels(theImg, pxmask=pxmask, 
+                                                 strategy='interpolate', interp_range=interp_range,
+                                                 replace_val=replace_val) for theImg in img])
 
-        img = img.copy()
-        img_flt = img.astype(float)
-        img_flt[pxmask] = np.nan
         kernel = Gaussian2DKernel(interp_range)
-        img_flt = convolve(img_flt, kernel, boundary='extend', 
-                           nan_treatment='interpolate')
-        img_flt[np.isnan(img_flt)] = np.nanmedian(img_flt)
-        img[pxmask] = img_flt.astype(img.dtype)[pxmask]
+        img_flt = convolve(img.astype(float), kernel, boundary='extend', 
+                           nan_treatment='interpolate', mask=pxmask)
+        np.nan_to_num(img_flt, copy=False, nan=np.nanmedian(img_flt))
+        
+        img_out = np.where(pxmask, img_flt, img)
 
-        return img
+        return img_out
 
     elif strategy == 'replace':
 

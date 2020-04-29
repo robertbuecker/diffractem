@@ -3,6 +3,7 @@ import yaml
 import pprint
 import json
 
+#TODO consider to make this a types.SimpleNamespace or use dataclasses.dataclass
 class PreProcOpts:
     def __init__(self, fn=None):  
 
