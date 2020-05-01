@@ -148,7 +148,8 @@ def loop_over_stack(fun):
 def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts, 
                            reference: Optional[np.ndarray] = None, 
                            pxmask: Optional[np.ndarray] = None) -> dict:
-    """'Macro' function computing information from diffraction data and returning it
+    """
+    'Macro' function computing information from diffraction data and returning it
     as a dictionary. Primarily intended to be called from `get_pattern_info`.
     
     Note:
@@ -157,9 +158,9 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
         it cannot be called through the dask array interface via `map_blocks`.
 
     Args:
-        img (np.ndarray): diffraction image or stack thereof as numpy array
-        opts (PreProcOpts): pre-processing options
-        reference (Optional[np.ndarray], optional): reference image for flat-field
+        img (np.ndarray): diffraction image or stack thereof as numpy array.
+        opts (PreProcOpts): pre-processing options.
+        reference (Optional[np.ndarray], optional): reference image for flat-field.
             correction. If None, grabs the file name from the options file and loads it. 
             This is discouraged as it requires reloading it over and over. Defaults to None.
         pxmask (Optional[np.ndarray], optional): similar, for pixel mask. Defaults to None.
@@ -171,8 +172,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
     
     # computations on diffraction patterns. To be called from get_pattern_info.
     
-    reference = opts.reference if reference is None else reference
-    pxmask = opts.pxmask if pxmask is None else pxmask
+    reference = imread(opts.reference) if reference is None else reference
+    pxmask = imread(opts.pxmask) if pxmask is None else pxmask
         
     from diffractem.proc_peaks import _ctr_from_pks
     
@@ -312,6 +313,9 @@ def _get_corr_img(img: np.ndarray,
     
     Please see doumentation of `correct_image` for further documentation.
     """
+    
+    reference = imread(opts.reference) if reference is None else reference
+    pxmask = imread(opts.pxmask) if pxmask is None else pxmask
     
     img = img.astype(np.float32)
     if opts.correct_saturation:
@@ -980,7 +984,7 @@ def remove_background(img: np.ndarray, x0: Optional[float] = None, y0: Optional[
     pxmask = ((img == np.nan) | (img == -1)) if pxmask is None else pxmask
     #print((pxmask == 0).sum())
 
-    #print(nPeaks)
+    # print(nPeaks)
 
     if (nPeaks is not None) and (nPeaks > 0):
         img_nopk = cut_peaks(img, nPeaks, peakXPosRaw, peakYPosRaw, radius=peak_radius, replaceval=replace_val)

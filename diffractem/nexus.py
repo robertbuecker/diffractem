@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait, FIRST_EXCEPTION
 from itertools import repeat
-from typing import Union
+from typing import Union, List, Tuple, Optional
 import os
 import h5py
 import numpy as np
@@ -149,13 +149,23 @@ def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: s
 
         return [None]
 
-def _save_single_chunk(dat, file, subset, label, idcs, data_pattern, lock):   
+def _save_single_chunk(dat: np.ndarray, file: str, subset: str, label: str, 
+                       idcs: Union[list, np.ndarray], data_pattern: str, lock):   
     lock.acquire()
     with h5py.File(file) as fh:
         path = f'{data_pattern}/{label}'.replace('%', subset)
         fh[path][idcs,:,:] = dat
     lock.release()
     return file, subset, path, idcs
+
+def _save_single_chunk_multi(chks: dict, file: str, subset: str, 
+                       idcs: Union[list, np.ndarray], lock):   
+    lock.acquire()
+    with h5py.File(file) as fh:
+        for p, d in chks.items():
+            fh[p.replace('%', subset)][idcs,...] = d
+    lock.release()
+    return file, subset, list(chks.keys()), idcs
 
 def meta_to_nxs(filename, meta=None, exclude=('Detector',), meta_grp='/entry/instrument',
                 data_grp='/entry/data', data_field='raw_counts', data_location='/entry/instrument/detector/data'):
