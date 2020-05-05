@@ -6,7 +6,7 @@ setup(
     packages=['diffractem'],
     url='https://github.com/robertbuecker/diffractem',
     license='',
-    scripts=['bin/nxs2tif.py', 'bin/edview.py'],
+    scripts=['bin/nxs2tif.py', 'bin/edview.py', 'bin/quick_proc.py'],
     author='Robert Buecker',
     author_email='robert.buecker@mpsd.mpg.de',
     description='Some tools for working with serial electron microscopy data.',
