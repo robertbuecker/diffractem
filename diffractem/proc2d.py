@@ -405,6 +405,64 @@ def correct_image(img: Union[np.ndarray, da.Array], opts: PreProcOpts,
                          dtype=np.float32, chunks=img.chunks)
 
 
+def analyze_and_correct(imgs: np.ndarray, opts: PreProcOpts, 
+                        correct_non_hits: bool = False,
+                        reference: Union[None, Union[np.ndarray, str]] = None, 
+                        pxmask: Union[None, Union[np.ndarray, str]] = None) -> Tuple[np.ndarray, dict]:
+    """Analyzes a diffraction pattern (centering and peak finding), and immediately applies a correction.
+    
+    This function combines `get_pattern_info` and `correct_image`, but works differently in that
+    it does not inherently handle any lazy/parallel computations: it only simply loops over a numpy 
+    array. It is hence especially useful to check if the preprocessing pipeline works on a small
+    set, or to embed it into dask delayed objects for parallel execution *outside* the function, which 
+    may be faster than `get_pattern_info` + `correct_image` (see example below).
+
+    Args:
+        imgs (np.ndarray): Input image stack as numpy array
+        opts (PreProcOpts): pre-processing options
+        correct_non_hits (bool, optional): Apply correction also to images that do not have 
+            sufficient Bragg spots in them (as defined by opts.min_peaks). Defaults to False.
+        reference (Union[None, Union[np.ndarray, str]], optional): Reference image as numpy
+            array or TIF file name. If None, read file defined in options. Defaults to None.
+        pxmask (Union[None, Union[np.ndarray, str]], optional): Pixel mask image as numpy
+            array or TIF file name. If None, read file defined in options. Defaults to None.
+
+    Returns:
+        Tuple[np.ndarray, dict]: Corrected image stack and pattern info structure, as
+            returned by `correct_image` and `get_pattern_info`, respectively.
+        
+        
+    Example:
+        To run a parallel computation efficiently, use this function like
+        
+        >>> results = [dask.delayed(proc2d.analyze_and_correct)(img_chunk, opts) \
+                    for img_chunk in img_stack.to_delayed().ravel()]
+        >>> dask.compute(results)
+    """
+    
+    reference = imread(opts.reference) if reference is None else reference
+    pxmask = imread(opts.pxmask) if pxmask is None else pxmask
+    
+    info = _generate_pattern_info(imgs, opts, reference=reference, pxmask=pxmask)
+    hits = info['num_peaks'] >= opts.min_peaks
+
+    if correct_non_hits or all(hits):
+        imgs = _get_corr_img(imgs.astype(np.float32), info['center_x'], info['center_y'], 
+                                        info['peak_data']['nPeaks'], 
+                                        info['peak_data']['peakXPosRaw'], 
+                                        info['peak_data']['peakYPosRaw'], 
+                                        opts, reference=reference, pxmask=pxmask)
+    else:
+        imgs = imgs.astype(np.float32)
+        imgs[hits,...] = _get_corr_img(imgs[hits,...], info['center_x'][hits,...], info['center_y'][hits,...], 
+                                          info['peak_data']['nPeaks'][hits,...], 
+                                          info['peak_data']['peakXPosRaw'][hits,...], 
+                                          info['peak_data']['peakYPosRaw'][hits,...], 
+                                          opts, reference=reference, pxmask=pxmask)
+        
+    return imgs, info
+
+
 #TODO: this might not really belong here -> move to some tools module? Or make private?
 def mean_clip(c: np.ndarray, sigma: float = 2.0) -> float:
     """Iteratively keeps only the values from the array that satisfies

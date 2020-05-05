@@ -2,6 +2,7 @@
 import yaml
 import pprint
 import json
+from typing import Union
 
 #TODO consider to make this a types.SimpleNamespace or use dataclasses.dataclass
 class PreProcOpts:
@@ -21,6 +22,7 @@ class PreProcOpts:
         self.shutter_time: float = 2                   #: Shutter time (in ms) for paralyzable detector model
         self.mask_gaps: bool = True
         self.float: bool = False
+        self.compression: Union[int, str] = 32004       #: standard HDF5 compression. Suggested values: gzip, none, 32004 (lz4)
         self.cam_length: float = 2                     #: Coarse camera length (in m) for estimations. Not used for indexing
         self.y_scale: float = 0.98                     #: Scaling of camera length along y axis (tilted detector)
         self.pixel_size: float = 55e-6                 #: Pixel size (in m)
