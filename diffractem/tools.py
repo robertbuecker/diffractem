@@ -55,7 +55,7 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
     mimg = mimg.copy()
     vimg = vimg.copy()
     mimg[gap] = mimg[gap] * gap_factor
-    vimg[gap] = vimg[gap] * gap_factor * 3.2
+    vimg[gap] = vimg[gap] * gap_factor * np.sqrt(3) #3.2
 
     # Make mask
     zeropix = mimg == 0
