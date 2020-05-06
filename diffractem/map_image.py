@@ -329,10 +329,12 @@ class MapImage:
         sh['pos_y'] = sh['crystal_y'] + offset_y
         inrange = (0 <= sh['pos_x']) & (sh['pos_x'] < self.img.shape[1]) & (0 <= sh['pos_y']) & (sh['pos_y'] < self.img.shape[0])
         sh = sh.loc[inrange,:]
-        print(sh)
+        # print(sh)
         if y_pos_tol is not None:
-            sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=int(min(self.img.shape[0]/100, len(sh)-10)),
-                                       max_rows=self.img.shape[0], inc=25)
+            rowstart = int(min(self.img.shape[0]/100, len(sh)-10))
+            print('Starting y quantization with', rowstart, 'y rows')
+            sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=rowstart,
+                                       max_rows=self.img.shape[0], inc=10)
         sh = tools.set_frames(sh, frames)
         if predist is not None:
             sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)
@@ -340,7 +342,7 @@ class MapImage:
 
     def export_scan_list(self, filename, delim=' '):
         scanpos = self.shots.loc[:,['pos_x', 'pos_y']] / self.img.shape[::-1]
-        print(scanpos)
+        # print(scanpos)
         scanpos.to_csv(filename, sep=delim, header=False, index=False, line_terminator='\r\n')
 
     def make_mask(self, offset_x=0, offset_y=0, spotsize=0, pattern=None, init_cols=1, binary_fn=None):
