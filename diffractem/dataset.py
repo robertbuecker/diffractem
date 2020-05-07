@@ -1702,7 +1702,7 @@ class Dataset:
         # mange instrument (acquisition) data like exposure time etc. into shot list
         raise NotImplementedError('merge_acquisition_data not yet implemented')
 
-    def write_list(self, listfile: str):
+    def write_list(self, listfile: str, append: bool = False):
         """
         Writes the files in the dataset into a list file, containing each file on a line.
         
@@ -1710,8 +1710,8 @@ class Dataset:
             listfile (str): list file name
         """
         #TODO allow to export CrystFEL-style single-pattern lists
-        with open(listfile, 'w') as fh:
-            fh.write('\n'.join(self.files))
+        with open(listfile, 'a' if append else 'w') as fh:
+            fh.write('\n'.join(self.files) + '\n')
 
     def generate_virtual_file(self, filename: str, diff_stack_label: str,
                               kind: str = 'fake', virtual_size: int = 1024):
