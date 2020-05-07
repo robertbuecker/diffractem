@@ -588,7 +588,7 @@ def lorentz_fast(img, x_0: float = None, y_0: float = None, amp: float = None,
     """
     if (x_0 is None) or (not np.isfinite(x_0)):
         x_0 = img.shape[1] / 2
-    if (y_0 is None) or (not np.isfinite(x_0)):
+    if (y_0 is None) or (not np.isfinite(y_0)):
         y_0 = img.shape[0] / 2
     if radius is not None:
         x1 = int(x_0 - radius)
