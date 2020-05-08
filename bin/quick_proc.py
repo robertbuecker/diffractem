@@ -150,7 +150,7 @@ if __name__ == '__main__':
             try:
                 fns = io.expand_files(fns, validate=True)
             except (OSError, IOError) as err:
-                print('Could not open file(s) because of', str(err))
+                print(f'Could not open file(s) {" ".join(fns)} because of', err)
                 print('Possibly, it is still being written to. Waiting a bit...')
                 sleep(5)
                 continue
@@ -164,7 +164,7 @@ if __name__ == '__main__':
                 try:
                     ds_raw = Dataset.from_files(fns, chunking=args.chunksize)
                 except Exception as err:
-                    print('Could not open file(s) because of', str(err))
+                    print(f'Could not open file(s) {" ".join(fns)} because of', err)
                     print('Possibly, it is still being written to. Waiting a bit...')
                     sleep(5)
                     continue
