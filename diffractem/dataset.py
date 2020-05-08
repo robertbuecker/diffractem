@@ -8,7 +8,7 @@ from dask.diagnostics import ProgressBar
 from dask.distributed import Client
 from . import io, nexus
 from .stream_parser import StreamParser
-from .map_image import MapImage
+# from .map_image import MapImage
 import h5py
 from typing import Union, Dict, Optional, List, Tuple, Callable
 import copy
@@ -436,7 +436,7 @@ class Dataset:
                         rename(columns={'name': 'sample', 'region_id': 'region', 'run_id': 'run'})
                     self._features = self._features.merge(sdat, how='left', on=['file', 'subset'])
 
-                self._features.drop_duplicates(self._feature_id_cols, inplace=True)
+                self._features.drop_duplicates(self._feature_id_cols, inplace=True) # for multi files with identical features
                 self._features.drop(columns=['file', 'subset'], inplace=True)
 
             except KeyError:
@@ -504,7 +504,8 @@ class Dataset:
             self._shots_changed = False
 
         if (features is None and self._features_changed) or features:
-            fs.extend(nexus.store_table(self.features.merge(self.shots, on=self._feature_id_cols, validate='1:m'), 
+            fs.extend(nexus.store_table(self.features.merge(self.shots[self._feature_id_cols + ['file', 'subset']], 
+                                                            on=self._feature_id_cols, validate='1:m'), 
                                         self.map_pattern + '/features', parallel=self.parallel_io,
                                         format=format))
             self._features_changed = False
@@ -548,7 +549,7 @@ class Dataset:
         self.predict = stream.indexed.merge(self.shots[self._shot_id_cols + ['subset', 'shot_in_subset']],
                                             on=self._shot_id_cols, how='inner')
 
-    def get_map(self, file, subset='entry') -> MapImage:
+    def get_map(self, file, subset='entry'):
         # TODO: get a MapImage from stored data, with tables filled in from dataset
         raise NotImplementedError('does not work yet, sorry.')
 
