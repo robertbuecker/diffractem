@@ -437,6 +437,7 @@ class Dataset:
                     self._features = self._features.merge(sdat, how='left', on=['file', 'subset'])
 
                 self._features.drop_duplicates(self._feature_id_cols, inplace=True)
+                self._features.drop(columns=['file', 'subset'], inplace=True)
 
             except KeyError:
                 print('No features found at ' + self.map_pattern + '/features')
@@ -503,7 +504,8 @@ class Dataset:
             self._shots_changed = False
 
         if (features is None and self._features_changed) or features:
-            fs.extend(nexus.store_table(self.features, self.map_pattern + '/features', parallel=self.parallel_io,
+            fs.extend(nexus.store_table(self.features.merge(self.shots, on=self._feature_id_cols, validate='1:m'), 
+                                        self.map_pattern + '/features', parallel=self.parallel_io,
                                         format=format))
             self._features_changed = False
 
@@ -645,8 +647,11 @@ class Dataset:
             table = self.__dict__[lbl]
             if table.shape[0] == 0:
                 continue
-            newtable = table.merge(fn_map, on='file', how='left').drop('file', axis=1). \
-                rename(columns={'file_new': 'file'})
+            if 'file' in table.columns:
+                newtable = table.merge(fn_map, on='file', how='left').drop('file', axis=1). \
+                    rename(columns={'file_new': 'file'})
+            else:
+                newtable = table
             if (lbl == '_shots') and (not keep_raw or 'file_raw' not in table.columns):
                 newtable['file_raw'] = table.file
 

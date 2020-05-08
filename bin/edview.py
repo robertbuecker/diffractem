@@ -250,6 +250,8 @@ class EDViewer(QWidget):
             region_feat = self.dataset.features.loc[(self.dataset.features['region'] == self.current_shot['region'])
                                                & (self.dataset.features['sample'] == self.current_shot['sample'])
                                                & (self.dataset.features['run'] == self.current_shot['run']), :]
+            
+            print('Number of region features:', region_feat.shape[0])
 
             if self.current_shot['crystal_id'] != -1:
                 single_feat = region_feat.loc[region_feat['crystal_id'] == self.current_shot['crystal_id'], :]

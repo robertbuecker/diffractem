@@ -586,15 +586,19 @@ def lorentz_fast(img, x_0: float = None, y_0: float = None, amp: float = None,
     Returns:
         np.ndarray: numpy array of refined parameters [amp, x0, y0, scale]
     """
-    if (x_0 is None) or (not np.isfinite(x_0)):
+    if (x_0 is None) or (not np.isfinite(x_0)) or np.isnan(x_0):
         x_0 = img.shape[1] / 2
-    if (y_0 is None) or (not np.isfinite(y_0)):
+    if (y_0 is None) or (not np.isfinite(y_0)) or np.isnan(y_0):
         y_0 = img.shape[0] / 2
     if radius is not None:
-        x1 = int(x_0 - radius)
-        x2 = int(x_0 + radius)
-        y1 = int(y_0 - radius)
-        y2 = int(y_0 + radius)
+        try:
+            x1 = int(x_0 - radius)
+            x2 = int(x_0 + radius)
+            y1 = int(y_0 - radius)
+            y2 = int(y_0 + radius)
+        except ValueError as err:
+            print('Weird:', x0, y0, radius)
+            raise err
         if (x1 < 0) or (x2 > img.shape[1]) or (y1 < 0) or (y2 > img.shape[0]):
             print('Cannot cut image around peak. Centering.')
             x1 = int(img.shape[1] / 2 - radius)
