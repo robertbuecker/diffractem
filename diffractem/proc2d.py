@@ -212,6 +212,10 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
         
     else:
         ctr_refined, cost = lorentz[1:3], np.nan
+        
+    # virtual ADF detectors
+    adf1 = apply_virtual_detector(img, opts.r_adf1[0], opts.r_adf1[1], ctr_refined[0], ctr_refined[1])
+    adf2 = apply_virtual_detector(img, opts.r_adf2[0], opts.r_adf2[1], ctr_refined[0], ctr_refined[1])
 
     pattern_info = {'com_x': com[0], 'com_y': com[1],
                     'lor_pk': lorentz[0], 
@@ -221,6 +225,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
                     'center_x': ctr_refined[0],
                     'center_y': ctr_refined[1],
                     'center_refine_score': cost,
+                    'adf1': adf1,
+                    'adf2': adf2,
                     'num_peaks': peak_data['nPeaks'],
                     'peak_data': peak_data}
         
@@ -716,7 +722,9 @@ def center_of_mass2(img: np.ndarray, threshold: Optional[float] = None):
     return com
 
 
-def apply_virtual_detector(img: np.ndarray, r_inner: float, r_outer: float) -> float:
+@loop_over_stack
+def apply_virtual_detector(img: np.ndarray, r_inner: float, r_outer: float, 
+                           x0: Optional[float] = None, y0: Optional[float] = None) -> float:
     """
     Apply a "virtual STEM detector" to stack, with given inner and outer radii. Returns the mean value of all pixels
     that fall inside this annulus.
@@ -725,18 +733,25 @@ def apply_virtual_detector(img: np.ndarray, r_inner: float, r_outer: float) -> f
         img (np.ndarray): input image (or stack thereof)
         r_inner (float): Inner radius
         r_outer (float): Outer radius
+        x0 (float): Beam center position along x. If None, assumes center of image. Defaults to None. Should follow
+            CXI convention, i.e. relative to pixel center, not corner.
+        y0 (float): Similar for y
 
     Returns:
         float: mean value of pixels inside the annulus defined by r_inner and r_outer
     """
-    _, ysize, xsize = img.shape
-    x = np.linspace(-xsize/2-0.5, xsize/2+0.5, xsize)
-    y = np.linspace(-ysize/2-0.5, ysize/2+0.5, ysize)
+    ysize, xsize = img.shape
+    x0 = xsize/2 - 0.5 if x0 is None else x0
+    y0 = ysize/2 - 0.5 if y0 is None else y0
+    x = np.arange(xsize) - x0
+    y = np.arange(ysize) - y0
     X, Y = np.meshgrid(x, y)
-    R = np.sqrt(X**2 + Y**2)[np.newaxis,:,:]
-    mask = ((R < r_outer) & (R >= r_inner)) | (img >= 0)
+    R = np.sqrt(X**2 + Y**2)
+    # print(r_inner, r_outer)
+    mask = ((R < r_outer) & (R >= r_inner)) & ((img >= 0) if (img.dtype == np.integer) else np.isfinite(img))
+    # print(mask.sum())
     
-    return da.where(mask, img, 0).mean(axis=(1,2))
+    return img[mask].mean()
 
 
 @loop_over_stack
