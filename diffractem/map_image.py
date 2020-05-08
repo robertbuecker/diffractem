@@ -317,9 +317,10 @@ class MapImage:
         print('Transform is {}'.format(self.transform_matrix))
 
         if show_plot:
-            _, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(7, 3))
+            _, ax = plt.subplots(1, 2, sharex=True, sharey=False, figsize=(7, 3))
             reference.img_scatter_plot(ax.ravel()[0])
             self.img_scatter_plot(ax.ravel()[1])
+            plt.show()
 
     def make_scan_list(self, offset_x=0, offset_y=0, frames=1, y_pos_tol=1, predist=100, dxmax=300):
         # initialize by copying crystal list
