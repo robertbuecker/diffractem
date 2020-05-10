@@ -970,7 +970,7 @@ class Dataset:
                 raise ValueError(f'Unknown aggregation method {method}. Allowed ones are {tuple(func_lib.keys())}')
             except ValueError as e:
                 if str(e).startswith('Mismatched chunk structure'):
-                    warn(f'Stack '+sn+' has mismatched chunk structure. Rechunking to minimum chunk sizes. '
+                    warn(f'Stack {sn} has mismatched chunk structure. Rechunking to minimum chunk sizes. '
                          'Consider rechunking manually before, to improve performance.')
                     #TODO this comes with quite a performance penalty, but sth more complex would be comlex.
                     stk_rec = stk_sel.rechunk({0: tuple(sh_final['agg_len'].values)})
@@ -1156,7 +1156,10 @@ class Dataset:
 
             grp = fh[self.data_pattern.replace('%', subset)]
             if isinstance(grp, h5py.Group):
-                curr_lbl = grp.attrs['signal']
+                try:
+                    curr_lbl = grp.attrs['signal']
+                except KeyError:
+                    curr_lbl = self._diff_stack_label
                 if not isinstance(curr_lbl, str):
                     curr_lbl = curr_lbl.decode()
                 if not self._diff_stack_label:
