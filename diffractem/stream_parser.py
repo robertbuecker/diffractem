@@ -24,14 +24,13 @@ ID_FIELDS = ['file', 'Event', 'serial']
 
 
 def augment_stream(streamname: str, outfile:str, new_fields: Union[pd.DataFrame, dict], where: str = 'chunk'):
-    """IDEA: add new fields to stream headers, which can then be used for chopping or filtering.
+    """Add new fields to chunk headers in the stream file, which can then be used for chopping or filtering.
+    Somewhat similar to indexamajig's "include-hdf5-field" option, just *after* the fact.
     
-    Arguments:
-        streamname {str} -- [description]
-        new_fields {Union[pd.DataFrame, dict]} -- [description]
-    
-    Raises:
-        NotImplementedError: [description]
+    Args:
+        streamname (str): Name of stream file
+        new_fields (pd.DataFrame): pandas DataFrame with index matching the file and Event of the stream file
+            and columns matching the additional fields to be added
     """
 
     chunk_init = False
@@ -73,26 +72,26 @@ def augment_stream(streamname: str, outfile:str, new_fields: Union[pd.DataFrame,
                 
             fh.write(l)
 
-def chop_stream(streamname: str, id_list: list, id_field='hdf5/%/shots/frame', id_appendix='frame', fn_contains=None):
+def chop_stream(streamname: str, id_list: list, id_field: str = 'hdf5/%/shots/frame', 
+                id_suffix: str = 'frame', fn_contains: str = None):
     """Chops a stream file into sub-streams containing only shots with a specific value of
     a defined field, which must be in the chunk header. Useful e.g. for chopping into aggregation
-    frames.
+    frames, different sample grids, runs with different rotation angles etc.
     
-    Arguments:
-        streamname {str} -- [Stream file name]
-        id_list {str} -- [List of values of the ID variable which you want to have in the final files.]
+    If you just want to *select* a sub-set of a stream file instead of chopping it up into many parts,
+    consider using the stream_grep script included with CrystFEL, which is way faster and more flexible.
     
-    Keyword Arguments:
-        id_field {str} -- [Field in chunk data to select by] (default: {'hdf5/%/shots/frame'})
-        id_appendix {str} -- [file appendix specifying the ID] (default: {'frame'})
-    
-    Raises:
-        RuntimeError: [weirdness in the stream found]
+    Args:
+        streamname (str): Stream file name
+        id_list (str): List of values of the ID variable which you want to have in the final files.
+        id_field (str): Field in chunk data to select by. Defaults to 'hdf5/%/shots/frame'.
+        id_appendix (str): Appendix to be applied to the output stream file names. Defaults to 'frame'.
+
     """
 
     outfiles = {}
     for fnum in id_list:
-        outfiles[fnum] = open(streamname.rsplit('.', 1)[0] + f'-{id_appendix}{fnum}.stream', 'w')
+        outfiles[fnum] = open(streamname.rsplit('.', 1)[0] + f'-{id_suffix}{fnum}.stream', 'w')
 
     chunk_init = False
     chunk_string = ''

@@ -486,11 +486,9 @@ class Dataset:
         """
         
         fs = []
-
-        #TODO automatically handle readonly-opened files
-        if self._files_open and (format == 'tables'):
-            warn('Data files are open, and will be transiently closed. You will need to re-create derived stacks.',
-                 RuntimeWarning)
+        
+        if self._files_open and not self._files_writable:
+            # files are open in read-only, they need to be closed
             stacks_were_open = True
             self.close_files()
         else:
@@ -1096,6 +1094,7 @@ class Dataset:
             chunking (Union[int, str, list, tuple], optional): [description]. Defaults to 'dataset'.
 
         """
+        #TODO DO NOT OVERWRITE PERSISTED STACKS!
         
         if (not readonly and self._files_open and not self._files_writable) or \
             (readonly and self._files_writable):
