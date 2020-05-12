@@ -212,6 +212,10 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
         
     else:
         ctr_refined, cost = lorentz[1:3], np.nan
+        
+    # virtual ADF detectors
+    adf1 = apply_virtual_detector(img, opts.r_adf1[0], opts.r_adf1[1], ctr_refined[0], ctr_refined[1])
+    adf2 = apply_virtual_detector(img, opts.r_adf2[0], opts.r_adf2[1], ctr_refined[0], ctr_refined[1])
 
     pattern_info = {'com_x': com[0], 'com_y': com[1],
                     'lor_pk': lorentz[0], 
@@ -221,6 +225,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
                     'center_x': ctr_refined[0],
                     'center_y': ctr_refined[1],
                     'center_refine_score': cost,
+                    'adf1': adf1,
+                    'adf2': adf2,
                     'num_peaks': peak_data['nPeaks'],
                     'peak_data': peak_data}
         
@@ -586,15 +592,19 @@ def lorentz_fast(img, x_0: float = None, y_0: float = None, amp: float = None,
     Returns:
         np.ndarray: numpy array of refined parameters [amp, x0, y0, scale]
     """
-    if (x_0 is None) or (not np.isfinite(x_0)):
+    if (x_0 is None) or (not np.isfinite(x_0)) or np.isnan(x_0):
         x_0 = img.shape[1] / 2
-    if (y_0 is None) or (not np.isfinite(x_0)):
+    if (y_0 is None) or (not np.isfinite(y_0)) or np.isnan(y_0):
         y_0 = img.shape[0] / 2
     if radius is not None:
-        x1 = int(x_0 - radius)
-        x2 = int(x_0 + radius)
-        y1 = int(y_0 - radius)
-        y2 = int(y_0 + radius)
+        try:
+            x1 = int(x_0 - radius)
+            x2 = int(x_0 + radius)
+            y1 = int(y_0 - radius)
+            y2 = int(y_0 + radius)
+        except ValueError as err:
+            print('Weird:', x0, y0, radius)
+            raise err
         if (x1 < 0) or (x2 > img.shape[1]) or (y1 < 0) or (y2 > img.shape[0]):
             print('Cannot cut image around peak. Centering.')
             x1 = int(img.shape[1] / 2 - radius)
@@ -712,7 +722,9 @@ def center_of_mass2(img: np.ndarray, threshold: Optional[float] = None):
     return com
 
 
-def apply_virtual_detector(img: np.ndarray, r_inner: float, r_outer: float) -> float:
+@loop_over_stack
+def apply_virtual_detector(img: np.ndarray, r_inner: float, r_outer: float, 
+                           x0: Optional[float] = None, y0: Optional[float] = None) -> float:
     """
     Apply a "virtual STEM detector" to stack, with given inner and outer radii. Returns the mean value of all pixels
     that fall inside this annulus.
@@ -721,18 +733,25 @@ def apply_virtual_detector(img: np.ndarray, r_inner: float, r_outer: float) -> f
         img (np.ndarray): input image (or stack thereof)
         r_inner (float): Inner radius
         r_outer (float): Outer radius
+        x0 (float): Beam center position along x. If None, assumes center of image. Defaults to None. Should follow
+            CXI convention, i.e. relative to pixel center, not corner.
+        y0 (float): Similar for y
 
     Returns:
         float: mean value of pixels inside the annulus defined by r_inner and r_outer
     """
-    _, ysize, xsize = img.shape
-    x = np.linspace(-xsize/2-0.5, xsize/2+0.5, xsize)
-    y = np.linspace(-ysize/2-0.5, ysize/2+0.5, ysize)
+    ysize, xsize = img.shape
+    x0 = xsize/2 - 0.5 if x0 is None else x0
+    y0 = ysize/2 - 0.5 if y0 is None else y0
+    x = np.arange(xsize) - x0
+    y = np.arange(ysize) - y0
     X, Y = np.meshgrid(x, y)
-    R = np.sqrt(X**2 + Y**2)[np.newaxis,:,:]
-    mask = ((R < r_outer) & (R >= r_inner)) | (img >= 0)
+    R = np.sqrt(X**2 + Y**2)
+    # print(r_inner, r_outer)
+    mask = ((R < r_outer) & (R >= r_inner)) & ((img >= 0) if (img.dtype == np.integer) else np.isfinite(img))
+    # print(mask.sum())
     
-    return da.where(mask, img, 0).mean(axis=(1,2))
+    return img[mask].mean()
 
 
 @loop_over_stack

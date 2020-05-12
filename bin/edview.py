@@ -122,6 +122,10 @@ class EDViewer(QWidget):
             #print('cutting shot list only')
             self.dataset._shots = self.dataset._shots.query(args.query)
 
+        if self.args.sort_crystals:
+            print('Re-sorting shots by region/crystal/run.')
+            self.dataset._shots = self.dataset._shots.sort_values(by=['sample', 'region', 'crystal_id', 'run'])
+
         if not self.args.internal:
             #adxv_args = {'wavelength': 0.0251, 'distance': 2280, 'pixelsize': 0.055}
             adxv_args = {}
@@ -248,8 +252,9 @@ class EDViewer(QWidget):
             dot_pen = pg.mkPen('y', width=0.5)
 
             region_feat = self.dataset.features.loc[(self.dataset.features['region'] == self.current_shot['region'])
-                                               & (self.dataset.features['sample'] == self.current_shot['sample'])
-                                               & (self.dataset.features['run'] == self.current_shot['run']), :]
+                                               & (self.dataset.features['sample'] == self.current_shot['sample'])]
+            
+            print('Number of region features:', region_feat.shape[0])
 
             if self.current_shot['crystal_id'] != -1:
                 single_feat = region_feat.loc[region_feat['crystal_id'] == self.current_shot['crystal_id'], :]
@@ -480,6 +485,7 @@ if __name__ == '__main__':
     parser.add_argument('--predict-path', type=str, help='Path to prediction table', default='/%/results/predict')
     parser.add_argument('--no-map', help='Hide map, even if we had it', action='store_true')
     parser.add_argument('--beam-diam', type=int, help='Beam size displayed in real space, in pixels', default=5)
+    parser.add_argument('--sort-crystals', help='Sort shots by crystal IDs', action='store_true')
 
     args = parser.parse_args()
 

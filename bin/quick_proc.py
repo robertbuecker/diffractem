@@ -1,5 +1,5 @@
 import hdf5plugin # required to access LZ4-encoded HDF5 data sets
-from diffractem import version, proc2d, pre_proc_opts, nexus
+from diffractem import version, proc2d, pre_proc_opts, nexus, io
 from diffractem.dataset import Dataset
 from tifffile import imread
 import numpy as np
@@ -12,6 +12,8 @@ import argparse
 import subprocess
 import pandas as pd
 import random
+from warnings import warn
+from time import sleep
 
 def _fast_correct(*args, data_key='/%/data/corrected', 
                   shots_grp='/%/shots', 
@@ -86,62 +88,129 @@ def quick_proc(ds, opts, client, reference=None, pxmask=None):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Quick and dirty pre-processing for Serial Electron Diffraction data')
-    parser.add_argument('filename', type=str, help='List or HDF5 file or glob pattern')
-    parser.add_argument('-s', '--settings', type=str, help='Option YAML file')
+    parser = argparse.ArgumentParser(description='Quick and dirty pre-processing for Serial Electron Diffraction data', 
+                                     allow_abbrev=False, epilog='Any other options are passed on as modification to the option file')
+    parser.add_argument('filename', type=str, nargs='*', help='List or HDF5 file or glob pattern')
+    parser.add_argument('-s', '--settings', type=str, help='Option YAML file', default='preproc.yaml')
     parser.add_argument('-a', '--address', type=str, help='Address of dask.distributed cluster', default='127.0.0.1:8786')
     parser.add_argument('-c', '--chunksize', type=int, help='Chunk size of raw data stack. Should be integer multiple of movie stack frames!', default=100)
     parser.add_argument('-l', '--list-file', type=str, help='Name of output list file', default='processed.lst')
+    parser.add_argument('-w', '--wait-for-files', help='Wait for files matching wildcard pattern', action='store_true')
+    parser.add_argument('--include-existing', help='When using -w/--wait-for-file, also include existing files', action='store_true')
+    parser.add_argument('--append', help='Append to list instead of overwrite', action='store_true')
     parser.add_argument('-d', '--data-path-old', type=str, help='Raw data field in HDF5 file(s)', default='/%/data/raw_counts')
     parser.add_argument('-n', '--data-path-new', type=str, help='Raw data field in HDF5 file(s)', default='/%/data/corrected')
     parser.add_argument('--no-bgcorr', help='Skip background correction', action='store_true')
-    parser.add_argument('ppopt', nargs=argparse.REMAINDER, help='Preprocessing options to be overriden')
+    # parser.add_argument('ppopt', nargs=argparse.REMAINDER, help='Preprocessing options to be overriden')
 
-    args = parser.parse_args()
-    # print(extra)
+    args, extra = parser.parse_known_args()
+    # print(args, extra)
+    # raise RuntimeError('thus far!')
     opts = pre_proc_opts.PreProcOpts(args.settings)
+    
+    if extra:
+        # If extra arguments have been supplied, overwrite existing values
+        opt_parser = argparse.ArgumentParser()
+        for k, v in opts.__dict__.items():
+            opt_parser.add_argument('--' + k, type=type(v), default=None)
+        opts2 = opt_parser.parse_args(extra)
+        
+        for k, v in vars(opts2).items():
+            if v is not None:
+                if type(v) != type(opts.__dict__[k]):
+                    warn('Mismatch of data types in overriden argument!', RuntimeWarning)
+                print(f'Overriding option file setting {k} = {opts.__dict__[k]} ({type(opts.__dict__[k])}). ',
+                    f'New value is {v} ({type(v)})')
+                opts.__dict__[k] = v
+    
+    # raise RuntimeError('thus far!')
     print(f'Running on diffractem:', version())
-    # print(f'Running on', subprocess.check_output(opts.im_exc, ' -v'))
     print(f'Current path is:', os.getcwd())
     
     print('Connecting to cluster scheduler at', args.address)
     client = Client(address=args.address)
-
     client.run(os.chdir, os.getcwd())
-
-    ds_raw = Dataset.from_files(args.filename, chunking=args.chunksize)
-    print('---- Have dataset ----')
-    print(ds_raw)
     
-    # delete undesired stacks
-    delstacks = [sn for sn in ds_raw.stacks.keys() if sn != args.data_path_old.rsplit('/', 1)[-1]]
-    for sn in delstacks:
-        ds_raw.delete_stack(sn)
+    if len(args.filename) == 1:
+        args.filename = args.filename[0]
+    
+    # print(args.filename)
+    seen_raw_files = [] if args.include_existing else io.expand_files(args.filename)
 
-    if opts.aggregate:
-        print('---- Aggregating raw data ----')
-        ds_compute = ds_raw.aggregate(query=opts.agg_query, 
-                                by=['sample', 'region', 'run', 'crystal_id'], 
-                                how='sum', new_folder=opts.proc_dir, 
-                                file_suffix=opts.agg_file_suffix)
-    else:
-        ds_compute = ds_raw.get_selection(query=opts.select_query,
+    while True:
+    
+        if args.wait_for_files:
+            
+            # slightly awkward sequence to only open finished files... (but believe me - it works!)
+            
+            fns = io.expand_files(args.filename)
+            # print(fns)
+            fns = [fn for fn in fns if fn not in seen_raw_files]
+            # validation...
+            try:
+                fns = io.expand_files(fns, validate=True)
+            except (OSError, IOError) as err:
+                print(f'Could not open file(s) {" ".join(fns)} because of', err)
+                print('Possibly, it is still being written to. Waiting a bit...')
+                sleep(5)
+                continue
+                
+            if not fns:
+                print('No new files, waiting a bit...')
+                sleep(5)
+                continue
+            else:
+                print(f'Found new files(s):\n', '\n'.join(fns))
+                try:
+                    ds_raw = Dataset.from_files(fns, chunking=args.chunksize)
+                except Exception as err:
+                    print(f'Could not open file(s) {" ".join(fns)} because of', err)
+                    print('Possibly, it is still being written to. Waiting a bit...')
+                    sleep(5)
+                    continue
+        
+        else:
+            fns = io.expand_files(args.filename, validate=True)
+            ds_raw = Dataset.from_files(fns, chunking=args.chunksize)
+            
+        seen_raw_files.extend(ds_raw.files)
+        
+        print('---- Have dataset ----')
+        print(ds_raw)
+        
+        # delete undesired stacks
+        delstacks = [sn for sn in ds_raw.stacks.keys() if sn != args.data_path_old.rsplit('/', 1)[-1]]
+        for sn in delstacks:
+            ds_raw.delete_stack(sn)
+
+        if opts.aggregate:
+            print('---- Aggregating raw data ----')
+            ds_compute = ds_raw.aggregate(query=opts.agg_query, 
+                                    by=['sample', 'region', 'run', 'crystal_id'], 
+                                    how='sum', new_folder=opts.proc_dir, 
                                     file_suffix=opts.agg_file_suffix)
-    
-    print('Initializing data files...')
-    ds_compute.init_files(overwrite=True)
+        else:
+            ds_compute = ds_raw.get_selection(query=opts.select_query,
+                                        file_suffix=opts.agg_file_suffix)
+        
+        print('Initializing data files...')
+        os.makedirs(opts.proc_dir, exist_ok=True)
+        ds_compute.init_files(overwrite=True)
 
-    print('Storing meta tables...')
-    ds_compute.store_tables()
+        print('Storing meta tables...')
+        ds_compute.store_tables(shots=True, features=True)
 
-    print(f'Processing diffraction data... monitor progress at {client.dashboard_link} (or forward port if remote)')
-    chunk_info = quick_proc(ds_compute, opts, client)
+        print(f'Processing diffraction data... monitor progress at {client.dashboard_link} (or forward port if remote)')
+        chunk_info = quick_proc(ds_compute, opts, client)
+        
+        # make sure that the calculation went consistent with the data set
+        for (sh, sh_grp), (ch, ch_grp) in zip(ds_compute.shots.groupby(['file', 'subset']), chunk_info.groupby(['file', 'subset'])):
+            if any(sh_grp.shot_in_subset.values != np.sort(np.concatenate(ch_grp.shot_in_subset.values))):
+                raise ValueError(f'Incosistency between calculated data and shot list in {sh[0]}: {sh[1]} found. Please investigate.')
     
-    # make sure that the calculation went consistent with the data set
-    for (sh, sh_grp), (ch, ch_grp) in zip(ds_compute.shots.groupby(['file', 'subset']), chunk_info.groupby(['file', 'subset'])):
-        if any(sh_grp.shot_in_subset.values != np.sort(np.concatenate(ch_grp.shot_in_subset.values))):
-            raise ValueError(f'Incosistency between calculated data and shot list in {sh[0]}: {sh[1]} found. Please investigate.')
-    
-    ds_compute.write_list(args.list_file)
-    
-    print(f'Computation done. Processed files are in {args.list_file}')
+        ds_compute.write_list(args.list_file, append = args.append)
+        
+        print(f'Computation done. Processed files are in {args.list_file}')
+               
+        if not args.wait_for_files:
+            break

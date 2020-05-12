@@ -8,7 +8,7 @@ from dask.diagnostics import ProgressBar
 from dask.distributed import Client
 from . import io, nexus
 from .stream_parser import StreamParser
-from .map_image import MapImage
+# from .map_image import MapImage
 import h5py
 from typing import Union, Dict, Optional, List, Tuple, Callable
 import copy
@@ -436,7 +436,8 @@ class Dataset:
                         rename(columns={'name': 'sample', 'region_id': 'region', 'run_id': 'run'})
                     self._features = self._features.merge(sdat, how='left', on=['file', 'subset'])
 
-                self._features.drop_duplicates(self._feature_id_cols, inplace=True)
+                self._features.drop_duplicates(self._feature_id_cols, inplace=True) # for multi files with identical features
+                self._features.drop(columns=['file', 'subset'], inplace=True)
 
             except KeyError:
                 print('No features found at ' + self.map_pattern + '/features')
@@ -503,7 +504,9 @@ class Dataset:
             self._shots_changed = False
 
         if (features is None and self._features_changed) or features:
-            fs.extend(nexus.store_table(self.features, self.map_pattern + '/features', parallel=self.parallel_io,
+            fs.extend(nexus.store_table(self.features.merge(self.shots[self._feature_id_cols + ['file', 'subset']], 
+                                                            on=self._feature_id_cols, validate='1:m'), 
+                                        self.map_pattern + '/features', parallel=self.parallel_io,
                                         format=format))
             self._features_changed = False
 
@@ -546,7 +549,7 @@ class Dataset:
         self.predict = stream.indexed.merge(self.shots[self._shot_id_cols + ['subset', 'shot_in_subset']],
                                             on=self._shot_id_cols, how='inner')
 
-    def get_map(self, file, subset='entry') -> MapImage:
+    def get_map(self, file, subset='entry'):
         # TODO: get a MapImage from stored data, with tables filled in from dataset
         raise NotImplementedError('does not work yet, sorry.')
 
@@ -645,8 +648,11 @@ class Dataset:
             table = self.__dict__[lbl]
             if table.shape[0] == 0:
                 continue
-            newtable = table.merge(fn_map, on='file', how='left').drop('file', axis=1). \
-                rename(columns={'file_new': 'file'})
+            if 'file' in table.columns:
+                newtable = table.merge(fn_map, on='file', how='left').drop('file', axis=1). \
+                    rename(columns={'file_new': 'file'})
+            else:
+                newtable = table
             if (lbl == '_shots') and (not keep_raw or 'file_raw' not in table.columns):
                 newtable['file_raw'] = table.file
 
@@ -1702,7 +1708,7 @@ class Dataset:
         # mange instrument (acquisition) data like exposure time etc. into shot list
         raise NotImplementedError('merge_acquisition_data not yet implemented')
 
-    def write_list(self, listfile: str):
+    def write_list(self, listfile: str, append: bool = False):
         """
         Writes the files in the dataset into a list file, containing each file on a line.
         
@@ -1710,8 +1716,8 @@ class Dataset:
             listfile (str): list file name
         """
         #TODO allow to export CrystFEL-style single-pattern lists
-        with open(listfile, 'w') as fh:
-            fh.write('\n'.join(self.files))
+        with open(listfile, 'a' if append else 'w') as fh:
+            fh.write('\n'.join(self.files) + '\n')
 
     def generate_virtual_file(self, filename: str, diff_stack_label: str,
                               kind: str = 'fake', virtual_size: int = 1024):

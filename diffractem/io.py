@@ -52,15 +52,19 @@ def expand_files(file_list: Union[str, list], scan_shots=False, validate=False):
             raise ValueError('Validation is only allowed if scan_shot=False.')
         valid_files = []
         for r in fl:
-            with h5py.File(r, 'r') as fh:
-                
-                for k in fh.keys():
-                
-                    if (f'/{k}/shots' in fh) and (f'/{k}/map/features' in fh) and (f'/{k}/data' in fh):
-                        # print(r,': file validated!')
-                        valid_files.append(r)
-                    else:
-                        print(r, k, ': invalid file/subset!')       
+            try:
+                with h5py.File(r, 'r') as fh:
+                    
+                    for k in fh.keys():
+                    
+                        if (f'/{k}/shots' in fh) and (f'/{k}/map/features' in fh) and (f'/{k}/data' in fh):
+                            # print(r,': file validated!')
+                            valid_files.append(r)
+                        else:
+                            print(r, k, ': invalid file/subset!')       
+            except (OSError, IOError) as err:
+                print('Could not open file', r, 'for validation because:')
+                print(err)
                     
         return valid_files
 
