@@ -20,8 +20,9 @@ class PreProcOpts:
         self.correct_saturation: bool = True          #: Correct for detector saturation using paralyzable model
         self.dead_time: float = 1.9e-3                 #: Dead time (in ms) for paralyzable detector model
         self.shutter_time: float = 2                   #: Shutter time (in ms) for paralyzable detector model
-        self.mask_gaps: bool = True
-        self.float: bool = False
+        self.mask_gaps: bool = True                     #: Always mask detector gaps (regardless of dead pixel mask)
+        self.interpolate_dead: bool = False             #: Interpolate dead pixels instead of masking
+        self.float: bool = False                        #: Process images as floating-point
         self.compression: Union[int, str] = 32004       #: standard HDF5 compression. Suggested values: gzip, none, 32004 (lz4)
         self.cam_length: float = 2                     #: Coarse camera length (in m) for estimations. Not used for indexing
         self.y_scale: float = 0.98                     #: Scaling of camera length along y axis (tilted detector)

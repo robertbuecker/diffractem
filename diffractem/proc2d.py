@@ -14,7 +14,7 @@ from astropy.convolution import Gaussian2DKernel, convolve
 from scipy.ndimage.filters import median_filter
 from functools import wraps
 from typing import Optional, Tuple, Union, List, Callable, Dict
-from warnings import warn
+from warnings import warn, catch_warnings, simplefilter
 import pandas as pd
 
 
@@ -327,13 +327,13 @@ def _get_corr_img(img: np.ndarray,
     if opts.correct_saturation:
         img = apply_saturation_correction(img, opts.shutter_time, opts.dead_time)
     img = apply_flatfield(img, reference=reference)
-    img = correct_dead_pixels(img, pxmask=pxmask, strategy='replace', mask_gaps=True)
     
-    # TODO: CHANGE PXMASK HANDLING TO ALLOW FOR INTERPOLATED/GAP-INCLUDING IMAGES
+    # here, _always_ choose strategy='replace'. Interpolation will only be done on the final step
+    img = correct_dead_pixels(img, pxmask=pxmask, strategy='replace', mask_gaps=opts.mask_gaps)
     img = remove_background(img, x0, y0, nPeaks, peakXPosRaw, peakYPosRaw, pxmask=None)
     
     # has to be re-done after background correction
-    img = correct_dead_pixels(img, pxmask, strategy='replace', mask_gaps=opts.mask_gaps)
+    img = correct_dead_pixels(img, pxmask, strategy='interpolate' if opts.interpolate_dead else 'replace', mask_gaps=opts.mask_gaps)
     
     return img
 
@@ -1326,9 +1326,13 @@ def correct_dead_pixels(img: [np.ndarray, da.Array], pxmask: Union[np.ndarray, s
                                                  replace_val=replace_val) for theImg in img])
 
         kernel = Gaussian2DKernel(interp_range)
-        img_flt = convolve(img.astype(float), kernel, boundary='extend', 
-                           nan_treatment='interpolate', mask=pxmask)
-        np.nan_to_num(img_flt, copy=False, nan=np.nanmedian(img_flt))
+        with catch_warnings():
+            simplefilter("ignore")
+            img_flt = convolve(img.astype(float), kernel, boundary='extend', 
+                            nan_treatment='interpolate', mask=pxmask)
+        
+        if isinstance(img, np.integer):
+            img_flt = np.nan_to_num(img_flt, copy=False, nan=-1).astype(np.int32)
         
         img_out = np.where(pxmask, img_flt, img)
 
