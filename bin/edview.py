@@ -330,7 +330,7 @@ class EDViewer(QWidget):
         titlestr = ''
         for k, v in title.items():
             titlestr += f'{v} {shot[k]}' if k in shot.keys() else ''
-        titlestr += f'({shot.name} of f{self.dataset.shots.shape[0]})'
+        titlestr += f' ({shot.name} of {self.dataset.shots.shape[0]})'
         print(titlestr)
 
         self.setWindowTitle(titlestr)
