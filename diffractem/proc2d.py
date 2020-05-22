@@ -282,7 +282,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         cts = img.to_delayed().squeeze()
         res_del = [dask.delayed(_generate_pattern_info, nout=1, 
                                 pure=True)(c, opts=opts, reference=reference, pxmask=pxmask,
-                                           dask_key_name=f'pattern_info_chunk_{ii}') for ii, c in enumerate(cts)]
+                                           dask_key_name=f'pattern_info-{ii}') for ii, c in enumerate(cts)]
         if lazy:
             return res_del
         if client is not None:
