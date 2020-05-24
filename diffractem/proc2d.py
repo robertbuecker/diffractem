@@ -236,7 +236,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
 def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client: Optional[Client] = None, 
                      reference: Optional[np.ndarray] = None, 
                      pxmask: Optional[np.ndarray] = None, 
-                     lazy: bool = False, sync: bool = True) -> Tuple[pd.DataFrame, dict]:
+                     lazy: bool = False, sync: bool = True,
+                     errors: str = 'raise', via_array: bool = False) -> Tuple[pd.DataFrame, dict]:
     """'Macro' function for getting information about diffraction patterns.
     
     `get_pattern_info` finds diffraction peaks and computes information such as pattern center on a given diffraction 
@@ -266,6 +267,9 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             results. Mostly useful for debugging or embedding into more complex workflows. Defaults to False.
         sync (bool, optional): Immediately compute pattern info. If False, returns futures to pattern info dictionaries
             instead of DataFrame and peak dict. Defaults to True.
+        errors (str, optional): Behavior if errors arise during eager computation (i.e., `lazy=False`, `sync=True`). If
+            'raise', errors are raised, if 'skip', they are skipped, and the final data is missing the corresponding
+            shots, which needs to be handled downstream to avoid making a mess. Defaults to 'raise'.
 
     Returns:
         Tuple[pd.DataFrame, dict]: pandas DataFrame holding general pattern information, and dict holding CXI-format
@@ -278,7 +282,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
     pxmask = imread(opts.pxmask) if pxmask is None else pxmask
 #     print(type(pxmask))
     
-    if isinstance(img, da.Array):
+    if isinstance(img, da.Array) and not via_array:
         cts = img.to_delayed().squeeze()
         res_del = [dask.delayed(_generate_pattern_info, nout=1, 
                                 pure=True)(c, opts=opts, reference=reference, pxmask=pxmask,
@@ -291,10 +295,45 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                   f'Watch progress at {client.dashboard_link} (or forward port if remote).')
             if not sync:
                 return ftrs
-            alldat = stack_nested(client.gather(ftrs), func=np.concatenate)
+            alldat = stack_nested(client.gather(ftrs, errors=errors), func=np.concatenate)
         else:
             warn('get_pattern_info is run on a dask array without distributed client - might be slow!')
             alldat = dask.compute()
+            
+    elif isinstance(img, da.Array) and via_array:
+        # do extra step by casting output of _generate_pattern_info into a dask array and 
+        # keep using the dask array API instead of the delayed api as above. For yet not understood
+        # reasons this leads to a much better behavior of the dask scheduler and yields identical results.
+        # it's just horribly inelegant.
+        
+        # function to turn output of _generate_pattern_info into a dask array
+        _encode_info = lambda info: np.concatenate([np.stack([v for k, v in sorted(info.items()) if k != 'peak_data'], axis=1),
+                np.hstack([v.reshape(v.shape[0],-1) for k, v in sorted(info['peak_data'].items())])], axis=1)
+
+        # compute info for a single image to get structure of output
+        template = _generate_pattern_info(img[:1,...], opts)
+        
+        info_array = img.map_blocks(lambda img: _encode_info(_generate_pattern_info(img, opts)), 
+                                    dtype=np.float, drop_axis=[1,2], new_axis=1, 
+                                    chunks=(img.chunks[0], _encode_info(template).shape[1]))
+
+        alldat = client.compute(info_array, sync=True)
+        
+        # recreate shot data table
+        cols = [k for k in sorted(template) if k != 'peak_data']
+        types = {k: v.dtype for k, v in sorted(template.items()) if k != 'peak_data'}
+        shotdata = pd.DataFrame(alldat[:,:len(cols)], columns=cols).astype(types)
+        
+        # recreate peak info
+        pk_cols = [(k, v.reshape(v.shape[0],-1).shape[1], v.dtype) 
+                for k, v in sorted(template['peak_data'].items())]
+        
+        peakinfo, ii_col = {}, len(cols)
+        for col, width, dt in pk_cols:
+            peakinfo[col] = alldat[:, ii_col:ii_col+width].squeeze().astype(dt)
+            ii_col += width
+
+        return shotdata, peakinfo
             
     elif isinstance(img, np.ndarray):
         alldat = _generate_pattern_info(img, opts=opts, reference=reference, pxmask=pxmask)
