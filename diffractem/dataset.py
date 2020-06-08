@@ -903,7 +903,7 @@ class Dataset:
         
         # get shot selection and aggregation groups
         shsel = self.shots.reset_index(drop=True).query(query) if query is not None else \
-            self.shots.reset_index(drop=True).groupby(by, sort=False)
+            self.shots.reset_index(drop=True)
         gb = shsel.groupby(by, sort=False)
         
         # get shot list columns that are (non-)identical within each aggregation group

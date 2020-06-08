@@ -311,7 +311,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                 np.hstack([v.reshape(v.shape[0],-1) for k, v in sorted(info['peak_data'].items())])], axis=1)
 
         # compute info for a single image to get structure of output
-        template = _generate_pattern_info(img[:1,...], opts)
+        template = _generate_pattern_info(img[:1,...].compute(), opts)
         
         info_array = img.map_blocks(lambda img: _encode_info(_generate_pattern_info(img, opts)), 
                                     dtype=np.float, drop_axis=[1,2], new_axis=1, 
