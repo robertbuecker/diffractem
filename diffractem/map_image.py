@@ -332,10 +332,10 @@ class MapImage:
         sh = sh.loc[inrange,:]
         # print(sh)
         if y_pos_tol is not None:
-            rowstart = int(min(self.img.shape[0]/100, len(sh)-10))
+            rowstart = int(min(self.img.shape[0]/np.sqrt(len(sh)), len(sh)-10))
             print('Starting y quantization with', rowstart, 'y rows')
             sh = tools.quantize_y_scan(sh, maxdev=y_pos_tol, min_rows=rowstart,
-                                       max_rows=self.img.shape[0], inc=10)
+                                       max_rows=self.img.shape[0], inc=10, adaptive=True)
         sh = tools.set_frames(sh, frames)
         if predist is not None:
             sh = tools.insert_init(sh, predist=predist, dxmax=dxmax)

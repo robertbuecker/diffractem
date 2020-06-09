@@ -55,7 +55,8 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
     mimg = mimg.copy()
     vimg = vimg.copy()
     mimg[gap] = mimg[gap] * gap_factor
-    vimg[gap] = vimg[gap] * gap_factor * np.sqrt(3) #3.2
+    #TODO this needs some more consideration. Neither 3 nor sqrt(3) really work.
+    vimg[gap] = vimg[gap] * gap_factor * 1.8 #3.2
 
     # Make mask
     zeropix = mimg == 0
@@ -91,7 +92,8 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
 
 # now some functions for mangling with scan lists...
 
-def quantize_y_scan(shots, maxdev=1, min_rows=30, max_rows=500, inc=10, ycol='pos_y', ycol_to=None, xcol='pos_x'):
+def quantize_y_scan(shots, maxdev=1, min_rows=30, max_rows=500, 
+    inc=10, ycol='pos_y', ycol_to=None, xcol='pos_x', adaptive=True):
     """
     Reads a DataFrame containing scan points (in columns xcol and ycol), and quantizes the y positions (scan rows) to
     a reduced number of discrete values, keeping the deviation of the quantized rows to the actual y positions
@@ -110,17 +112,23 @@ def quantize_y_scan(shots, maxdev=1, min_rows=30, max_rows=500, inc=10, ycol='po
     from sklearn.cluster import KMeans
     if ycol_to is None:
         ycol_to = ycol
-    rows = min_rows
+    rows = min_rows    
+    dev = -1
     while True:
         shots = shots.copy()
         kmf = KMeans(n_clusters=rows).fit(shots[ycol].values.reshape(-1, 1))
         ysc = kmf.cluster_centers_[kmf.labels_].squeeze()
         shots['y_dev'] = shots[ycol] - ysc
-        if np.sqrt(kmf.inertia_ / len(shots)) <= maxdev:
+        dev0 = dev
+        dev = np.sqrt(kmf.inertia_ / len(shots))
+        print(rows, dev, (dev0-dev)/dev)
+        if dev <= maxdev:
             print('Reached y deviation goal with {} scan rows.'.format(rows))
             shots[ycol_to] = ysc
             shots.sort_values(by=[ycol, xcol], inplace=True)
             return shots.reset_index(drop=True)
+        if adaptive and (dev0 > 0):
+            inc = int(inc/((dev0-dev)/dev))
         rows += inc
 
 
