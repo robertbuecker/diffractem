@@ -121,14 +121,14 @@ def quantize_y_scan(shots, maxdev=1, min_rows=30, max_rows=500,
         shots['y_dev'] = shots[ycol] - ysc
         dev0 = dev
         dev = np.sqrt(kmf.inertia_ / len(shots))
-        print(rows, dev, (dev0-dev)/dev)
+        print(f'Scan point quantization:, {rows} rows, {dev:0.3f} deviation (reduced by {(dev0-dev)/dev0:0.3}).')
         if dev <= maxdev:
             print('Reached y deviation goal with {} scan rows.'.format(rows))
             shots[ycol_to] = ysc
             shots.sort_values(by=[ycol, xcol], inplace=True)
             return shots.reset_index(drop=True)
         if adaptive and (dev0 > 0):
-            inc = int(inc/((dev0-dev)/dev))
+            inc = int(inc/((dev0-dev)/dev0))
         rows += inc
 
 
