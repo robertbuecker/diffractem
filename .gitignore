@@ -13,3 +13,7 @@ build/
 playground.py
 pre_proc_play.py
 version.txt
+notebooks/dask-worker-space
+notebooks/proc_data
+*.h5
+*.nxs

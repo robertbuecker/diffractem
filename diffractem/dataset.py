@@ -1157,15 +1157,17 @@ class Dataset:
             if isinstance(grp, h5py.Group):
                 try:
                     curr_lbl = grp.attrs['signal']
+                    if not isinstance(curr_lbl, str):
+                        curr_lbl = curr_lbl.decode()
+                    if not self._diff_stack_label:
+                        self._diff_stack_label = curr_lbl
+                    elif self._diff_stack_label != curr_lbl:
+                        warn(f'Non-matching primary diffraction stack labels: '
+                            f'{self._diff_stack_label} vs {grp.attrs["signal"].decode()}')
+                        
                 except KeyError:
+                    # no diff stack label stored
                     curr_lbl = self._diff_stack_label
-                if not isinstance(curr_lbl, str):
-                    curr_lbl = curr_lbl.decode()
-                if not self._diff_stack_label:
-                    self._diff_stack_label = curr_lbl
-                elif self._diff_stack_label != curr_lbl:
-                    warn(f'Non-matching primary diffraction stack labels: '
-                         f'{self._diff_stack_label} vs {grp.attrs["signal"].decode()}')
                 
                 for dsname, ds in grp.items():
                     if ds is None:
@@ -1508,6 +1510,8 @@ class Dataset:
 
         stack = self._stacks[label]
             
+        print(f'Initializing data sets for diffraction stack {label}...')
+            
         # initialize datasets in files
         for (file, subset), grp in self.shots.groupby(['file', 'subset']):
             with h5py.File(file) as fh:
@@ -1519,6 +1523,7 @@ class Dataset:
                                         compression=compression)
                 if label == self._diff_stack_label:
                     fh[path].attrs['signal'] = label
+                    
         
         self.close_files()
         
@@ -1528,6 +1533,7 @@ class Dataset:
         locks = {fn: Lock() for fn in self.files}
 
         dels = []
+        print(f'Submitting tasks to dask.distributed scheduler...')
         for chk, (cl, sht) in zip(stk_del,self.shots.groupby(chunk_label)):
             assert len(sht.drop_duplicates(['file','subset'])) == 1
             ii_to = sht.shot_in_subset.values
@@ -1544,6 +1550,7 @@ class Dataset:
                 raise ValueError('If immediate computation is desired (sync=True), you have to provide a cluster.')
             import random
             random.shuffle(dels) # shuffling tasks to minimize concurrent file access
+            print('Starting computation...')
             chunk_info = client.compute(dels, sync=True)
             return pd.DataFrame(chunk_info, columns=['file', 'subset', 'path', 'shot_in_subset'])
         
@@ -1598,21 +1605,18 @@ class Dataset:
         exclude_stacks = [exclude_stacks] if isinstance(exclude_stacks, str) else exclude_stacks
         exclude_stacks = [diff_stack_label] if exclude_stacks is None else [diff_stack_label] + exclude_stacks
 
-        self.close_files()
-
         print('Initializing data files...')
         self.init_files(overwrite=overwrite)
 
         print('Storing meta tables...')
-        self.store_tables()
-
+        self.store_tables(shots=True, features=True)
+                
         # store all data stacks except for the actual diffraction data
         self.open_stacks(readonly=False)
         
         meta_stacks = [k for k in self.stacks.keys() if k not in exclude_stacks]
         print(f'Storing meta stacks {", ".join(meta_stacks)}')
-        with dask.config.set(scheduler='threading'):
-            self.store_stacks(labels=meta_stacks, compression=compression, overwrite=overwrite)
+        self.store_stacks(labels=meta_stacks, compression=compression, overwrite=overwrite)
 
         print(f'Storing diffraction data stack {diff_stack_label}... monitor progress at {client.dashboard_link} (or forward port if remote)')
         chunk_info = self.store_stack_fast(diff_stack_label, client, compression=compression)
@@ -1629,7 +1633,7 @@ class Dataset:
             self.open_stacks(readonly=True, chunking='existing')
             
         elif persist_diff:
-            self.open_stacks(labels=[diff_stack_label], readonly=True, chunking='existing')
+            self.open_stacks(labels=[diff_stack_label], readonly=True, chunking='existing')        
             
     #     else:
     #         ds_compute.open_stacks(labels=[]) # only populate the file handle list

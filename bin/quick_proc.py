@@ -149,7 +149,7 @@ if __name__ == '__main__':
             # validation...
             try:
                 fns = io.expand_files(fns, validate=True)
-            except (OSError, IOError) as err:
+            except (OSError, IOError, RuntimeError) as err:
                 print(f'Could not open file(s) {" ".join(fns)} because of', err)
                 print('Possibly, it is still being written to. Waiting a bit...')
                 sleep(5)
