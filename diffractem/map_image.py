@@ -290,12 +290,16 @@ class MapImage:
         return regionprops(self.labels, self.img, cache=True, coordinates='rc')
 
     def align_overview(self, reference, show_plot=False,
-                       method='ecc', use_gradient=False, transfer_props=False):
+                       method='ecc', use_gradient=False, 
+                       transfer_props=False):
         #assert isinstance(reference, type(self))
-        if self.tilt != 0:
+        if self.tilt != reference.tilt:
+            print('Reference and Map angle differ, using affine transform.')
             mode = 'affine'
         else:
             mode = 'translation'
+
+        # mode = 'affine' if affine else 'translation'
 
         if method == 'ecc':
             self.transform_matrix, coords = \
@@ -530,9 +534,10 @@ class MapImage:
 
     def find_particles(self, show_plot=True, show_segments=True, return_images=False,
                        thr_fun=threshold_li, thr_offset=0, local=False, disk_size=49, two_pass=False, # thresholding
+                       upper_threshold=None,
                        morph_method='legacy', morph_disk=2, remove_carbon_lacing=False,  # morphology
                        segmentation_method='distance-watershed', min_dist=8,  # segmentation
-                       picking_method='region-centroid', beam_radius=5,  # picking
+                       picking_method='region-centroid', beam_radius=5, fig_kwargs=None,  # picking
                        **kwargs):
         """
         Crystal finding algorithm. Attempts to find images in 4 steps:
@@ -573,6 +578,7 @@ class MapImage:
             many coordinate markers on the segment, approximately spaced by beam_radius/2; this is the 'brute-force'
             option.
         :param beam_radius: spacing between coordinates when using 'brute-force' acquisition
+        :param fig_kwargs: keyword arguments to pass on to "subplots" command that creates the figure
         :param kwargs:
         :return: various intermediate images (img, binarized, morph, label_image, labels) if return_images=True
         """
@@ -590,7 +596,13 @@ class MapImage:
                 # binarized = img > rank.otsu(img_as_ubyte(img), disk(disk_size))
                 binarized = img > threshold_local(img, disk_size, method='mean')
             else:
-                binarized = img > thr_fun(img) + thr_offset
+                t = thr_fun(img)
+                tfinal = t + thr_offset
+                print(f'Found threshold is {t:0.1f} cts -> binarizing at {tfinal:0.1f} cts')
+                binarized = img > tfinal
+            if upper_threshold is not None:
+                print('Cutting off values above', upper_threshold)
+                binarized[img > upper_threshold] = False
 
             return binarized
 
@@ -613,11 +625,12 @@ class MapImage:
                 morph = binarized
 
             else:
-                raise ValueError('Unknown morphology method {}'.format(morph_method))
+                raise ValueError('Unknown morphology method {}.Choose legacy or instamatic.'.format(morph_method))
 
             return morph
 
-        img = rescale_intensity(self.img, in_range='image')
+        # img = rescale_intensity(self.img, in_range='image')
+        img = self.img
         binarized = threshold(img)
         morph = morphology(binarized)
 
@@ -659,7 +672,8 @@ class MapImage:
             # self.labels = segmented.astype(int) - 1
 
         else:
-            raise ValueError('Unknown segmentation method {}'.format(segmentation_method))
+            raise ValueError('Unknown segmentation method {}. '.format(segmentation_method) +
+                                'Choose among: distance-watershed, intensity-watershed, random-walker')
 
         props = self.get_regionprops()
 
@@ -698,7 +712,8 @@ class MapImage:
             self.features['segment_id'] = segs
 
         else:
-            raise ValueError('Unknown coordinate method {}'.format(picking_method))
+            raise ValueError('Unknown coordinate method {}. '.format(picking_method) + 
+                            'Choose among: intensity-centroid, region-centroid, k-means')
 
         self.mask = np.ndarray((0, 0))  # invalidate mask
         self.coordinate_source = 'picked'
@@ -712,7 +727,7 @@ class MapImage:
         print('{} particles found in {} segments.'.format(self.coordinates.shape[0], self.labels.max()))
 
         if show_plot:
-            fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10))
+            fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, **({} if fig_kwargs is None else fig_kwargs))
             ax[0].imshow(img, cmap='gray', vmin=np.percentile(img, 1), vmax=np.percentile(img, 99))
             ax[0].contour(binarized, [0.5], linewidths=0.5, colors="yellow")
             ax[0].contour(morph, [0.5], linewidths=0.5, colors="green")
