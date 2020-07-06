@@ -197,7 +197,7 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
                                 **{k.replace('-','_'): v for k, v in opts.peak_search_params.items()},
                                 as_dict=True)
     
-    if peak_data['nPeaks'] >= opts.min_peaks:  
+    if opts.friedel_refine and (peak_data['nPeaks'] >= opts.min_peaks):  
         
         # prepare peak list. Note the .5, as _ctr_from_pks expects CrystFEL peak convention,
         # i.e. positions refer to pixel _corner_
