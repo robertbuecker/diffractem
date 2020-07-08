@@ -12,8 +12,9 @@ import os
 from tifffile import imread, imsave
 import hashlib
 import pandas as pd
+from warnings import warn
 
-def dataframe_hash(df: pd.DataFrame, signed: bool = True) -> pd.Series:
+def dataframe_hash(df: pd.DataFrame, string: bool = True, signed: bool = True) -> pd.Series:
     """
     Generate int32 (or uint32 if signed=False) hashes from a pandas data frame and return as a pandas Series.
     The hash is generated with md5 from a whitespace-delimited string representation from each data frame row, 
@@ -21,14 +22,25 @@ def dataframe_hash(df: pd.DataFrame, signed: bool = True) -> pd.Series:
     "data/file_a.h5 entry//0" (so similar to CrystFEL's list syntax).
     """
     
-    hfunc = lambda s: int(hashlib.md5(s.encode('utf-8')).hexdigest()[:8], 16)
+    if string:
+        hfunc = lambda s: hashlib.md5(s.encode('utf-8')).hexdigest()
+    else:    
+        hfunc = lambda s: int(hashlib.md5(s.encode('utf-8')).hexdigest()[:8], 16)
     
     str_series = None
     for _, s in df.astype(str).items():
         str_series = s if str_series is None else str_series + ' ' + s
         
     hashes = str_series.apply(hfunc)
-    return (hashes - 2**32//2).astype(np.int32) if signed else hashes.astype(np.uint32)
+    
+    if len(hashes.unique()) != len(hashes):
+        warn(f'dataframe hash for cols {", ".join(df.columns)} is non-unique! This will likely cause trouble downstream.', 
+             RuntimeWarning)
+
+    if string:
+        return hashes
+    else:
+        return (hashes - 2**32//2).astype(np.int32) if signed else hashes.astype(np.uint32)
 
 
 def strip_file_path(df: pd.DataFrame, add_folder=False):

@@ -64,8 +64,10 @@ def get_table(files: Union[list, str], path='/%/shots', parallel=True) -> pd.Dat
             out = p.map(_get_table_from_single_file, files, repeat(path))
     else:
         out = map(_get_table_from_single_file, files, repeat(path))
+        
+    out = pd.concat(out, ignore_index=True, sort=False)
 
-    return pd.concat(out, ignore_index=True)
+    return out
 
 
 def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset: str, format: str = 'nexus'):
