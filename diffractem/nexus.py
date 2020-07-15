@@ -131,8 +131,14 @@ def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: s
 
         with ProcessPoolExecutor() as exec:
             futures = []
-            for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
-                futures.append(exec.submit(_store_table_to_single_subset, ssdat, fn, path, ssn, format))
+            try:
+                for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
+                    futures.append(exec.submit(_store_table_to_single_subset, ssdat, fn, path, ssn, format))
+            except Exception as err:
+                print('Error during storing table in', path)
+                print('Table columns are:', ', '.join(table.columns))
+                # print(table)
+                raise err
 
             wait(futures, return_when=FIRST_EXCEPTION)
 

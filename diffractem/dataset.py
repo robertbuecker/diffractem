@@ -135,7 +135,7 @@ class Dataset:
         self._shots = pd.DataFrame(columns=self._shot_id_cols + self._feature_id_cols + ['selected'])
         self._peaks = pd.DataFrame(columns=self._shot_id_cols)
         self._predict = pd.DataFrame(columns=self._shot_id_cols)
-        self._features = pd.DataFrame(columns=self._feature_id_cols + ['file', 'subset'])
+        self._features = pd.DataFrame(columns=self._feature_id_cols)
 
     def __str__(self):
         return (f'diffractem Dataset object spanning {len(self._shots.file.unique())} NeXus/HDF5 files\n-----\n'
@@ -715,7 +715,7 @@ class Dataset:
         if len(exclude_list) > 0:
             exc += tuple(exclude_list)
 
-        # print(fn_map)
+        # print(fn_map)P
 
         if self.parallel_io:
             with ProcessPoolExecutor() as p:
@@ -1445,15 +1445,15 @@ class Dataset:
                         print('Cannot write stack', label)
                         raise e
                 
-                # if label == 'index':
-                #     fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
+                if label == 'index':
+                    fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
                 #     fh[path.rsplit('/', 1)[0]].attrs['signal'] = self._diff_stack_label
 
                 arrays.append(arr)
                 datasets.append(ds)
                 
-            if self._diff_stack_label in labels:
-                fh[path.rsplit('/',1)[0]].attrs['signal'] = label
+                if self._diff_stack_label == label:
+                    fh[path.rsplit('/',1)[0]].attrs['signal'] = label
 
         if lazy:
             return arrays, datasets
@@ -1556,7 +1556,8 @@ class Dataset:
         
     def compute_and_save(self, diff_stack_label: Optional[str] = None, list_file: Optional[str] = None, client: Optional[Client] = None, 
                          exclude_stacks: Union[str,List[str]] = None, overwrite: bool = False, persist_diff: bool = True, 
-                         persist_all: bool = False, compression: Union[str, int] = 32004):
+                         persist_all: bool = False, compression: Union[str, int] = 32004,
+                         store_features: bool = True):
         """Compound method to fully compute a dataset and write it to disk. 
         
         It is designed for completely writing HDF5 files from scratch, not to append to or modify existing ones,
@@ -1586,6 +1587,7 @@ class Dataset:
                 computed one to the one stored in the HDF5 file. Defaults to False.
             compression (Union[str, int], optional): HDF5 compression filter to use. Common choices are 'gzip', 'none',
                 or 32004, which is the lz4 filter often used for diffraction data. Defaults to 32004.
+            store_features (bool, optional): store/overwrite the feature table into the files. Defaults to True.
         """
         #TODO generalize to storing several diffraction stacks using sync=False.
         
@@ -1609,7 +1611,7 @@ class Dataset:
         self.init_files(overwrite=overwrite)
 
         print('Storing meta tables...')
-        self.store_tables(shots=True, features=True)
+        self.store_tables(shots=True, features=store_features)
                 
         # store all data stacks except for the actual diffraction data
         self.open_stacks(readonly=False)
