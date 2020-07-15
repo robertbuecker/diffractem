@@ -26,13 +26,10 @@ def _fast_correct(*args, data_key='/%/data/corrected',
     
     return store_dat
 
-def quick_proc(ds, opts, client, reference=None, pxmask=None):
+def quick_proc(ds, opts, label_raw, label, client, reference=None, pxmask=None):
     
     reference = imread(opts.reference) if reference is None else reference
     pxmask = imread(opts.pxmask) if pxmask is None else pxmask
-    
-    label_raw = args.data_path_old.rsplit('/', 1)[-1]
-    label = args.data_path_new.rsplit('/', 1)[-1]
 
     stack = ds.stacks[label_raw]
 #     stk_del = ds.stacks['label_raw'].to_delayed().ravel()
@@ -86,7 +83,7 @@ def quick_proc(ds, opts, client, reference=None, pxmask=None):
     chunk_info = client.compute(dels, sync=True)
     return pd.DataFrame(chunk_info, columns=['file', 'subset', 'path', 'shot_in_subset'])
 
-if __name__ == '__main__':
+def main():
 
     parser = argparse.ArgumentParser(description='Quick and dirty pre-processing for Serial Electron Diffraction data', 
                                      allow_abbrev=False, epilog='Any other options are passed on as modification to the option file')
@@ -107,7 +104,10 @@ if __name__ == '__main__':
     # print(args, extra)
     # raise RuntimeError('thus far!')
     opts = pre_proc_opts.PreProcOpts(args.settings)
-    
+     
+    label_raw = args.data_path_old.rsplit('/', 1)[-1]
+    label = args.data_path_new.rsplit('/', 1)[-1]
+       
     if extra:
         # If extra arguments have been supplied, overwrite existing values
         opt_parser = argparse.ArgumentParser()
@@ -201,7 +201,7 @@ if __name__ == '__main__':
         ds_compute.store_tables(shots=True, features=True)
 
         print(f'Processing diffraction data... monitor progress at {client.dashboard_link} (or forward port if remote)')
-        chunk_info = quick_proc(ds_compute, opts, client)
+        chunk_info = quick_proc(ds_compute, opts, label_raw, label, client)
         
         # make sure that the calculation went consistent with the data set
         for (sh, sh_grp), (ch, ch_grp) in zip(ds_compute.shots.groupby(['file', 'subset']), chunk_info.groupby(['file', 'subset'])):
@@ -214,3 +214,6 @@ if __name__ == '__main__':
                
         if not args.wait_for_files:
             break
+
+if __name__ == '__main__':
+    main()
