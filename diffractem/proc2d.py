@@ -147,7 +147,8 @@ def loop_over_stack(fun):
 @loop_over_stack
 def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts, 
                            reference: Optional[np.ndarray] = None, 
-                           pxmask: Optional[np.ndarray] = None) -> dict:
+                           pxmask: Optional[np.ndarray] = None,
+                           centers: Optional[np.ndarray] = None) -> dict:
     """
     'Macro' function computing information from diffraction data and returning it
     as a dictionary. Primarily intended to be called from `get_pattern_info`.
@@ -182,18 +183,28 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
     img = apply_flatfield(img, reference, keep_type=False)
     img = correct_dead_pixels(img, pxmask, strategy='replace', mask_gaps=False, replace_val=-1)
     
-    # thresholded center-of-mass calculation over x-axis sub-range
-    img_ct = img[:,(img.shape[1]-opts.com_xrng)//2:(img.shape[1]+opts.com_xrng)//2]
-    com = center_of_mass(img_ct, threshold=opts.com_threshold*np.quantile(img_ct,1-5e-5)) + [(img.shape[1]-opts.com_xrng)//2, 0]
-    
-    # Lorentz fit of direct beam
-    lorentz = lorentz_fast(img, com[0], com[1], radius=opts.lorentz_radius,
-                                        limit=opts.lorentz_maxshift, scale=7, threads=False)
+    if centers is None:
+        # thresholded center-of-mass calculation over x-axis sub-range
+        img_ct = img[:,(img.shape[1]-opts.com_xrng)//2:(img.shape[1]+opts.com_xrng)//2]
+        com = center_of_mass(img_ct, threshold=opts.com_threshold*np.quantile(img_ct,1-5e-5)) + [(img.shape[1]-opts.com_xrng)//2, 0]
+        
+        # Lorentz fit of direct beam
+        lorentz = lorentz_fast(img, com[0], com[1], radius=opts.lorentz_radius,
+                                            limit=opts.lorentz_maxshift, scale=7, threads=False)
+        
+        x0, y0 = lorentz[1], lorentz[2]
+             
+    else:
+        # print(centers.shape)
+        x0, y0 = centers[0], centers[1]
+        # print(centers)
+        lorentz = [np.nan] * 4
+        com = [np.nan] * 2
     
     # Get peaks using peakfinder8. Note that pf8 parameters are taken straight from the options file,
     # with automatic underscore/hyphen replacement.
     # Note that peak positions are CXI convention, i.e. refer to pixel _center_
-    peak_data = get_peaks(img, lorentz[1], lorentz[2], pxmask=pxmask, max_peaks=opts.max_peaks,
+    peak_data = get_peaks(img, x0, y0, pxmask=pxmask, max_peaks=opts.max_peaks,
                                 **{k.replace('-','_'): v for k, v in opts.peak_search_params.items()},
                                 as_dict=True)
     
@@ -204,15 +215,17 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
         pkl = np.stack((peak_data['peakXPosRaw'] + .5, peak_data['peakYPosRaw'] + .5, 
                         peak_data['peakTotalIntensity']), -1)[:int(peak_data['nPeaks']),:]
         if opts.friedel_max_radius is not None:
-            rsq = (pkl[:, 0] - lorentz[1]) ** 2 + (pkl[:, 1] - lorentz[2]) ** 2
+            rsq = (pkl[:, 0] - x0) ** 2 + (pkl[:, 1] - y0) ** 2
             pkl = pkl[rsq < opts.friedel_max_radius ** 2, :]
         
-        ctr_refined, cost, _ = _ctr_from_pks(pkl, lorentz[1:3], int_weight=False, 
+        ctr_refined, cost, _ = _ctr_from_pks(pkl, np.array([x0, y0]), int_weight=False, 
                     sigma=opts.peak_sigma)
         
     else:
-        ctr_refined, cost = lorentz[1:3], np.nan
-        
+        ctr_refined, cost = np.array([x0, y0]), np.nan
+    
+    # print(ctr_refined, x0, y0)
+    
     # virtual ADF detectors
     adf1 = apply_virtual_detector(img, opts.r_adf1[0], opts.r_adf1[1], ctr_refined[0], ctr_refined[1])
     adf2 = apply_virtual_detector(img, opts.r_adf2[0], opts.r_adf2[1], ctr_refined[0], ctr_refined[1])
@@ -236,6 +249,7 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
 def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client: Optional[Client] = None, 
                      reference: Optional[np.ndarray] = None, 
                      pxmask: Optional[np.ndarray] = None, 
+                     centers: Optional[Union[np.ndarray, da.Array]] = None,
                      lazy: bool = False, sync: bool = True,
                      errors: str = 'raise', via_array: bool = False) -> Tuple[pd.DataFrame, dict]:
     """'Macro' function for getting information about diffraction patterns.
@@ -263,6 +277,9 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             preprocessing options. Defaults to None.
         pxmask (Optional[np.ndarray], optional): Pixel mask image. If None, load the one specified in
             preprocessing options. Defaults to None.
+        centers (np.array or da.Array, optional): N x 2 matrix with known centers of all diffraction patterns. If set,
+            the center-of-mass and Lorentz fit steps are skipped. Depending on the setting of `opts.friedel_refine`,
+            Friedel-mate center refinement is still performed. Defaults to None.
         lazy (bool, optional): Return `dask.delayed` objects for pattern info generation tasks instead of the final
             results. Mostly useful for debugging or embedding into more complex workflows. Defaults to False.
         sync (bool, optional): Immediately compute pattern info. If False, returns futures to pattern info dictionaries
@@ -270,6 +287,9 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         errors (str, optional): Behavior if errors arise during eager computation (i.e., `lazy=False`, `sync=True`). If
             'raise', errors are raised, if 'skip', they are skipped, and the final data is missing the corresponding
             shots, which needs to be handled downstream to avoid making a mess. Defaults to 'raise'.
+        via_array (bool, optional): Modify calculation such that it avoids `dask.delayed` objects.
+            This drastically improves the scheduling behavior for large datasets. It is also required if you
+            supply the pattern centers to the function. However, precludes the use of lazy and sync. Defaults to False.
 
     Returns:
         Tuple[pd.DataFrame, dict]: pandas DataFrame holding general pattern information, and dict holding CXI-format
@@ -283,6 +303,8 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
 #     print(type(pxmask))
     
     if isinstance(img, da.Array) and not via_array:
+        if centers is not None:
+            raise ValueError('If pattern centers are given, you have to set via_array=True.')
         cts = img.to_delayed().squeeze()
         res_del = [dask.delayed(_generate_pattern_info, nout=1, 
                                 pure=True)(c, opts=opts, reference=reference, pxmask=pxmask,
@@ -311,14 +333,19 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                 np.hstack([v.reshape(v.shape[0],-1) for k, v in sorted(info['peak_data'].items())])], axis=1)
 
         # compute info for a single image to get structure of output
-        template = _generate_pattern_info(img[:1,...].compute(), opts)
+        template = _generate_pattern_info(img[:1,...].compute(), opts, centers=None if centers is None else centers[:1,:])
         
-        info_array = img.map_blocks(lambda img: _encode_info(_generate_pattern_info(img, opts)), 
-                                    dtype=np.float, drop_axis=[1,2], new_axis=1, 
-                                    chunks=(img.chunks[0], _encode_info(template).shape[1]))
+        if centers is not None:
+            centers = da.from_array(centers, chunks=(img.chunks[0], 2)).reshape((-1, 2, 1))
 
+        info_array = img.map_blocks(lambda img, centers: _encode_info(
+            _generate_pattern_info(img, opts, centers=centers)), centers,
+                                    dtype=np.float, drop_axis=[1,2], new_axis=1, 
+                                    chunks=(img.chunks[0], _encode_info(template).shape[1]),
+                                    name='pattern_info')
+        # return info_array # for debugging purposes
         alldat = client.compute(info_array, sync=True)
-        
+
         # recreate shot data table
         cols = [k for k in sorted(template) if k != 'peak_data']
         types = {k: v.dtype for k, v in sorted(template.items()) if k != 'peak_data'}
@@ -336,7 +363,8 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         return shotdata, peakinfo
             
     elif isinstance(img, np.ndarray):
-        alldat = _generate_pattern_info(img, opts=opts, reference=reference, pxmask=pxmask)
+        alldat = _generate_pattern_info(img, opts=opts, reference=reference, 
+                                        pxmask=pxmask, centers=centers)
         
     shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
     peakinfo = alldat['peak_data']
@@ -861,7 +889,8 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
 
 
 @loop_over_stack
-def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=None, 
+def radial_proj(img: np.ndarray, x0: Optional[float] = None, y0: Optional[float] = None, 
+                scale: float = 1, scale_axis: float = 0,
     my_func: Union[Callable[[np.ndarray], np.ndarray], List[Callable[[np.ndarray], np.ndarray]]] = np.nanmean, 
     min_size: int = 600, max_size: int = 850, filter_len: int = 1) -> np.ndarray:
     """ 
@@ -906,13 +935,23 @@ def radial_proj(img: np.ndarray, x0: Optional[float]=None, y0: Optional[float]=N
     x0 = img.shape[1]/2 - 0.5 if x0 is None else float(x0)
     y0 = img.shape[0]/2 - 0.5 if y0 is None else float(y0)
 
+    # fault tolerance if absurd centers are supplied
     if np.isnan(x0) or np.isnan(y0) or x0<0 or x0>=xlen or y0<0 or y0>=ylen:
         result = np.empty(max_size*len(my_func))
         result.fill(np.nan)
         return result
+    
+    x, y = x - x0, y - y0
+    
+    # ellipticity correction
+    if scale != 1:
+        c, s = np.cos(scale_axis), np.sin(scale_axis)
+        x, y = scale*(c*x - s*y), s*x + c*y
+        x, y = c*x + s*y, -s*x + c*y
 
-    radius = (np.rint(((x-x0)**2 + (y-y0)**2)**0.5) # radius coordinate of each pixel
+    radius = (np.rint((x**2 + y**2)**0.5) # radius coordinate of each pixel
                 .astype(np.int32))
+    
     center = img[int(np.round(y0)),int(np.round(x0))]
     radius[np.where((img==-1) | np.isnan(img))]=0 # ignore bad pixels by setting radius to zero
     row = radius.flatten()

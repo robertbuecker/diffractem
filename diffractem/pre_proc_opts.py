@@ -24,9 +24,12 @@ class PreProcOpts:
         self.interpolate_dead: bool = False             #: Interpolate dead pixels instead of masking
         self.float: bool = False                        #: Process images as floating-point
         self.compression: Union[int, str] = 32004       #: standard HDF5 compression. Suggested values: gzip, none, 32004 (lz4)
-        self.cam_length: float = 2                     #: Coarse camera length (in m) for estimations. Not used for indexing
-        self.y_scale: float = 0.98                     #: Scaling of camera length along y axis (tilted detector)
+        self.cam_length: float = 2                     #: Average camera length (in m).
+        self.y_scale: float = 0.98                     #: Scaling of camera length along y. DEPRECATED!
+        self.ellipse_ratio: float = 1                  #: ellipticity of camera lentgh along arbitrary axis
+        self.ellipse_angle: float = 0                     #: cam length ellipticity angle. (e.g. 0 is x, pi/2 is y,...)
         self.pixel_size: float = 55e-6                 #: Pixel size (in m)
+        self.wavelength: float = 0.0251                 #: Radiation wave length (in A)
         self.com_threshold:float = 0.9
         self.com_xrng: int = 800                     #: x range (px) around pattern center in which to look for center of mass
         self.com_yrng: int = 800                     #: y range (px) around pattern center in which to look for center of mass

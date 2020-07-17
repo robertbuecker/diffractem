@@ -101,8 +101,6 @@ def find_peaks(ds: Union[Dataset, list, str], opt: Optional[PreProcOpts] = None,
     else:
         raise ValueError('ds must be a list, string or Dataset.')
 
-    geom = tools.make_geometry({'clen': opt.cam_length} if geo_params is None else geo_params, gfile)
-    numprocs = os.cpu_count() if procs is None else procs
     callstr = tools.call_indexamajig(infile, gfile, outfile, im_params=cfpars, procs=procs, exc=exc)
     #print(callstr)
     improc1 = subprocess.run(callstr.split(' '), capture_output=True)
