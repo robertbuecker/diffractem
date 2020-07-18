@@ -104,28 +104,27 @@ def center_friedel(peaks: pd.DataFrame, shots: Optional[pd.DataFrame] = None,
 def get_pk_data(n_pk: np.ndarray, pk_x: np.ndarray, pk_y: np.ndarray, 
                 ctr_x: np.ndarray, ctr_y: np.ndarray, pk_I: Optional[np.ndarray] = None,
                 opts: Optional[PreProcOpts] = None,
-                peakmask=None, return_vec=True, pxs=1, 
-                clen=1, wl=1, el_rat=1, el_ang=0):
+                peakmask=None, return_vec=True, pxs=None, 
+                clen=None, wl=None, el_rat=None, el_ang=None):
     
     if peakmask is None:
         peakmask = np.ones_like(pk_x, dtype=np.float)
         for N, row in zip(n_pk, peakmask):
             row[N:] = np.nan
-    
+       
     if opts is not None:
-        pxs = opts.pixel_size
-        clen = opts.cam_length
-        wl = opts.wavelength
-        el_rat = opts.ellipse_ratio
-        el_ang = opts.ellipse_angle
+        pxs = opts.pixel_size if pxs is None else pxs
+        clen = opts.cam_length if clen is None else clen
+        wl = opts.wavelength if wl is None else wl
+        el_rat = opts.ellipse_ratio if el_rat is None else el_rat
+        el_ang = opts.ellipse_angle if el_ang is None else el_ang
         
-#     assert (np.nansum(peakmask, axis=1) == n_pk).all()      
-        
+    #     assert (np.nansum(peakmask, axis=1) == n_pk).all()      
     pk_xr, pk_yr = pk_x - ctr_x.reshape(-1,1), pk_y - ctr_y.reshape(-1,1)
     pk_xr, pk_yr = pk_xr * peakmask, pk_yr * peakmask
     
     # ellipticity correction
-    if el_rat != 1:
+    if el_rat is not None and (el_rat != 1):
         c, s = np.cos(np.pi/180*el_ang), np.sin(np.pi/180*el_ang)
         pk_xrc, pk_yrc = 1/el_rat**.5*(c*pk_xr - s*pk_yr), el_rat**.5*(s*pk_xr + c*pk_yr)
         pk_xrc, pk_yrc = c*pk_xrc + s*pk_yrc, - s*pk_xrc + c*pk_yrc
@@ -140,7 +139,9 @@ def get_pk_data(n_pk: np.ndarray, pk_x: np.ndarray, pk_y: np.ndarray,
     if pk_I is not None:
         res['peakTotalIntensity'] = pk_I
 
-    if return_vec:   
+    if return_vec:
+        if (pxs is None) or (clen is None) or (wl is None):
+            raise ValueError('Cannot return angle parameters without pxs, clen, wl.')   
         pk_r = (pk_xrc**2 + pk_yrc**2)**.5        
         pk_tt = np.arctan(pxs * pk_r / clen)
         pk_az = np.arctan2(pk_yrc, pk_xrc)
