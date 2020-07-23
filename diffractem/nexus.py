@@ -113,7 +113,9 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
         raise ValueError('Storage format must be "table" or "nexus".')
 
 
-def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: str = 'nexus'):
+def store_table(table: pd.DataFrame, path: str, 
+                parallel: bool = True, format: str = 'nexus',
+                file: Optional[str] = None, subset: Optional[str] = None):
     """
     Stores a pandas DataFrame containing 'file' and 'subset' columns to multiple HDF5 files. Essentially a
     multi-file, multi-processed wrapper to pd.to_hdf
@@ -127,7 +129,7 @@ def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: s
 
     # TODO: could be that parallel execution with multiple subsets/table/types will not work
 
-    if parallel:
+    if (file is None) and parallel:
 
         with ProcessPoolExecutor() as exec:
             futures = []
@@ -152,8 +154,12 @@ def store_table(table: pd.DataFrame, path: str, parallel: bool = True, format: s
         #print(path)
         #print(table.columns)
 
-        for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
-            _store_table_to_single_subset(ssdat, fn, path, ssn, format)
+        if file is not None:
+            _store_table_to_single_subset(table, file, path, subset, format)
+
+        else:
+            for (fn, ssn), ssdat in table.groupby(['file', 'subset']):
+                _store_table_to_single_subset(ssdat, fn, path, ssn, format)
 
         return [None]
 

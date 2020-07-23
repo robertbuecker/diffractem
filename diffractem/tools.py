@@ -387,8 +387,10 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
     """
     
     fnroot = fn.rsplit('/',1)[-1].rsplit('.')[0]
-    os.path.basename
+
     foms = list(foms)
+    
+    os.makedirs(shell_dir, exist_ok=True)
     
     if (fn1 is None) or (fn2 is None):
         fn1 = fn + '1'
@@ -420,6 +422,7 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
                                   {'shell-file': f'{shell_dir}/cmp_{fnroot}.dat'},#, 'sigma-cutoff': -4}, 
                                      nshells=nshells, lowres=lowres, highres=highres, fom=fom)
 
+        # print('Running', callstr)
         try:
             so2 = subprocess.check_output(callstr.split(), stderr=subprocess.STDOUT).decode()
             so += so2
