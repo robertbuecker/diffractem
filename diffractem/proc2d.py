@@ -148,7 +148,8 @@ def loop_over_stack(fun):
 def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts, 
                            reference: Optional[np.ndarray] = None, 
                            pxmask: Optional[np.ndarray] = None,
-                           centers: Optional[np.ndarray] = None) -> dict:
+                           centers: Optional[np.ndarray] = None,
+                           lorentz_fit: Optional[bool] = True) -> dict:
     """
     'Macro' function computing information from diffraction data and returning it
     as a dictionary. Primarily intended to be called from `get_pattern_info`.
@@ -188,11 +189,15 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
         img_ct = img[:,(img.shape[1]-opts.com_xrng)//2:(img.shape[1]+opts.com_xrng)//2]
         com = center_of_mass(img_ct, threshold=opts.com_threshold*np.quantile(img_ct,1-5e-5)) + [(img.shape[1]-opts.com_xrng)//2, 0]
         
+        if lorentz_fit:
         # Lorentz fit of direct beam
-        lorentz = lorentz_fast(img, com[0], com[1], radius=opts.lorentz_radius,
-                                            limit=opts.lorentz_maxshift, scale=7, threads=False)
-        
-        x0, y0 = lorentz[1], lorentz[2]
+            lorentz = lorentz_fast(img, com[0], com[1], radius=opts.lorentz_radius,
+                                                limit=opts.lorentz_maxshift, scale=7, threads=False)
+            
+            x0, y0 = lorentz[1], lorentz[2]
+        else:
+            x0, y0 = com[0], com[1]
+            lorentz = [np.nan] * 4
              
     else:
         # print(centers.shape)
@@ -250,6 +255,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                      reference: Optional[np.ndarray] = None, 
                      pxmask: Optional[np.ndarray] = None, 
                      centers: Optional[Union[np.ndarray, da.Array]] = None,
+                     lorentz_fit: Optional[bool] = True,
                      lazy: bool = False, sync: bool = True,
                      errors: str = 'raise', via_array: bool = False) -> Tuple[pd.DataFrame, dict]:
     """'Macro' function for getting information about diffraction patterns.
@@ -307,7 +313,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             raise ValueError('If pattern centers are given, you have to set via_array=True.')
         cts = img.to_delayed().squeeze()
         res_del = [dask.delayed(_generate_pattern_info, nout=1, 
-                                pure=True)(c, opts=opts, reference=reference, pxmask=pxmask,
+                                pure=True)(c, opts=opts, reference=reference, pxmask=pxmask, lorentz_fit=lorentz_fit,
                                            dask_key_name=f'pattern_info-{ii}') for ii, c in enumerate(cts)]
         if lazy:
             return res_del
@@ -339,7 +345,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             centers = da.from_array(centers, chunks=(img.chunks[0], 2)).reshape((-1, 2, 1))
 
         info_array = img.map_blocks(lambda img, centers: _encode_info(
-            _generate_pattern_info(img, opts, centers=centers)), centers,
+            _generate_pattern_info(img, opts, centers=centers, lorentz_fit=lorentz_fit)), centers,
                                     dtype=np.float, drop_axis=[1,2], new_axis=1, 
                                     chunks=(img.chunks[0], _encode_info(template).shape[1]),
                                     name='pattern_info')
@@ -364,7 +370,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             
     elif isinstance(img, np.ndarray):
         alldat = _generate_pattern_info(img, opts=opts, reference=reference, 
-                                        pxmask=pxmask, centers=centers)
+                                        pxmask=pxmask, centers=centers, lorentz_fit=lorentz_fit)
         
     shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
     peakinfo = alldat['peak_data']
