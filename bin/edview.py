@@ -73,10 +73,12 @@ class EDViewer(QWidget):
                 if args.geometry is None:
                     raise ValueError('No data location specified in geometry file. Please use -d parameter.')
 
-            files = list(stream.shots['file'].unique())
+            files = sorted(list(stream.shots['file'].unique()))
+            # print('Loading data files found in stream... \n', '\n'.join(files))
             try:
                 self.dataset = Dataset.from_files(files, load_tables=False, init_stacks=False, open_stacks=False)
                 self.dataset.load_tables(features=True)
+                # print(self.dataset.shots.columns)
                 self.dataset.merge_stream(stream)
                 # get_selection would not be the right method to call (changes IDs), instead do...
                 self.dataset._shots = self.dataset._shots.loc[self.dataset._shots.selected,:].reset_index(drop=True)
@@ -462,10 +464,16 @@ class EDViewer(QWidget):
 
         if self.args.internal:
             self.top_layout.addWidget(self.imageWidget, 0, 0)
+            self.top_layout.setColumnStretch(0, 2)
+            
         if not self.args.no_map:
             self.top_layout.addWidget(self.map_widget, 0, 1)
+            self.top_layout.setColumnStretch(1, 1.5)
+            
         self.top_layout.addWidget(self.meta_table, 0, 2)
         self.top_layout.addLayout(self.button_layout, 1, 0, 1, 3)
+        
+        self.top_layout.setColumnStretch(2, 0)
 
 
 if __name__ == '__main__':
