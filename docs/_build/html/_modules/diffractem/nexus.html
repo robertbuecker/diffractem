@@ -25,6 +25,11 @@
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
         <script src="../../_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
@@ -33,6 +38,7 @@
   
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -79,7 +85,13 @@
             
             
               <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -149,7 +161,7 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 <span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ProcessPoolExecutor</span><span class="p">,</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">wait</span><span class="p">,</span> <span class="n">FIRST_EXCEPTION</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">repeat</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">h5py</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -210,8 +222,10 @@
             <span class="n">out</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_get_table_from_single_file</span><span class="p">,</span> <span class="n">files</span><span class="p">,</span> <span class="n">repeat</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">out</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">_get_table_from_single_file</span><span class="p">,</span> <span class="n">files</span><span class="p">,</span> <span class="n">repeat</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+        
+    <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">out</span></div>
 
 
 <span class="k">def</span> <span class="nf">_store_table_to_single_subset</span><span class="p">(</span><span class="n">tbl</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">subset</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;nexus&#39;</span><span class="p">):</span>
@@ -257,7 +271,9 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Storage format must be &quot;table&quot; or &quot;nexus&quot;.&#39;</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="store_table"><a class="viewcode-back" href="../../diffractem.nexus.html#diffractem.nexus.store_table">[docs]</a><span class="k">def</span> <span class="nf">store_table</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">parallel</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;nexus&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="store_table"><a class="viewcode-back" href="../../diffractem.nexus.html#diffractem.nexus.store_table">[docs]</a><span class="k">def</span> <span class="nf">store_table</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                <span class="n">parallel</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;nexus&#39;</span><span class="p">,</span>
+                <span class="n">file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">subset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Stores a pandas DataFrame containing &#39;file&#39; and &#39;subset&#39; columns to multiple HDF5 files. Essentially a</span>
 <span class="sd">    multi-file, multi-processed wrapper to pd.to_hdf</span>
@@ -271,12 +287,18 @@
 
     <span class="c1"># TODO: could be that parallel execution with multiple subsets/table/types will not work</span>
 
-    <span class="k">if</span> <span class="n">parallel</span><span class="p">:</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">parallel</span><span class="p">:</span>
 
         <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">exec</span><span class="p">:</span>
             <span class="n">futures</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">ssn</span><span class="p">),</span> <span class="n">ssdat</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">]):</span>
-                <span class="n">futures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exec</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">_store_table_to_single_subset</span><span class="p">,</span> <span class="n">ssdat</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">ssn</span><span class="p">,</span> <span class="nb">format</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">ssn</span><span class="p">),</span> <span class="n">ssdat</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">]):</span>
+                    <span class="n">futures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exec</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">_store_table_to_single_subset</span><span class="p">,</span> <span class="n">ssdat</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">ssn</span><span class="p">,</span> <span class="nb">format</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error during storing table in&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Table columns are:&#39;</span><span class="p">,</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+                <span class="c1"># print(table)</span>
+                <span class="k">raise</span> <span class="n">err</span>
 
             <span class="n">wait</span><span class="p">(</span><span class="n">futures</span><span class="p">,</span> <span class="n">return_when</span><span class="o">=</span><span class="n">FIRST_EXCEPTION</span><span class="p">)</span>
 
@@ -290,18 +312,32 @@
         <span class="c1">#print(path)</span>
         <span class="c1">#print(table.columns)</span>
 
-        <span class="k">for</span> <span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">ssn</span><span class="p">),</span> <span class="n">ssdat</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">]):</span>
-            <span class="n">_store_table_to_single_subset</span><span class="p">(</span><span class="n">ssdat</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">ssn</span><span class="p">,</span> <span class="nb">format</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_store_table_to_single_subset</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="nb">format</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">ssn</span><span class="p">),</span> <span class="n">ssdat</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">]):</span>
+                <span class="n">_store_table_to_single_subset</span><span class="p">(</span><span class="n">ssdat</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">ssn</span><span class="p">,</span> <span class="nb">format</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span></div>
 
-<span class="k">def</span> <span class="nf">_save_single_chunk</span><span class="p">(</span><span class="n">dat</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">idcs</span><span class="p">,</span> <span class="n">data_pattern</span><span class="p">,</span> <span class="n">lock</span><span class="p">):</span>   
+<span class="k">def</span> <span class="nf">_save_single_chunk</span><span class="p">(</span><span class="n">dat</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">subset</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                       <span class="n">idcs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">data_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">lock</span><span class="p">):</span>   
     <span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
     <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">file</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
         <span class="n">path</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">data_pattern</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="n">subset</span><span class="p">)</span>
         <span class="n">fh</span><span class="p">[</span><span class="n">path</span><span class="p">][</span><span class="n">idcs</span><span class="p">,:,:]</span> <span class="o">=</span> <span class="n">dat</span>
     <span class="n">lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">file</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">idcs</span>
+
+<span class="k">def</span> <span class="nf">_save_single_chunk_multi</span><span class="p">(</span><span class="n">chks</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">subset</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                       <span class="n">idcs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">lock</span><span class="p">):</span>   
+    <span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">file</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">chks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">fh</span><span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="n">subset</span><span class="p">)][</span><span class="n">idcs</span><span class="p">,</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span>
+    <span class="n">lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">file</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">chks</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">idcs</span>
 
 <div class="viewcode-block" id="meta_to_nxs"><a class="viewcode-back" href="../../diffractem.nexus.html#diffractem.nexus.meta_to_nxs">[docs]</a><span class="k">def</span> <span class="nf">meta_to_nxs</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;Detector&#39;</span><span class="p">,),</span> <span class="n">meta_grp</span><span class="o">=</span><span class="s1">&#39;/entry/instrument&#39;</span><span class="p">,</span>
                 <span class="n">data_grp</span><span class="o">=</span><span class="s1">&#39;/entry/data&#39;</span><span class="p">,</span> <span class="n">data_field</span><span class="o">=</span><span class="s1">&#39;raw_counts&#39;</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="s1">&#39;/entry/instrument/detector/data&#39;</span><span class="p">):</span>
@@ -529,7 +565,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

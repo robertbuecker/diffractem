@@ -29,13 +29,14 @@ rechunk: null
 peak_search_params:
   min-res: 0
   max-res: 600
-  peaks: peakfinder8
+#   peaks: peakfinder8
   local-bg-radius: 3
-  threshold: 8
+  threshold: 5
   min-pix-count: 2
   min-snr: 4
-  int-radius: 3,4,5
-  min-peaks: 15
+  max-pix-count: 30
+#   int-radius: 3,4,5
+#   min-peaks: 15
 indexing_params:
   indexing: pinkIndexer
   min-peaks: 30

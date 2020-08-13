@@ -25,6 +25,11 @@
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
         <script src="../../_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
@@ -33,6 +38,7 @@
   
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -79,7 +85,13 @@
             
             
               <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -170,14 +182,13 @@
 
 
 <div class="viewcode-block" id="augment_stream"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.augment_stream">[docs]</a><span class="k">def</span> <span class="nf">augment_stream</span><span class="p">(</span><span class="n">streamname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">outfile</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">new_fields</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">dict</span><span class="p">],</span> <span class="n">where</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;chunk&#39;</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;IDEA: add new fields to stream headers, which can then be used for chopping or filtering.</span>
+    <span class="sd">&quot;&quot;&quot;Add new fields to chunk headers in the stream file, which can then be used for chopping or filtering.</span>
+<span class="sd">    Somewhat similar to indexamajig&#39;s &quot;include-hdf5-field&quot; option, just *after* the fact.</span>
 <span class="sd">    </span>
-<span class="sd">    Arguments:</span>
-<span class="sd">        streamname {str} -- [description]</span>
-<span class="sd">        new_fields {Union[pd.DataFrame, dict]} -- [description]</span>
-<span class="sd">    </span>
-<span class="sd">    Raises:</span>
-<span class="sd">        NotImplementedError: [description]</span>
+<span class="sd">    Args:</span>
+<span class="sd">        streamname (str): Name of stream file</span>
+<span class="sd">        new_fields (pd.DataFrame): pandas DataFrame with index matching the file and Event of the stream file</span>
+<span class="sd">            and columns matching the additional fields to be added</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">chunk_init</span> <span class="o">=</span> <span class="kc">False</span>
@@ -219,26 +230,26 @@
                 
             <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">l</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="chop_stream"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.chop_stream">[docs]</a><span class="k">def</span> <span class="nf">chop_stream</span><span class="p">(</span><span class="n">streamname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">id_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">id_field</span><span class="o">=</span><span class="s1">&#39;hdf5/%/shots/frame&#39;</span><span class="p">,</span> <span class="n">id_appendix</span><span class="o">=</span><span class="s1">&#39;frame&#39;</span><span class="p">,</span> <span class="n">fn_contains</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="chop_stream"><a class="viewcode-back" href="../../diffractem.stream_parser.html#diffractem.stream_parser.chop_stream">[docs]</a><span class="k">def</span> <span class="nf">chop_stream</span><span class="p">(</span><span class="n">streamname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">id_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">id_field</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;hdf5/%/shots/frame&#39;</span><span class="p">,</span> 
+                <span class="n">id_suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;frame&#39;</span><span class="p">,</span> <span class="n">fn_contains</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Chops a stream file into sub-streams containing only shots with a specific value of</span>
 <span class="sd">    a defined field, which must be in the chunk header. Useful e.g. for chopping into aggregation</span>
-<span class="sd">    frames.</span>
+<span class="sd">    frames, different sample grids, runs with different rotation angles etc.</span>
 <span class="sd">    </span>
-<span class="sd">    Arguments:</span>
-<span class="sd">        streamname {str} -- [Stream file name]</span>
-<span class="sd">        id_list {str} -- [List of values of the ID variable which you want to have in the final files.]</span>
+<span class="sd">    If you just want to *select* a sub-set of a stream file instead of chopping it up into many parts,</span>
+<span class="sd">    consider using the stream_grep script included with CrystFEL, which is way faster and more flexible.</span>
 <span class="sd">    </span>
-<span class="sd">    Keyword Arguments:</span>
-<span class="sd">        id_field {str} -- [Field in chunk data to select by] (default: {&#39;hdf5/%/shots/frame&#39;})</span>
-<span class="sd">        id_appendix {str} -- [file appendix specifying the ID] (default: {&#39;frame&#39;})</span>
-<span class="sd">    </span>
-<span class="sd">    Raises:</span>
-<span class="sd">        RuntimeError: [weirdness in the stream found]</span>
+<span class="sd">    Args:</span>
+<span class="sd">        streamname (str): Stream file name</span>
+<span class="sd">        id_list (str): List of values of the ID variable which you want to have in the final files.</span>
+<span class="sd">        id_field (str): Field in chunk data to select by. Defaults to &#39;hdf5/%/shots/frame&#39;.</span>
+<span class="sd">        id_appendix (str): Appendix to be applied to the output stream file names. Defaults to &#39;frame&#39;.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">outfiles</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">for</span> <span class="n">fnum</span> <span class="ow">in</span> <span class="n">id_list</span><span class="p">:</span>
-        <span class="n">outfiles</span><span class="p">[</span><span class="n">fnum</span><span class="p">]</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">streamname</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;-</span><span class="si">{</span><span class="n">id_appendix</span><span class="si">}{</span><span class="n">fnum</span><span class="si">}</span><span class="s1">.stream&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">outfiles</span><span class="p">[</span><span class="n">fnum</span><span class="p">]</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">streamname</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;-</span><span class="si">{</span><span class="n">id_suffix</span><span class="si">}{</span><span class="n">fnum</span><span class="si">}</span><span class="s1">.stream&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
 
     <span class="n">chunk_init</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">chunk_string</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
@@ -683,7 +694,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

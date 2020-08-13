@@ -25,6 +25,11 @@
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
         <script src="../../_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
@@ -33,6 +38,7 @@
   
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -79,7 +85,13 @@
             
             
               <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -198,15 +210,19 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Validation is only allowed if scan_shot=False.&#39;</span><span class="p">)</span>
         <span class="n">valid_files</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">fl</span><span class="p">:</span>
-            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-                
-                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">fh</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                
-                    <span class="k">if</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/shots&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/map/features&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/data&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">):</span>
-                        <span class="c1"># print(r,&#39;: file validated!&#39;)</span>
-                        <span class="n">valid_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s1">&#39;: invalid file/subset!&#39;</span><span class="p">)</span>       
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                    
+                    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">fh</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    
+                        <span class="k">if</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/shots&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/map/features&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">/data&#39;</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">):</span>
+                            <span class="c1"># print(r,&#39;: file validated!&#39;)</span>
+                            <span class="n">valid_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s1">&#39;: invalid file/subset!&#39;</span><span class="p">)</span>       
+            <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Could not open file&#39;</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="s1">&#39;for validation because:&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
                     
         <span class="k">return</span> <span class="n">valid_files</span>
 
@@ -526,7 +542,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

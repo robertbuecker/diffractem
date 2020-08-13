@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,6 +38,7 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
  
@@ -82,7 +88,13 @@
             
             
               <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -184,22 +196,7 @@
      <tr class="cg-1">
        <td></td>
        <td>&#160;&#160;&#160;
-       <a href="diffractem.legacy.html#module-diffractem.legacy"><code class="xref">diffractem.legacy</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="diffractem.map_image.html#module-diffractem.map_image"><code class="xref">diffractem.map_image</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
        <a href="diffractem.nexus.html#module-diffractem.nexus"><code class="xref">diffractem.nexus</code></a></td><td>
-       <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="diffractem.pre_process.html#module-diffractem.pre_process"><code class="xref">diffractem.pre_process</code></a></td><td>
        <em></em></td></tr>
      <tr class="cg-1">
        <td></td>
@@ -216,11 +213,6 @@
        <td>&#160;&#160;&#160;
        <a href="diffractem.stream_parser.html#module-diffractem.stream_parser"><code class="xref">diffractem.stream_parser</code></a></td><td>
        <em></em></td></tr>
-     <tr class="cg-1">
-       <td></td>
-       <td>&#160;&#160;&#160;
-       <a href="diffractem.tools.html#module-diffractem.tools"><code class="xref">diffractem.tools</code></a></td><td>
-       <em></em></td></tr>
    </table>
 
 
@@ -234,7 +226,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

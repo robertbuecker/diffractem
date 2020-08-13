@@ -17,3 +17,8 @@ notebooks/dask-worker-space
 notebooks/proc_data
 *.h5
 *.nxs
+notebooks/powder.txt
+notebooks/preprocessing_mbp.ipynb
+notebooks/rings.txt
+notebooks/virtual.lst
+notebooks/hits.lst

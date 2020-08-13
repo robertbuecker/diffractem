@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,10 +38,9 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="diffractem.map_image module" href="diffractem.map_image.html" />
-    <link rel="prev" title="diffractem.io module" href="diffractem.io.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -80,28 +84,15 @@
               
             
             
-              <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="diffractem.html">Welcome</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="diffractem.html#submodules">Submodules</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="diffractem.adxv.html">diffractem.adxv module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.compute.html">diffractem.compute module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.dataset.html">diffractem.dataset module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.io.html">diffractem.io module</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">diffractem.legacy module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.map_image.html">diffractem.map_image module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.nexus.html">diffractem.nexus module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_proc_opts.html">diffractem.pre_proc_opts module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_process.html">diffractem.pre_process module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc2d.html">diffractem.proc2d module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc_peaks.html">diffractem.proc_peaks module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.stream_parser.html">diffractem.stream_parser module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.tools.html">diffractem.tools module</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="diffractem.html#module-diffractem">Module contents</a></li>
-</ul>
-</li>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
             
@@ -147,8 +138,6 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="diffractem.html">diffractem package</a> &raquo;</li>
-        
       <li>diffractem.legacy module</li>
     
     
@@ -168,108 +157,32 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="module-diffractem.legacy">
-<span id="diffractem-legacy-module"></span><h1>diffractem.legacy module<a class="headerlink" href="#module-diffractem.legacy" title="Permalink to this headline">¶</a></h1>
-<dl class="py function">
-<dt id="diffractem.legacy.diff_plot">
-<code class="sig-prename descclassname">diffractem.legacy.</code><code class="sig-name descname">diff_plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">idcs</span></em>, <em class="sig-param"><span class="n">setname</span><span class="o">=</span><span class="default_value">'centered'</span></em>, <em class="sig-param"><span class="n">beamdiam</span><span class="o">=</span><span class="default_value">1e-07</span></em>, <em class="sig-param"><span class="n">rings</span><span class="o">=</span><span class="default_value">10, 5, 2.5</span></em>, <em class="sig-param"><span class="n">radii</span><span class="o">=</span><span class="default_value">3, 4, 6</span></em>, <em class="sig-param"><span class="n">show_map</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">show_peaks</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">show_predict</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">figsize</span><span class="o">=</span><span class="default_value">15, 10</span></em>, <em class="sig-param"><span class="n">dpi</span><span class="o">=</span><span class="default_value">300</span></em>, <em class="sig-param"><span class="n">cutoff</span><span class="o">=</span><span class="default_value">99.5</span></em>, <em class="sig-param"><span class="n">width</span><span class="o">=</span><span class="default_value">616</span></em>, <em class="sig-param"><span class="n">xoff</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">yoff</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">ellipticity</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">map_px</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">clen</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">det_px</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">wavelength</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">stacks</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">shots</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">peaks</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">predict</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">base_path</span><span class="o">=</span><span class="default_value">'/%/data'</span></em>, <em class="sig-param"><span class="n">map_path</span><span class="o">=</span><span class="default_value">'/%/map/image'</span></em>, <em class="sig-param"><span class="n">results_path</span><span class="o">=</span><span class="default_value">'/%/results'</span></em>, <em class="sig-param"><span class="n">pre_compute</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">store_to</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cmap</span><span class="o">=</span><span class="default_value">'gray'</span></em>, <em class="sig-param"><span class="n">ringcolor</span><span class="o">=</span><span class="default_value">'y'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/legacy.html#diff_plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.legacy.diff_plot" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
 
-<dl class="py function">
-<dt id="diffractem.legacy.peak_finder">
-<code class="sig-prename descclassname">diffractem.legacy.</code><code class="sig-name descname">peak_finder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img_raw</span></em>, <em class="sig-param"><span class="n">xy</span></em>, <em class="sig-param"><span class="n">profile</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">noise</span><span class="o">=</span><span class="default_value">array([[False, True, False], [True, True, True], [False, True, False]])</span></em>, <em class="sig-param"><span class="n">kernel_size</span><span class="o">=</span><span class="default_value">9</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">9</span></em>, <em class="sig-param"><span class="n">db_eps</span><span class="o">=</span><span class="default_value">1.9</span></em>, <em class="sig-param"><span class="n">db_samples</span><span class="o">=</span><span class="default_value">9</span></em>, <em class="sig-param"><span class="n">bkg_remove</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">img_clean</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">radial_min</span><span class="o">=</span><span class="default_value">5</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/legacy.html#peak_finder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.legacy.peak_finder" title="Permalink to this definition">¶</a></dt>
-<dd><ol class="arabic simple">
-<li><dl class="simple">
-<dt>(OPTIONAL) Construct background from xy and profile.</dt><dd><p>Subtract from img_raw.</p>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>Remove Impulse noise using morpholigical opening and closing with</dt><dd><p>noise struc.</p>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>Convolve Image with Gaussian kernel to find local background.</dt><dd><p>Features are all pixels larger than the local background
-by a certain threshold.</p>
-</dd>
-</dl>
-</li>
-<li><p>Pick peaks out of image features using DBSCAN (Clustering)</p></li>
-<li><p>Labelling of Peaks using ndimage</p></li>
-</ol>
-<p>6) (OPTIONAL) Clean image
-Simple peakfinder built upon scipy.ndimage.
-Uses a morpholgical opening to find features larger than size and higher
-than threshold. The features are then labelled and the center of mass and
-sum of each peak is returned in a numpy array.</p>
-</dd></dl>
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
 
-<dl class="py function">
-<dt id="diffractem.legacy.process_stack">
-<code class="sig-prename descclassname">diffractem.legacy.</code><code class="sig-name descname">process_stack</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">imgs</span></em>, <em class="sig-param"><span class="n">ops</span></em>, <em class="sig-param"><span class="n">execution</span><span class="o">=</span><span class="default_value">'threads'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/legacy.html#process_stack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.legacy.process_stack" title="Permalink to this definition">¶</a></dt>
-<dd><p>Applies correction function, or a pipeline thereof, to a stack of images, using different ways of execution.
-Essentially very similar to map function of hyperspy.
-:param imgs: 3D image stack or 2D single image
-:param ops: function handle to processing function, or list/tuple thereof.
-:param execution: method of execution. Options are</p>
-<blockquote>
-<div><p>‘threads’: process each image in parallel using threads
-‘processes’: process each image in parallel using processes
-‘stack’: pass the entire stack to the ops functions. All ops must be able to handle stack inputs
-‘loop’: loop through the images. Use for debugging only!</p>
-</div></blockquote>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>kwargs</strong> – keyword arguments to be passed to the correction functions</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>the processed stack/image</p>
-</dd>
-</dl>
-</dd></dl>
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
 
-<dl class="py function">
-<dt id="diffractem.legacy.profile_classify">
-<code class="sig-prename descclassname">diffractem.legacy.</code><code class="sig-name descname">profile_classify</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">prof_stack</span></em>, <em class="sig-param"><span class="n">fit_record</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show_plot</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">show_fit</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">refit</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">rescale</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">bin_min</span><span class="o">=</span><span class="default_value">5</span></em>, <em class="sig-param"><span class="n">bin_max</span><span class="o">=</span><span class="default_value">40</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/legacy.html#profile_classify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.legacy.profile_classify" title="Permalink to this definition">¶</a></dt>
-<dd><p>Takes the profile stack,
-refits a 1D Lorentz distribution(Optional),
-groups the profiles with the same shape and scale together,
-takes the mean and std of the group,
-plots all the profiles in the group on the same figure(Optional)
-and returns them to the correct index in profile_ave and profile_std.
-:param prof_stack   : stack of profiles
-:fit_record         : array of parameters returned form the 2D lorentz fit
-:show_plot          : switch for plotting the profiles
-:refit              : switch for refitting of the profiles
-:rescale            : if profiles should be scaled.</p>
-</dd></dl>
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
 
-<dl class="py function">
-<dt id="diffractem.legacy.profile_classify_ML">
-<code class="sig-prename descclassname">diffractem.legacy.</code><code class="sig-name descname">profile_classify_ML</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">prof_stack</span></em>, <em class="sig-param"><span class="n">fit_record</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show_plot</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">refit</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">rescale</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">bin_min</span><span class="o">=</span><span class="default_value">5</span></em>, <em class="sig-param"><span class="n">bin_max</span><span class="o">=</span><span class="default_value">40</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/legacy.html#profile_classify_ML"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.legacy.profile_classify_ML" title="Permalink to this definition">¶</a></dt>
-<dd><p>Takes the profile stack,
-refits a 1D Lorentz distribution(Optional),
-classifies the profiles with KMeans form sklearn.cluster,
-NB MinibatchKMeans is not parrallelized
-takes the mean, and returns them to the correct index in profile_ave.
-:param prof_stack   : stack of profiles
-:fit_record         : array of parameters returned form the 2D lorentz fit
-:show_plot          : switch for plotting the profiles
-:refit              : switch for refitting of the profiles
-:rescale            : if profiles should be scaled.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt id="diffractem.legacy.reduce_stack">
-<code class="sig-prename descclassname">diffractem.legacy.</code><code class="sig-name descname">reduce_stack</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">first_frame</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">last_frame</span><span class="o">=</span><span class="default_value">- 1</span></em>, <em class="sig-param"><span class="n">aggregate</span><span class="o">=</span><span class="default_value">'sum'</span></em>, <em class="sig-param"><span class="n">suffix</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude</span><span class="o">=</span><span class="default_value">()</span></em>, <em class="sig-param"><span class="n">threads</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">instrument_data</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">label</span><span class="o">=</span><span class="default_value">'raw_counts'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/legacy.html#reduce_stack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.legacy.reduce_stack" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt id="diffractem.legacy.region_plot">
-<code class="sig-prename descclassname">diffractem.legacy.</code><code class="sig-name descname">region_plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_name</span></em>, <em class="sig-param"><span class="n">regions</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">crystal_pos</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">peak_ct</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">beamdiam</span><span class="o">=</span><span class="default_value">1e-07</span></em>, <em class="sig-param"><span class="n">scanpx</span><span class="o">=</span><span class="default_value">2e-08</span></em>, <em class="sig-param"><span class="n">figsize</span><span class="o">=</span><span class="default_value">10, 10</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/legacy.html#region_plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.legacy.region_plot" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="diffractem-legacy-module">
+<h1>diffractem.legacy module<a class="headerlink" href="#diffractem-legacy-module" title="Permalink to this headline">¶</a></h1>
 </div>
 
 
@@ -278,21 +191,12 @@ takes the mean, and returns them to the correct index in profile_ave.
           </div>
           <footer>
   
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="diffractem.map_image.html" class="btn btn-neutral float-right" title="diffractem.map_image module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="diffractem.io.html" class="btn btn-neutral float-left" title="diffractem.io module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

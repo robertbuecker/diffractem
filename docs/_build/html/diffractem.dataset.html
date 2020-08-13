@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,10 +38,9 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="diffractem.io module" href="diffractem.io.html" />
-    <link rel="prev" title="diffractem.compute module" href="diffractem.compute.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -80,28 +84,15 @@
               
             
             
-              <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="diffractem.html">Welcome</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="diffractem.html#submodules">Submodules</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="diffractem.adxv.html">diffractem.adxv module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.compute.html">diffractem.compute module</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">diffractem.dataset module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.io.html">diffractem.io module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.legacy.html">diffractem.legacy module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.map_image.html">diffractem.map_image module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.nexus.html">diffractem.nexus module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_proc_opts.html">diffractem.pre_proc_opts module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_process.html">diffractem.pre_process module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc2d.html">diffractem.proc2d module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc_peaks.html">diffractem.proc_peaks module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.stream_parser.html">diffractem.stream_parser module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.tools.html">diffractem.tools module</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="diffractem.html#module-diffractem">Module contents</a></li>
-</ul>
-</li>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
             
@@ -147,8 +138,6 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="diffractem.html">diffractem package</a> &raquo;</li>
-        
       <li>diffractem.dataset module</li>
     
     
@@ -168,7 +157,31 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="module-diffractem.dataset">
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-diffractem.dataset">
 <span id="diffractem-dataset-module"></span><h1>diffractem.dataset module<a class="headerlink" href="#module-diffractem.dataset" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
 <dt id="diffractem.dataset.Dataset">
@@ -187,393 +200,621 @@ once the context is left. Arguments are passed to open_stacks Example:</p>
 </dl>
 <p>print(‘Have’, center.shape[0], ‘centers.’)</p>
 </div></blockquote>
+<p><strong>This is deprecated, and using it is horribly discouraged</strong></p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.add_stack">
-<code class="sig-name descname">add_stack</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">label</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">stack</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>dask.array.core.Array<span class="p">, </span>numpy.ndarray<span class="p">, </span>h5py._hl.dataset.Dataset<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">diff_stack</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">persist</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">rechunk</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.add_stack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.add_stack" title="Permalink to this definition">¶</a></dt>
-<dd><p>Adds a data stack to the data set
-:param label: label of the new stack
-:param stack: new stack, can be anything array-like
-:param overwrite: allows overwriting an existing stack
-:param diff_stack: marks this stack as the main diffraction data
-:param persist: persists the dask array to memory, if it is generated</p>
-<blockquote>
-<div><p>from a numpy array</p>
-</div></blockquote>
+<code class="sig-name descname">add_stack</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">label</span></em>, <em class="sig-param"><span class="n">stack</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">set_diff_stack</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">persist</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">rechunk</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.add_stack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.add_stack" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a data stack to the data set.</p>
+<p>The new data stack can be either a dask array or a numpy array. The only restriction is that its
+first dimension’s length (i.e. total number of shots) has to equal the rest of the dataset. The
+stack is <em>not</em> stored to disk yet, but it’s placed under the control of the dataset object.</p>
+<p>If the new data is a numpy array, it will be turned into a dask array with appropriate properties. By
+default (persist=True), it will be eagerly persisted, that is, a copy will be made and the dask graph will
+be simplified.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>rechunk</strong> – if True, a dask array with chunks along the stack direction that don’t match the datasets
-other stacks chunks will be rechunked. Otherwise, a warning is shown.</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label</strong> (<em>str</em>) – Label for the new stack</p></li>
+<li><p><strong>stack</strong> (<em>Union</em><em>[</em><em>da.Array</em><em>, </em><em>np.ndarray</em><em>, </em><em>h5py.Dataset</em><em>]</em>) – New data stack</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Overwrite, if an identically named stack exists already. Defaults to False.</p></li>
+<li><p><strong>set_diff_stack</strong> (<em>bool</em><em>, </em><em>optional</em>) – Set the new stack as the ‘diffraction data’ stack, which will
+recieve some special treatment (e.g. it is never loaded into memory). Defaults to False.</p></li>
+<li><p><strong>persist</strong> (<em>bool</em><em>, </em><em>optional</em>) – If the stack is a numpy array, make the dask array persited right away.
+There is little speaking against it except for some edge cases. Defaults to True.</p></li>
+<li><p><strong>rechunk</strong> (<em>bool</em><em>, </em><em>optional</em>) – If the stack is a dask array with a chunk along the first dimension that
+does not match the dataset’s overall chunking, rechunk it. This is highly recommended. Defaults to True.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.aggregate">
-<code class="sig-name descname">aggregate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">by</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>list<span class="p">, </span>tuple<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'sample', 'region', 'run', 'crystal_id'</span></em>, <em class="sig-param"><span class="n">how</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>dict<span class="p">, </span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'mean'</span></em>, <em class="sig-param"><span class="n">file_suffix</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'_agg.h5'</span></em>, <em class="sig-param"><span class="n">file_prefix</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">''</span></em>, <em class="sig-param"><span class="n">new_folder</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">query</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">force_commensurate</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">exclude_stacks</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>list<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">diffractem.dataset.Dataset</a><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.aggregate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.aggregate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Aggregate sub-sets of stacks using different aggregation functions. Typical application: sum sub-stacks of
-dose fractionation movies, or shots with different tilt angles (quasi-precession)
-:param by: shot table columns to group by for aggregation. Default: (‘run’, ‘region’, ‘crystal_id’, ‘sample’)
-:param how: aggregation types. ‘sum’, ‘mean’, and ‘cumsum’ are supported. Can be a single operation for all</p>
-<blockquote>
-<div><p>stacks, or a dict, specifying different ones for each, in which case all non-explicitly specified stacks
-will default to ‘mean’, e.g. how={‘raw_counts’: ‘sum’}.</p>
-</div></blockquote>
+<code class="sig-name descname">aggregate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">by</span><span class="o">=</span><span class="default_value">'sample', 'region', 'run', 'crystal_id'</span></em>, <em class="sig-param"><span class="n">how</span><span class="o">=</span><span class="default_value">'sum'</span></em>, <em class="sig-param"><span class="n">file_suffix</span><span class="o">=</span><span class="default_value">'_agg.h5'</span></em>, <em class="sig-param"><span class="n">file_prefix</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">new_folder</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">query</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude_stacks</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.aggregate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.aggregate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Aggregate sub-sets of stacks (like individual diffraction movies) using different aggregation functions.</p>
+<p>Each set of shots with identical values of the columns specified in <cite>by</cite> will be squashed into a single
+one, using aggregation functions applied to the stacks as described in <cite>how</cite>. These can be different for each of
+the stacks. Unlike for the stacks, inconsistent fields in the shot list within each group are simply killed.
+The function finally returns a new dataset containing the aggregated data, it leaves the existing set untouched.</p>
+<p>The typical application is to sum sub-stacks of dose fractionation movies, or shots with different tilt angles
+(quasi-precession). If you’re familiar with pandas a bit, it’s sort of like a <a href="#id1"><span class="problematic" id="id2">`</span></a>DataSet.GroupBy(by).agg’ operation.</p>
+<p>In most cases (well-ordered data sets), this function should just work. More pathological ones are not
+sufficiently tested, though some sanity checks and precautions are taken.</p>
+<p>As an example: setting how=[‘sample’, ‘region’, ‘run’, ‘crystal_id’] (which is the default) will aggregate over
+all shots taken in a single run, and if you set how=’sum’, the stacks will be added.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>file_suffix</strong> – as in Dataset.change_filenames</p></li>
-<li><p><strong>file_prefix</strong> – as in Dataset.change_filenames</p></li>
-<li><p><strong>new_folder</strong> – as in Dataset.change_filenames</p></li>
-<li><p><strong>query</strong> – apply a query (see select or get_selection)</p></li>
+<li><p><strong>by</strong> (<em>Union</em><em>[</em><em>list</em><em>, </em><em>tuple</em><em>]</em><em>, </em><em>optional</em>) – shot table columns to group by for aggregation.
+Defaults to (‘sample’, ‘region’, ‘run’, ‘crystal_id’).</p></li>
+<li><p><strong>how</strong> (<em>Union</em><em>[</em><em>dict</em><em>, </em><em>str</em><em>]</em><em>, </em><em>optional</em>) – string specifying the aggregation method for stacks. Allowed
+values are ‘mean’, ‘sum’, ‘first’, ‘last’. You can also specify a dict with different values
+for each stack, like {‘raw_counts’: ‘sum’, ‘nPeaks’: ‘first’}. Defaults to ‘sum’.</p></li>
+<li><p><strong>file_suffix</strong> (<em>str</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to ‘_agg.h5’.</p></li>
+<li><p><strong>file_prefix</strong> (<em>str</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to ‘’.</p></li>
+<li><p><strong>new_folder</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to None.</p></li>
+<li><p><strong>query</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – additional query to sub-select data before aggregation (as in
+<cite>select</cite> or <a href="#id3"><span class="problematic" id="id4">`</span></a>get_selection). E.g. query=’frame &gt;= 1 and frame &lt; 5” would only aggregate frames
+1 to 4. Defaults to None.</p></li>
+<li><p><strong>exclude_stacks</strong> (<em>Optional</em><em>[</em><em>list</em><em>]</em><em>, </em><em>optional</em>) – Exclude stacks from the aggregated dataset. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>a new data set with aggregation applied</p>
+<dd class="field-even"><p>Dataset containing the aggregated data</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">Dataset</a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.change_filenames">
-<code class="sig-name descname">change_filenames</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_suffix</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'.h5'</span></em>, <em class="sig-param"><span class="n">file_prefix</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">''</span></em>, <em class="sig-param"><span class="n">new_folder</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fn_map</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">keep_raw</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.change_filenames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.change_filenames" title="Permalink to this definition">¶</a></dt>
-<dd><p>Change file names in all lists using some handy modifications. The old file names are copied to a “file_raw”
-column, if not already present (can be overriden with keep_raw).
-:param file_suffix: add suffix to file, INCLUDING file extension, e.g. ‘_modified.h5’
-:param file_prefix: add prefix to actual filenames (not folder/full path!), e.g. ‘<a href="#id11"><span class="problematic" id="id12">aggregated_</span></a>
-:param new_folder: if not None, changes folder name to this path
-:param fn_map: if not None, gives an explicit table (pd.DataFrame) with columns ‘file’ and ‘file_new’</p>
-<blockquote>
-<div><p>that manually maps old to new filenames. All other parameters are ignored, if provided</p>
-</div></blockquote>
+<code class="sig-name descname">change_filenames</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_suffix</span><span class="o">=</span><span class="default_value">'.h5'</span></em>, <em class="sig-param"><span class="n">file_prefix</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">new_folder</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fn_map</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">keep_raw</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.change_filenames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.change_filenames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Change file names in all lists using some handy modifications.</p>
+<p>The old file names are copied to a “file_raw” column, if not already present
+(can be overriden with keep_raw).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>keep_raw</strong> – if True (default), does not change the file_raw column in the shot list,
-unless there is none yet (in which case the old file names are _always_ copied to keep_raw)</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>DataFrame with a map from old to new file names (for reference)</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_suffix</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – add suffix to file, INCLUDING file extension, e.g. ‘_modified.h5’.
+Defaults to ‘.h5’, i.e., no change is made except for the file extension being fixed to h5.</p></li>
+<li><p><strong>file_prefix</strong> (<em>str</em><em>, </em><em>optional</em>) – add prefix to actual filenames (not folder/full path!), e.g. ‘<a href="#id9"><span class="problematic" id="id10">aggregated_</span></a>’.
+Defaults to ‘’, i.e., no prefix..</p></li>
+<li><p><strong>new_folder</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – If not None, changes the file folders to this path. Defaults to None.</p></li>
+<li><p><strong>fn_map</strong> (<em>Union</em><em>[</em><em>pd.DataFrame</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – if not None, expects an explicit table (pd.DataFrame) with columns
+‘file’ and ‘file_new’
+that manually maps old to new filenames. <em>All other parameters are ignored, if provided.</em> Defaults to None.</p></li>
+<li><p><strong>keep_raw</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True (default), does not change the file_raw column in the shot list,
+unless there is none yet (in which case the old file names are <em>always</em> copied to keep_raw). Defaults to True.</p></li>
+</ul>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.close_files">
+<code class="sig-name descname">close_files</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.close_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.close_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Closes all HDF5 files.</p>
+<p>Note that this might have side effects: if stacks are accessible that depend on non-persisted HDF5 datasets
+in the files, they will not be usable anymore after issuing this command and cause trouble especially
+for the distributed scheduler. So don’t close the files unless you really have to.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.close_stacks">
-<code class="sig-name descname">close_stacks</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.close_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.close_stacks" title="Permalink to this definition">¶</a></dt>
-<dd><p>Close the stacks by closing the HDF5 data file handles.
-:return:</p>
+<code class="sig-name descname">close_stacks</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#diffractem.dataset.Dataset.close_stacks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Closes all HDF5 files.</p>
+<p>Note that this might have side effects: if stacks are accessible that depend on non-persisted HDF5 datasets
+in the files, they will not be usable anymore after issuing this command and cause trouble especially
+for the distributed scheduler. So don’t close the files unless you really have to.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.compute_and_save">
-<code class="sig-name descname">compute_and_save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">diff_stack_label</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">list_file</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>distributed.client.Client<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude_stacks</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>List<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">persist_diff</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">persist_all</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">compression</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">32004</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.compute_and_save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.compute_and_save" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compound method to fully compute a dataset and write it to disk. It is designed for completely writing HDF5
-files from scratch, not to append to existing ones. Internally calls init_files, store_tables, store_stacks,
-store_stack_fast, and write_list.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Keyword Arguments</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>{Optional</strong><strong>[</strong><strong>str</strong><strong>]</strong><strong>} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>list_file</em>) – {None})</p></li>
-<li><p><strong>{Optional</strong><strong>[</strong><strong>str</strong><strong>]</strong><strong>} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> – {None})</p></li>
-<li><p><strong>{Optional</strong><strong>[</strong><strong>Client</strong><strong>]</strong><strong>} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>client</em>) – {None})</p></li>
-<li><p><strong>{Optional</strong><strong>[</strong><strong>List</strong><strong>[</strong><strong>str</strong><strong>]</strong><strong>]</strong><strong>} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>exclude_stacks</em>) – {None})</p></li>
-<li><p><strong>{bool} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>persist_all</em>) – {False})</p></li>
-<li><p><strong>{bool} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> – {True})</p></li>
-<li><p><strong>{bool} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> – {False})</p></li>
-<li><p><strong>{Union</strong><strong>[</strong><strong>str</strong><strong>, </strong><strong>int</strong><strong>]</strong><strong>} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>compression</em>) – {32004})</p></li>
+<code class="sig-name descname">compute_and_save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">diff_stack_label</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">list_file</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude_stacks</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">persist_diff</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">persist_all</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">compression</span><span class="o">=</span><span class="default_value">32004</span></em>, <em class="sig-param"><span class="n">store_features</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.compute_and_save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.compute_and_save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compound method to fully compute a dataset and write it to disk.</p>
+<p>It is designed for completely writing HDF5 files from scratch, not to append to or modify existing ones,
+in which case you have to use the more fine-grained methods for data storage.
+The foolowing steps are taken:</p>
+<ul class="simple">
+<li><p>Initialize the HDF5 files (using <cite>init_files</cite>)</p></li>
+<li><p>Store the metadata tables (shots, features, peaks, predictions)</p></li>
+<li><p>Compute/store all non-diffraction-data stacks (using <cite>store_stacks</cite>). If this step takes too long, make
+sure that computation-heavy but small stacks are already persisted in memory.</p></li>
+<li><p>Compute/store the diffraction data set (identified by <cite>diff_stack_label</cite>) using <cite>store_stack_fast</cite>.</p></li>
+<li><p>Write a list file which can be used to reload the dataset or to feed into CrystFEL.</p></li>
 </ul>
-</dd>
-<dt class="field-even">Raises</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>ValueError</strong> – [description]</p></li>
-<li><p><strong>ValueError</strong> – [description]</p></li>
-<li><p><strong>ValueError</strong> – [description]</p></li>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>diff_stack_label</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – Label of the diffraction data stack. If None, use
+the one stored in <cite>diff_stack_label</cite>. Defaults to None.</p></li>
+<li><p><strong>list_file</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – Name of the list file to be written. Defaults to None.</p></li>
+<li><p><strong>client</strong> (<em>Optional</em><em>[</em><em>Client</em><em>]</em><em>, </em><em>optional</em>) – dask.distributed client for computation of the diffraction
+data. Defaults to None.</p></li>
+<li><p><strong>exclude_stacks</strong> (<em>Union</em><em>[</em><em>str</em><em>,</em><em>List</em><em>[</em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Labels of data stacks to exclude. Defaults to None.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Overwrite existing files. Defaults to False.</p></li>
+<li><p><strong>persist_diff</strong> (<em>bool</em><em>, </em><em>optional</em>) – Changes the dask array underlying diffraction data stack from the
+computed one to the one stored in the HDF5 file. This is different from persisting to memory (as is
+done otherwise), as it persists the data <em>from disk</em>: if you access it using e.g. .compute(), it will be loaded
+from disk instead of being recomputed. Defaults to True.</p></li>
+<li><p><strong>persist_all</strong> (<em>bool</em><em>, </em><em>optional</em>) – Changes dask arrays underlying <em>all</em> stacks from the
+computed one to the one stored in the HDF5 file. Defaults to False.</p></li>
+<li><p><strong>compression</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>int</em><em>]</em><em>, </em><em>optional</em>) – HDF5 compression filter to use. Common choices are ‘gzip’, ‘none’,
+or 32004, which is the lz4 filter often used for diffraction data. Defaults to 32004.</p></li>
+<li><p><strong>store_features</strong> (<em>bool</em><em>, </em><em>optional</em>) – store/overwrite the feature table into the files. Defaults to True.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
+<dt id="diffractem.dataset.Dataset.copy">
+<code class="sig-name descname">copy</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_suffix</span><span class="o">=</span><span class="default_value">'_copy.h5'</span></em>, <em class="sig-param"><span class="n">file_prefix</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">new_folder</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a (deep) copy of a dataset, changing the file names.</p>
+<p>Internally, this just calls <cite>get_selection</cite> with <cite>query=’True’</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_suffix</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to ‘_copy.h5’.</p></li>
+<li><p><strong>file_prefix</strong> (<em>str</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to ‘’.</p></li>
+<li><p><strong>new_folder</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>[description]</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>[type]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.dataset.Dataset.data_pattern">
+<code class="sig-name descname">data_pattern</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.dataset.Dataset.data_pattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to data stacks in HDF5 files. % can be used as placeholder (as in CrystFEL). Default /%/data</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="diffractem.dataset.Dataset.delete_stack">
-<code class="sig-name descname">delete_stack</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">label</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">from_files</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.delete_stack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.delete_stack" title="Permalink to this definition">¶</a></dt>
-<dd><p>Delete a data stack
-:param label: stack label
-:param from_files: if True, the stack is also deleted in the HDF5 files. Default False.
-:return:</p>
+<code class="sig-name descname">delete_stack</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">label</span></em>, <em class="sig-param"><span class="n">from_files</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.delete_stack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.delete_stack" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete a data stack from the dataset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label</strong> (<em>str</em>) – label of the stack to delete</p></li>
+<li><p><strong>from_files</strong> (<em>bool</em><em>, </em><em>optional</em>) – Also delete stack from the data files. Note that this will</p></li>
+<li><p><strong>not free up disk space</strong> (<em>actually</em>) – </p></li>
+<li><p><strong>if the files are open in writable mode. Defaults to False.</strong> (<em>works</em>) – </p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.diff_stack_label">
 <em class="property">property </em><code class="sig-name descname">diff_stack_label</code><a class="headerlink" href="#diffractem.dataset.Dataset.diff_stack_label" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Label of stack which holds the diffraction data.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.features">
 <em class="property">property </em><code class="sig-name descname">features</code><a class="headerlink" href="#diffractem.dataset.Dataset.features" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>List of features (that is e.g. crystals). Each feature can have one or many shots
+associated with it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.file_handles">
 <em class="property">property </em><code class="sig-name descname">file_handles</code><a class="headerlink" href="#diffractem.dataset.Dataset.file_handles" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Handles to the HDF5 files as a dict with keys matching the file name, if files are open.
+Otherwise returns None (for each file).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.files">
 <em class="property">property </em><code class="sig-name descname">files</code><a class="headerlink" href="#diffractem.dataset.Dataset.files" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>List of HDF5 files which the Dataset is based on. Note that these files do not have
+to actually exist; but they will be written if any of the writing functions is called.
+Change the file names and directories using <cite>change_filenames</cite>, or direct editing of the
+shot table (<em>discouraged</em>)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.from_files">
-<em class="property">classmethod </em><code class="sig-name descname">from_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>list<span class="p">, </span>str<span class="p">, </span>tuple<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">open_stacks</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">chunking</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>int<span class="p">, </span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">100</span></em>, <em class="sig-param"><span class="n">persist_meta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">init_stacks</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">load_tables</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">diff_stack_label</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'raw_counts'</span></em>, <em class="sig-param"><span class="n">validate_files</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.from_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.from_files" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="simple">
-<dt>Creates a data set from:</dt><dd><ul class="simple">
-<li><dl class="simple">
-<dt>a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style</dt><dd><p>event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.</p>
-</dd>
-</dl>
-</li>
-<li><p>a glob pattern (like: ‘data/<a href="#id1"><span class="problematic" id="id2">*</span></a>.h5’)</p></li>
+<em class="property">classmethod </em><code class="sig-name descname">from_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span></em>, <em class="sig-param"><span class="n">open_stacks</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">chunking</span><span class="o">=</span><span class="default_value">'hdf5'</span></em>, <em class="sig-param"><span class="n">persist_meta</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">init_stacks</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">load_tables</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">diff_stack_label</span><span class="o">=</span><span class="default_value">'raw_counts'</span></em>, <em class="sig-param"><span class="n">validate_files</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.from_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.from_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a <cite>Dataset</cite> object from HDF5 file(s) stored on disk.</p>
+<p>There is some flexibility with regards to how to define the input files. You can specify them by</p>
+<ul class="simple">
+<li><p>a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style
+event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.</p></li>
+<li><p>a glob pattern (like: ‘data/<a href="#id5"><span class="problematic" id="id6">*</span></a>.h5’)</p></li>
 <li><p>a python iterable of files.</p></li>
 <li><p>a simple HDF5 file path</p></li>
 </ul>
-</dd>
-</dl>
+<p>In any case, the shot list and feature list are loaded to memory. Using the arguments you can specify what should
+happen to the stacks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>files</strong> – see above</p></li>
-<li><p><strong>init_stacks</strong> – initialize stacks, that is, briefly open the data stacks, check their lengths, and close
-them again. Does not hurt usually.</p></li>
-<li><p><strong>load_tables</strong> – load the additional tables stored in the files (features, peaks, predictions)</p></li>
-<li><p><strong>diff_stack_label</strong> – name of stack to be used for generating the shot table, if it’s not stored in the files</p></li>
-<li><p><strong>**kwargs</strong> – <p>Dataset attributes to be set right away</p>
-</p></li>
+<li><p><strong>files</strong> (<em>Union</em><em>[</em><em>list</em><em>, </em><em>str</em><em>, </em><em>tuple</em><em>]</em>) – File specification as decsribed above.</p></li>
+<li><p><strong>open_stacks</strong> (<em>bool</em><em>, </em><em>optional</em>) – Open the data stacks. This means that open handles to the HDF5 (in readonly mode).
+are kept within the <cite>Dataset</cite> object. Defaults to True.</p></li>
+<li><p><strong>chunking</strong> (<em>Union</em><em>[</em><em>int</em><em>, </em><em>str</em><em>]</em><em>, </em><em>optional</em>) – See documentation of <cite>open_stacks</cite>. Defaults to ‘hdf5’, that is, look
+up in the HDF5 file for a recommendation value.</p></li>
+<li><p><strong>persist_meta</strong> (<em>bool</em><em>, </em><em>optional</em>) – Right away persists the data stacks, that is, loads the actual data into memory
+instead of just holding references to the HDF5 files. Diffraction data (identified by 3D stacks) is automatically
+excluded. Defaults to True.</p></li>
+<li><p><strong>init_stacks</strong> (<em>bool</em><em>, </em><em>optional</em>) – Initialize stacks, that is, briefly open the data stacks, check their lengths, and close
+the files again. Viable option if you need/want to set open_stacks=False for some reason. Defaults to False.</p></li>
+<li><p><strong>load_tables</strong> (<em>bool</em><em>, </em><em>optional</em>) – Also load peaks and prediction tables from the HDF5 files. Defaults to True (will likely
+be changed to False).</p></li>
+<li><p><strong>diff_stack_label</strong> (<em>str</em><em>, </em><em>optional</em>) – Label of the diffraction data stack. Defaults to ‘raw_counts’.</p></li>
+<li><p><strong>validate_files</strong> (<em>bool</em><em>, </em><em>optional</em>) – Validate the HDF5 files (that is, check for required groups and datasets)
+before attempting to open them. Defaults to False.</p></li>
+<li><p><strong>**kwargs</strong> – Dataset attributes to be set right away.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>dataset object</p>
+<dd class="field-even"><p>new Dataset object read from files</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">Dataset</a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.from_list">
-<em class="property">classmethod </em><code class="sig-name descname">from_list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>list<span class="p">, </span>str<span class="p">, </span>tuple<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">open_stacks</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">chunking</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>int<span class="p">, </span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">100</span></em>, <em class="sig-param"><span class="n">persist_meta</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">init_stacks</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">load_tables</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">diff_stack_label</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'raw_counts'</span></em>, <em class="sig-param"><span class="n">validate_files</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#diffractem.dataset.Dataset.from_list" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="simple">
-<dt>Creates a data set from:</dt><dd><ul class="simple">
-<li><dl class="simple">
-<dt>a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style</dt><dd><p>event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.</p>
-</dd>
-</dl>
-</li>
-<li><p>a glob pattern (like: ‘data/<a href="#id5"><span class="problematic" id="id6">*</span></a>.h5’)</p></li>
+<em class="property">classmethod </em><code class="sig-name descname">from_list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span></em>, <em class="sig-param"><span class="n">open_stacks</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">chunking</span><span class="o">=</span><span class="default_value">'hdf5'</span></em>, <em class="sig-param"><span class="n">persist_meta</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">init_stacks</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">load_tables</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">diff_stack_label</span><span class="o">=</span><span class="default_value">'raw_counts'</span></em>, <em class="sig-param"><span class="n">validate_files</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#diffractem.dataset.Dataset.from_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a <cite>Dataset</cite> object from HDF5 file(s) stored on disk.</p>
+<p>There is some flexibility with regards to how to define the input files. You can specify them by</p>
+<ul class="simple">
+<li><p>a .lst file name, which contains a simple list of H5 files (on separate lines). If the .lst file has CrystFEL-style
+event indicators in it, it will be loaded, and the events present in the list will be selected, the others not.</p></li>
+<li><p>a glob pattern (like: ‘data/<a href="#id7"><span class="problematic" id="id8">*</span></a>.h5’)</p></li>
 <li><p>a python iterable of files.</p></li>
 <li><p>a simple HDF5 file path</p></li>
 </ul>
-</dd>
-</dl>
+<p>In any case, the shot list and feature list are loaded to memory. Using the arguments you can specify what should
+happen to the stacks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>files</strong> – see above</p></li>
-<li><p><strong>init_stacks</strong> – initialize stacks, that is, briefly open the data stacks, check their lengths, and close
-them again. Does not hurt usually.</p></li>
-<li><p><strong>load_tables</strong> – load the additional tables stored in the files (features, peaks, predictions)</p></li>
-<li><p><strong>diff_stack_label</strong> – name of stack to be used for generating the shot table, if it’s not stored in the files</p></li>
-<li><p><strong>**kwargs</strong> – <p>Dataset attributes to be set right away</p>
-</p></li>
+<li><p><strong>files</strong> (<em>Union</em><em>[</em><em>list</em><em>, </em><em>str</em><em>, </em><em>tuple</em><em>]</em>) – File specification as decsribed above.</p></li>
+<li><p><strong>open_stacks</strong> (<em>bool</em><em>, </em><em>optional</em>) – Open the data stacks. This means that open handles to the HDF5 (in readonly mode).
+are kept within the <cite>Dataset</cite> object. Defaults to True.</p></li>
+<li><p><strong>chunking</strong> (<em>Union</em><em>[</em><em>int</em><em>, </em><em>str</em><em>]</em><em>, </em><em>optional</em>) – See documentation of <cite>open_stacks</cite>. Defaults to ‘hdf5’, that is, look
+up in the HDF5 file for a recommendation value.</p></li>
+<li><p><strong>persist_meta</strong> (<em>bool</em><em>, </em><em>optional</em>) – Right away persists the data stacks, that is, loads the actual data into memory
+instead of just holding references to the HDF5 files. Diffraction data (identified by 3D stacks) is automatically
+excluded. Defaults to True.</p></li>
+<li><p><strong>init_stacks</strong> (<em>bool</em><em>, </em><em>optional</em>) – Initialize stacks, that is, briefly open the data stacks, check their lengths, and close
+the files again. Viable option if you need/want to set open_stacks=False for some reason. Defaults to False.</p></li>
+<li><p><strong>load_tables</strong> (<em>bool</em><em>, </em><em>optional</em>) – Also load peaks and prediction tables from the HDF5 files. Defaults to True (will likely
+be changed to False).</p></li>
+<li><p><strong>diff_stack_label</strong> (<em>str</em><em>, </em><em>optional</em>) – Label of the diffraction data stack. Defaults to ‘raw_counts’.</p></li>
+<li><p><strong>validate_files</strong> (<em>bool</em><em>, </em><em>optional</em>) – Validate the HDF5 files (that is, check for required groups and datasets)
+before attempting to open them. Defaults to False.</p></li>
+<li><p><strong>**kwargs</strong> – Dataset attributes to be set right away.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>dataset object</p>
+<dd class="field-even"><p>new Dataset object read from files</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">Dataset</a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.generate_virtual_file">
-<code class="sig-name descname">generate_virtual_file</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">diff_stack_label</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">kind</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'fake'</span></em>, <em class="sig-param"><span class="n">virtual_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1024</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.generate_virtual_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.generate_virtual_file" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
+<code class="sig-name descname">generate_virtual_file</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">diff_stack_label</span></em>, <em class="sig-param"><span class="n">kind</span><span class="o">=</span><span class="default_value">'fake'</span></em>, <em class="sig-param"><span class="n">virtual_size</span><span class="o">=</span><span class="default_value">1024</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.generate_virtual_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.generate_virtual_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>NOT IMPLEMENTED YET (but soon will)</p>
+<p>Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
 diffraction. Instead of the diffraction stack, either a dummy stack containing a constant only,
 or a virtual dataset with external links to the actual data files is created. While the former
 is useful for indexing using CrystFEL, the latter can serve to generate a file for quick preview.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>{str} --</strong><strong> [</strong><strong>description</strong><strong>]</strong> (<em>filename</em>) – </p>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>{str} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>kind</em>) – {‘fake’})</p></li>
-<li><p><strong>{int} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>virtual_size</em>) – {1024})</p></li>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<em>str</em>) – [description]</p></li>
+<li><p><strong>diff_stack_label</strong> (<em>str</em>) – [description]</p></li>
+<li><p><strong>kind</strong> (<em>str</em><em>, </em><em>optional</em>) – [description]. Defaults to ‘fake’.</p></li>
+<li><p><strong>virtual_size</strong> (<em>int</em><em>, </em><em>optional</em>) – [description]. Defaults to 1024.</p></li>
 </ul>
 </dd>
-<dt class="field-odd">Raises</dt>
-<dd class="field-odd"><p><strong>NotImplementedError</strong> – [description]</p>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – [description]</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.get_map">
-<code class="sig-name descname">get_map</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file</span></em>, <em class="sig-param"><span class="n">subset</span><span class="o">=</span><span class="default_value">'entry'</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="diffractem.map_image.html#diffractem.map_image.MapImage" title="diffractem.map_image.MapImage">diffractem.map_image.MapImage</a><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.get_map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.get_map" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">get_map</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file</span></em>, <em class="sig-param"><span class="n">subset</span><span class="o">=</span><span class="default_value">'entry'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.get_map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.get_map" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.get_meta">
 <code class="sig-name descname">get_meta</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">'/%/instrument/detector/collection/shutter_time'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.get_meta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.get_meta" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Gets an instrument metadata field in NeXus format from the HDF5 files.</p>
+<p>As those metadata are per-file and not per-shot, a series is returned which then can be joined into
+the dataset manually. If you want to have this done automatically, use <cite>merge_meta</cite> instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to metadata to be grabbed. Can include CrystFEL-stype % placeholder.
+Defaults to ‘/%/instrument/detector/collection/shutter_time’.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>pandas Series holding the metadata for each file.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>pd.Series</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.get_selection">
-<code class="sig-name descname">get_selection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">query</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">file_suffix</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'_sel.h5'</span></em>, <em class="sig-param"><span class="n">file_prefix</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">''</span></em>, <em class="sig-param"><span class="n">new_folder</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">reset_id</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">diffractem.dataset.Dataset</a><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.get_selection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.get_selection" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a new dataset object by applying a selection. By default, returns all shots with selected == True.
+<code class="sig-name descname">get_selection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">query</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">file_suffix</span><span class="o">=</span><span class="default_value">'_sel.h5'</span></em>, <em class="sig-param"><span class="n">file_prefix</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">new_folder</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">reset_id</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.get_selection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.get_selection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a new dataset object by applying a selection.</p>
+<p>By default, returns a new Dataset object, including all shots with selected == True in the current shot list.
 Optionally, a different query string can be supplied (which leaves the selection unaffected).
-The stored file names will be changed, to avoid collisions. This can be controlled with the file_suffix and
-file_prefix parameters.
-:param query: Optional query string, as in the select method
-:param file_suffix: as in Dataset.change_filenames
-:param file_prefix: as in Dataset.change_filenames
-:param new_folder: as in Dataset.change_filenames
-:return: new data set.</p>
+The file names of the new data set will be changed, to avoid collisions. This can be controlled with the file_suffix and
+file_prefix parameters. Otherwise, the returned dataset will include everything from the existing one.</p>
+<p>Hint:</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>query</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – Optional query string, as in the <cite>select</cite> method. Defaults to None, that is,
+use the <cite>selected</cite> column in the shot list.</p></li>
+<li><p><strong>file_suffix</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to ‘_sel.h5’.</p></li>
+<li><p><strong>file_prefix</strong> (<em>str</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to ‘’.</p></li>
+<li><p><strong>new_folder</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em><em>, </em><em>optional</em>) – as in <cite>change_filenames</cite>. Defaults to None.</p></li>
+<li><p><strong>reset_id</strong> (<em>bool</em><em>, </em><em>optional</em>) – reset the shot in subset. Defaults to True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>New dataset with all the same attributes, but containing only the desired sub-selection of shots.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">Dataset</a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.init_files">
 <code class="sig-name descname">init_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">overwrite</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">keep_features</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">exclude_list</span><span class="o">=</span><span class="default_value">()</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.init_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.init_files" title="Permalink to this definition">¶</a></dt>
-<dd><p>Make new files corresponding to the shot list, by copying over instrument metadata and maps (but not
-results, shot list, data arrays,…) from the raw files (as stored in file_raw).
-:param overwrite: overwrite new files if not yet existing
-:param keep_features: copy over the feature list from the files
-:param exclude_list: custom list of HDF5 groups or datasets to exclude from copying
-:return:</p>
+<dd><p>Initialize set of HDF5 files to store the Dataset.</p>
+<p>Makes new files corresponding to the shot list, by creating the files with the basic structure, and
+copying over instrument metadata and maps (but not shot list, data arrays,…)
+from the raw files (as stored in file_raw).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Overwrite files if existing already. Defaults to False.</p></li>
+<li><p><strong>keep_features</strong> (<em>bool</em><em>, </em><em>optional</em>) – Copy over the (full) feature list. Usually not required,
+as it will be later stored using store_stacks. Defaults to False.</p></li>
+<li><p><strong>exclude_list</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Custom list of HDF5 groups or datasets to exclude
+from copying. Please consult documentation of <cite>nexus.copy_h5</cite> for help. Defaults to ().</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.init_shot_table">
-<code class="sig-name descname">init_shot_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span><span class="p">:</span> <span class="n">list</span></em>, <em class="sig-param"><span class="n">stack_label</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'raw_counts'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.init_shot_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.init_shot_table" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">init_shot_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span></em>, <em class="sig-param"><span class="n">stack_label</span><span class="o">=</span><span class="default_value">'raw_counts'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.init_shot_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.init_shot_table" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.init_stacks">
 <code class="sig-name descname">init_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.init_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.init_stacks" title="Permalink to this definition">¶</a></dt>
-<dd><p>Opens stacks briefly, to check their sizes etc., and closes them again right away. Helpful to just get their
-names and sizes…
-:return:</p>
+<dd><p>Opens files briefly in readonly mode, to check stack names shapes etc., and closes them again right away.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>**kwargs</strong> – any arguments are passed to <cite>open_stacks</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.dataset.Dataset.instrument_pattern">
+<code class="sig-name descname">instrument_pattern</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.dataset.Dataset.instrument_pattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to instrument metadat in HDF5 files. % can be used as placeholder (as in CrystFEL). Default /%/instrument</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.load_tables">
 <code class="sig-name descname">load_tables</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">shots</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">features</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">peaks</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">predict</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">files</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.load_tables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.load_tables" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.
-:param shots: shot table
-:param features: feature table
-:param peaks: peak table
-:param predict: prediction table
-:param files: …allows to supply a custom file list, instead of the stored one. Dangerous.
-:return:</p>
+<dd><p>Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>shots</strong> (<em>bool</em><em>, </em><em>optional</em>) – Get shot table. Defaults to False.</p></li>
+<li><p><strong>features</strong> (<em>bool</em><em>, </em><em>optional</em>) – Get feature table. Defaults to False.</p></li>
+<li><p><strong>peaks</strong> (<em>bool</em><em>, </em><em>optional</em>) – Get peaks table. Defaults to False.</p></li>
+<li><p><strong>predict</strong> (<em>bool</em><em>, </em><em>optional</em>) – Get prediction table. Defaults to False.</p></li>
+<li><p><strong>files</strong> (<em>bool</em><em>, </em><em>optional</em>) – Only include sub selection of files - usually not a good idea.
+Uses all files of dataset if None. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.dataset.Dataset.map_pattern">
+<code class="sig-name descname">map_pattern</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.dataset.Dataset.map_pattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to map and feature data in HDF5 files. % can be used as placeholder (as in CrystFEL). Default /%/map</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.merge_acquisition_data">
-<code class="sig-name descname">merge_acquisition_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fields</span><span class="p">:</span> <span class="n">dict</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.merge_acquisition_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.merge_acquisition_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">merge_acquisition_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fields</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.merge_acquisition_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.merge_acquisition_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.merge_meta">
 <code class="sig-name descname">merge_meta</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">'%/instrument/detector/collection/shutter_time'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.merge_meta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.merge_meta" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Gets an instrument metadata field in NeXus format from the HDF5 files, and merges it into
+the shot table of the data set.</p>
+<p>Note, that the name of the new column in the shot table will correspond to the HDF5 dataset name,
+ignoring the group (as included in the full path). E.g., for the default value, it will be
+just ‘shutter_time’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to metadata to be grabbed. Can include CrystFEL-style % placeholder.
+Defaults to ‘%/instrument/detector/collection/shutter_time’.</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.merge_pattern_info">
-<code class="sig-name descname">merge_pattern_info</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ds_from</span><span class="p">:</span> <span class="n"><a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">diffractem.dataset.Dataset</a></span></em>, <em class="sig-param"><span class="n">merge_cols</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>List<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">by</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>List<span class="p">[</span>str<span class="p">]</span><span class="p">, </span>Tuple<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'sample', 'region', 'run', 'crystal_id'</span></em>, <em class="sig-param"><span class="n">persist</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.merge_pattern_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.merge_pattern_info" title="Permalink to this definition">¶</a></dt>
-<dd><p>Merge shot table columns and peak data from another data set into this one, based
-on matching of the shot table columns specified in “by”.</p>
+<code class="sig-name descname">merge_pattern_info</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ds_from</span></em>, <em class="sig-param"><span class="n">merge_cols</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">by</span><span class="o">=</span><span class="default_value">'sample', 'region', 'run', 'crystal_id'</span></em>, <em class="sig-param"><span class="n">persist</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.merge_pattern_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.merge_pattern_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Merge shot-table and CXI peak data from another data set into this one, based
+on matching of the shot table columns specified in “by”. Default is (‘sample’, ‘region’, ‘run’, ‘crystal_id’),
+which matches the shot information based on individual crystals.</p>
+<p>The typical application of this function is to take over diffraction pattern information such as pattern center
+and peak positions from an aggregated data set (where each pattern corresponds to exactly one shot) to a
+full data set (where each pattern often corresponds to many shots, such as frames of a diffraction movie).</p>
+<p>In this case you’d call the method like: <cite>ds_all.merge_pattern_info(ds_agg)</cite>, where ds_agg is the
+aggregated data set to get the information from.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>{Dataset} -- Diffractem Dataset to take information from</strong> (<em>ds_from</em>) – </p>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>{List} -- Shot table columns to take over from other data set. If None</strong> (<em>merge_cols</em>) – all columns are taken over which are not present in the shot table currently</p></li>
-<li><p><strong>{List} -- Shot table columns to match by.</strong> (<em>by</em>) – Defaults to [‘sample’, ‘region’, ‘run’, ‘crystal_id’]</p></li>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ds_from</strong> (<a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset"><em>Dataset</em></a>) – Diffractem Dataset to take information from</p></li>
+<li><p><strong>merge_cols</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Shot table columns to take over from other data set. If None,
+all columns are taken over which are not present in the shot table currently. Defaults to None.</p></li>
+<li><p><strong>by</strong> (<em>Union</em><em>[</em><em>List</em><em>[</em><em>str</em><em>]</em><em>, </em><em>Tuple</em><em>[</em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Shot table columns to match by.
+Defaults to (‘sample’, ‘region’, ‘run’, ‘crystal_id’).</p></li>
+<li><p><strong>persist</strong> (<em>bool</em><em>, </em><em>optional</em>) – Persist the merged CXI peak data to memory. Defaults to True.</p></li>
 </ul>
-</dd>
-<dt class="field-odd">Raises</dt>
-<dd class="field-odd"><p><strong>ValueError</strong> – [description] d</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.merge_stream">
-<code class="sig-name descname">merge_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">streamfile</span><span class="p">:</span> <span class="n">Union<span class="p">[</span><a class="reference internal" href="diffractem.stream_parser.html#diffractem.stream_parser.StreamParser" title="diffractem.stream_parser.StreamParser">diffractem.stream_parser.StreamParser</a><span class="p">, </span>str<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.merge_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.merge_stream" title="Permalink to this definition">¶</a></dt>
-<dd><p>Loads a CrystFEL stream file, and merges its contents into the dataset object.
-:param streamfile: file name of streamfile, or StreamParser object
-:return:</p>
+<code class="sig-name descname">merge_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">streamfile</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.merge_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.merge_stream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads a <cite>CrystFEL</cite> stream file and merges it contents into the dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>streamfile</strong> (<em>Union</em><em>[</em><a class="reference internal" href="diffractem.stream_parser.html#diffractem.stream_parser.StreamParser" title="diffractem.stream_parser.StreamParser"><em>StreamParser</em></a><em>, </em><em>str</em><em>]</em>) – stream file name, or StreamParser object.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.open_stacks">
-<code class="sig-name descname">open_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">labels</span><span class="p">:</span> <span class="n">Union[None, list]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">checklen</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">init</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">readonly</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">swmr</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">chunking</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>int<span class="p">, </span>str<span class="p">, </span>list<span class="p">, </span>tuple<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'dataset'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.open_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.open_stacks" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">open_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">checklen</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">init</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">readonly</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">swmr</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">chunking</span><span class="o">=</span><span class="default_value">'dataset'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.open_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.open_stacks" title="Permalink to this definition">¶</a></dt>
 <dd><p>Opens data stacks from HDF5 (NeXus) files (found by the “data_pattern” attribute), and assigns dask array
 objects to them. After opening, the arrays or parts of them can be accessed through the stacks attribute,
-or directly using a dataset.stack syntax, and loaded using the .compute() method of the arrays.
-Note that, while the stacks are open, no other python kernel will be able to access the data files, and other
-codes may not see the modifications made. You will have to call dataset.close_stacks() before.
-:param labels: list of stacks to open. Default: None -&gt; opens all stacks
-:param checklen: check if stack heights (first dimension) is equal to shot list length
-:param init: do not load stacks, just make empty dask arrays. Usually the init_stacks method is more useful.
-:param readonly: open HDF5 files in read-only mode (Default: True)
-:param swmr: open HDF5 files in SWMR mode (Default: False)
-:param chunking: how should the dask arrays be chunked along the 0th (stack) direction. Options are,</p>
-<blockquote>
-<div><p>in decreasing order of recommendation:
-* None, which tries all good options and fails if none works
-* ‘dataset’ to use what is set in the current dataset zchunks property (default)
-* ‘existing’ to use the chunking of an already-existing stack which is about to be overwritten.</p>
-<blockquote>
-<div><p>Should usually be the same as ‘dataset’</p>
-</div></blockquote>
+or directly using a dataset.stack syntax, and loaded using the .compute() or .persist() method of the arrays.</p>
+<p>A critical point here is how the chunking of the dask arrays is done. Especially for the initial opening
+of raw data this is crucial for (as in: orders of magnitude) the performance of downstream tasks. You have
+several options, those are, in decreasing order of recommendation:</p>
 <ul class="simple">
-<li><dl class="simple">
-<dt>‘hdf5’ to use the chunksize recommended in the HDF5 file (‘recommended_zchunks’ attribute) of the</dt><dd><p>data stacks group</p>
+<li><p>‘dataset’ to use what is set in the current dataset zchunks property (default). This will not work for a fresh
+dataset, in which case you have to specify it from scratch.</p></li>
+<li><p>‘hdf5’ to use the chunksize recommended in the HDF5 file (‘recommended_zchunks’ attribute) of the
+data stacks group.</p></li>
+<li><p>an integer number for a defined (approximate) chunk size, which ignores shots with frame number &lt; -1. This means,
+that after a get_selection command or anything that filters out dummy shots, equal chunk sizes are achieved.
+This is the recommended way of chunking for totally from-scratch datasets which don’t yet have the
+recommended_zchunks attribute set. Something of the order of 10 is often a good choice if you want to work
+with the set as is, if you want to aggregate early on, choose something bigger (rather 100).
+<strong>If your dataset comprises diffraction movies, this should be an integer
+multiple of the number of frames within each.</strong></p></li>
+<li><p>an iterable to explicitly set the chunk sizes</p></li>
+<li><p>‘existing’ to use the chunking of an already-existing stack which is about to be overwritten.
+Should usually be the same as ‘dataset’, but still works if your stacks have inconsistent chunking.</p></li>
+<li><p>‘auto’ to use the dask automatic mode, with inevitably sub-optimal results.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>list</em><em>]</em><em>, </em><em>optional</em>) – lLst of stacks to open. To open all stacks, set to None. Defaults to None.</p></li>
+<li><p><strong>checklen</strong> (<em>bool</em><em>, </em><em>optional</em>) – check if stack heights (first dimension) is equal to shot list length. Defaults to True.</p></li>
+<li><p><strong>init</strong> (<em>bool</em><em>, </em><em>optional</em>) – do not load stacks, just make empty dask arrays.  Defaults to False.</p></li>
+<li><p><strong>readonly</strong> (<em>bool</em><em>, </em><em>optional</em>) – open HDF5 files in read-only mode. Defaults to True.</p></li>
+<li><p><strong>swmr</strong> (<em>bool</em><em>, </em><em>optional</em>) – open HDF5 files in SWMR mode. Defaults to False.</p></li>
+<li><p><strong>chunking</strong> (<em>Union</em><em>[</em><em>int</em><em>, </em><em>str</em><em>, </em><em>list</em><em>, </em><em>tuple</em><em>]</em><em>, </em><em>optional</em>) – [description]. Defaults to ‘dataset’.</p></li>
+</ul>
 </dd>
 </dl>
-</li>
-<li><p>an integer number for a defined (approximate) chunk size, which ignores shots with frame number &lt; -1,</p></li>
-<li><p>an iterable to explicitly set the chunk sizes</p></li>
-<li><p>‘auto’ to use the dask automatic mode</p></li>
-</ul>
-</div></blockquote>
-<p>Generally, a fixed number (integer or iterable) is recommended and gives the least trouble.
-already been chunked before. For a fixed number, the chunks are done such that after filtering of frame == -1 shots,
-a constant chunk size is achieved.
-:return:</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.dataset.Dataset.parallel_io">
+<code class="sig-name descname">parallel_io</code><em class="property">: bool</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.dataset.Dataset.parallel_io" title="Permalink to this definition">¶</a></dt>
+<dd><p>Toggles if parallel I/O is attempted for datasets spanning many files. Note that this is independent
+from <cite>dask.distributed</cite>-based parallelization as in <cite>store_stack_fast</cite>. Default True, which is overriden
+if the Dataset comprises a single file only.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.peaks">
 <em class="property">property </em><code class="sig-name descname">peaks</code><a class="headerlink" href="#diffractem.dataset.Dataset.peaks" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>List of found diffraction peaks. Deprecated. Please store peaks in CXI-format
+stacks. Note that peak positions in this table must follow <em>CrystFEL</em> convention, that
+is, integer numbers specify the pixel <em>edges</em>, not centers. This is in contrast to
+CXI convention, where integer numbers correspond to pixel <em>centers</em></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.persist_stacks">
-<code class="sig-name descname">persist_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">labels</span><span class="p">:</span> <span class="n">Union[None, str, list]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude</span><span class="p">:</span> <span class="n">Union[None, str, list]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">include_3d</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">scheduler</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>distributed.client.Client<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'threading'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.persist_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.persist_stacks" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">persist_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">include_3d</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">scheduler</span><span class="o">=</span><span class="default_value">'threading'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.persist_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.persist_stacks" title="Permalink to this definition">¶</a></dt>
 <dd><p>Persist the stacks to memory (locally and/or on the cluster workers), that is, they are computed.
 but actually not changed to numpy arrays, just immediately available dask arrays without an actual
 task graph. It is recommended to have as many stacks persisted as possible.
-The diffraction data stack is automatically excluded.</p>
+The diffraction data stack is automatically excluded, as are any 3D arrays (be default).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There are important subtleties about which dask scheduler to use here. If you have a
+dask.distributed cluster running (and you often will), the underlying dask.persist() function if
+called without parameters will
+compute and persist the data on the <em>workers</em> of the cluster, not the local machine. For our typical
+applications (making access to small meta stacks faster and less error-prone), that’s the wrong
+choice. Hence, scheduler=’threading’ by default (you might as well use ‘single-threaded’). However,
+there might be cases where persisting on the workers make sense - in that case just set the scheduler
+argument to your client object.</p>
+</div>
 <dl class="field-list simple">
-<dt class="field-odd">Keyword Arguments</dt>
+<dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>{Union</strong><strong>[</strong><strong>None</strong><strong>, </strong><strong>str</strong><strong>, </strong><strong>list</strong><strong>]</strong><strong>} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>exclude</em>) – {None})</p></li>
-<li><p><strong>{Union</strong><strong>[</strong><strong>None</strong><strong>, </strong><strong>str</strong><strong>, </strong><strong>list</strong><strong>]</strong><strong>} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> – {None})</p></li>
-<li><p><strong>{bool} --</strong><strong> [</strong><strong>description</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>include_3d</em>) – {False})</p></li>
-<li><p><strong>{} --</strong> (<em>scheduler</em>) – </p></li>
+<li><p><strong>labels</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>list</em><em>]</em><em>, </em><em>optional</em>) – Labels of stacks to persist (None: all except for the one
+set in diff_stack_label). Defaults to None.</p></li>
+<li><p><strong>exclude</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>list</em><em>]</em><em>, </em><em>optional</em>) – Stacks to exclude. Defaults to None.</p></li>
+<li><p><strong>include_3d</strong> (<em>bool</em><em>, </em><em>optional</em>) – Include 3D stacks. Defaults to False.</p></li>
+<li><p><strong>scheduler</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>Client</em><em>]</em><em>, </em><em>optional</em>) – What scheduler to use. Defaults to ‘threading’.</p></li>
 </ul>
 </dd>
 </dl>
@@ -582,115 +823,28 @@ The diffraction data stack is automatically excluded.</p>
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.predict">
 <em class="property">property </em><code class="sig-name descname">predict</code><a class="headerlink" href="#diffractem.dataset.Dataset.predict" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>List of predictions. Deprecated. Please store predictions in StreamParser objects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.rechunk_stacks">
-<code class="sig-name descname">rechunk_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">chunk_height</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.rechunk_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.rechunk_stacks" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">rechunk_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">chunk_height</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.rechunk_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.rechunk_stacks" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.reset_id">
 <code class="sig-name descname">reset_id</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">keep_raw</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.reset_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.reset_id" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resets shot_in_subset and Event columns to continuous numbering. Useful after dataset reduction. The old
-Event strings are copied to a “Event_raw” column, if not already present (can be overriden with keep_raw).
-:param keep_raw: if True (default), does not change the Event_raw column in the shot list,</p>
-<blockquote>
-<div><p>unless there is none yet (in which case the old Event IDs are _always_ copied to keep_raw)</p>
-</div></blockquote>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.dataset.Dataset.select">
-<code class="sig-name descname">select</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">query</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'True'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.select"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.select" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets the ‘selected’ column of the shot list by a string query (eg. ‘num_peaks &gt; 30 and frame == 1’).
-See pandas documentation for ‘query’ and ‘eval’. If you want to add another criterion to the existing
-selection you can also do sth. like ‘selected and hit == 1’.
-:param query: if left empty, defaults to ‘True’ -&gt; selects all shots.
-:return:</p>
-</dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.dataset.Dataset.shots">
-<em class="property">property </em><code class="sig-name descname">shots</code><a class="headerlink" href="#diffractem.dataset.Dataset.shots" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.dataset.Dataset.stacks">
-<em class="property">property </em><code class="sig-name descname">stacks</code><a class="headerlink" href="#diffractem.dataset.Dataset.stacks" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.dataset.Dataset.stacks_to_shots">
-<code class="sig-name descname">stacks_to_shots</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stack_labels</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>list<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">shot_labels</span><span class="p">:</span> <span class="n">Union[str, list, None]</span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.stacks_to_shots"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.stacks_to_shots" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.dataset.Dataset.store_stack_fast">
-<code class="sig-name descname">store_stack_fast</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">label</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">client</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>distributed.client.Client<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sync</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">compression</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>int<span class="p">, </span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">32004</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.store_stack_fast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.store_stack_fast" title="Permalink to this definition">¶</a></dt>
-<dd><p>Store (and compute) a single stack to HDF5 file(s), using a dask.distributed cluster.
-This allows for proper parallel computation (even on many machines) and is wa(aaa)y faster
-than the standard store_stacks, which only works with threads.
-It also sets the signal attribute in the NeXus-compliant data group to the given label.</p>
+Event strings are copied to a “Event_raw” column, if not already present (can be overriden with keep_raw).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>{str} -- Label of the stack to be computed and stored. If None</strong><strong>, </strong><strong>use the _diff_stack</strong> (<em>label</em>) – setting.</p>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>{Optional</strong><strong>[</strong><strong>Client</strong><strong>]</strong><strong>} -- dask.distributed client object. Mandatorily required</strong> (<em>client</em>) – if sync=True. (default: {None})</p></li>
-<li><p><strong>{bool} -- if True</strong> (<em>sync</em>) – dataframe containing metadata of everything stored, for validation. If False,
-returns a list of dask.delayed objects which encapsulate the computation/storage.</p></li>
-<li><p><strong>{Union</strong><strong>[</strong><strong>int</strong><strong>, </strong><strong>str</strong><strong>]</strong><strong>} -- Compression of the dataset to be stored.</strong> (<em>compression</em>) – Defaults to 32004, which is LZ4. Viable alternatives are ‘gzip’, ‘lzf’, or ‘none’.</p></li>
-</ul>
-</dd>
-<dt class="field-odd">Raises</dt>
-<dd class="field-odd"><p><strong>ValueError</strong> – [description]</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>pd.DataFrame (if sync=True), list of dask.delayed (if sync=False)</p>
-</dd>
-</dl>
-<dl class="simple">
-<dt>Remarks:</dt><dd><p>If the stack to be stored depends on computationally heavy (but memory-fitting) dask
-arrays which you want to retain outside this computation (e.g. to store them using
-store_stacks), consider persisting them (using da.persist) before calling sthis function.
-Otherwise, they will be re-calculated from scratch.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.dataset.Dataset.store_stacks">
-<code class="sig-name descname">store_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">labels</span><span class="p">:</span> <span class="n">Union[None, str, list]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude</span><span class="p">:</span> <span class="n">Union[None, str, list]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">compression</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">32004</span></em>, <em class="sig-param"><span class="n">lazy</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">data_pattern</span><span class="p">:</span> <span class="n">Union[None, str]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">progress_bar</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">scheduler</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'threading'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.store_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.store_stacks" title="Permalink to this definition">¶</a></dt>
-<dd><p>Stores stacks with given labels to the HDF5 data files. If None (default), stores all stacks. New stacks are
-typically not yet computed, so at this point the actual data crunching is done. Note that this way of computing
-and storing data is restricted to threading or single-threaded computation, i.e. it’s not recommended for
-heavy lifting. In this case, better use store_stack_fast.
-:param labels: stack(s) to be written
-:param exclude: stack(s) to be excluded
-:param overwrite: overwrite stacks already existing in the files?
-:param compression: compression algorithm to be used. 32004 corresponds to bz4, which we mostly use.
-:param lazy: if True, instead of writing the shots, returns two lists containing the arrays and dataset objects</p>
-<blockquote>
-<div><p>which can be used to later pass them to dask.array.store. Default False (store right away)</p>
-</div></blockquote>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data_pattern</strong> – store stacks to this data path (% is replaced by subset) instead of standard path.
-Note that stacks stored this way will not be retrievable through Dataset objects.</p></li>
-<li><p><strong>progress_bar</strong> – show a progress bar during calculation/storing. Disable if you’re running store_stacks
-in multiple processes simultaneously.</p></li>
-<li><p><strong>scheduler</strong> – dask scheduler to be used. Can be ‘threading’ or ‘single-threaded’</p></li>
-<li><p><strong>**kwargs</strong> – <p>will be forwarded to h5py.create_dataset</p>
-</p></li>
-</ul>
+<dd class="field-odd"><p><strong>keep_raw</strong> (<em>bool</em><em>, </em><em>optional</em>) – if True (default), does not change the Event_raw column in the shot list,
+unless there is none yet (in which case the old Event IDs are <em>always</em> copied to keep_raw)</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p></p>
@@ -698,40 +852,195 @@ in multiple processes simultaneously.</p></li>
 </dl>
 </dd></dl>
 
+<dl class="py attribute">
+<dt id="diffractem.dataset.Dataset.result_pattern">
+<code class="sig-name descname">result_pattern</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.dataset.Dataset.result_pattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to result data (peaks, predictions) in HDF5 files. % can be used as placeholder (as in CrystFEL).
+Default /%/results. <strong>Note that storing results in this way is discouraged and deprecated.</strong></p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.select">
+<code class="sig-name descname">select</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">query</span><span class="o">=</span><span class="default_value">'True'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.select"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.select" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets the ‘selected’ column of the shot list by a string query (eg. ‘num_peaks &gt; 30 and frame == 1’).
+See pandas documentation for ‘query’ and ‘eval’. If you want to add another criterion to the existing
+selection you can also do sth. like ‘selected and hit == 1’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>query</strong> (<em>str</em>) – if left empty, defaults to ‘True’ -&gt; selects all shots.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.shots">
+<em class="property">property </em><code class="sig-name descname">shots</code><a class="headerlink" href="#diffractem.dataset.Dataset.shots" title="Permalink to this definition">¶</a></dt>
+<dd><p>Shot list. Can be overwritten only if index and ID columns of the shots
+are identical to the existing one.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.dataset.Dataset.shots_pattern">
+<code class="sig-name descname">shots_pattern</code><em class="property">: str</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.dataset.Dataset.shots_pattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to shot table data in HDF5 files. % can be used as placeholder (as in CrystFEL). Default /%/shots</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.stacks">
+<em class="property">property </em><code class="sig-name descname">stacks</code><a class="headerlink" href="#diffractem.dataset.Dataset.stacks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dictionary of data stacks of the Dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.stacks_to_shots">
+<code class="sig-name descname">stacks_to_shots</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stack_labels</span></em>, <em class="sig-param"><span class="n">shot_labels</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.stacks_to_shots"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.stacks_to_shots" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.store_stack_fast">
+<code class="sig-name descname">store_stack_fast</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">label</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sync</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">compression</span><span class="o">=</span><span class="default_value">32004</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.store_stack_fast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.store_stack_fast" title="Permalink to this definition">¶</a></dt>
+<dd><p>Store (and compute) a single stack to HDF5 file(s), using a dask.distributed cluster.</p>
+<p>This allows for proper parallel computation (on single or many machines) and is wa(aaa)y faster
+than the standard <cite>store_stacks</cite>, which only works with threads.
+Typically, you’ll want to use this method to store a processed diffraction data stack.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If the stack to be stored depends on computationally heavy (but memory-fitting) dask
+arrays which you want to retain outside this computation (e.g. to store them using
+store_stacks), make sure they are persisted before calling this function.
+Otherwise, they will be re-calculated from scratch.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Label of the stack to be computed and stored. If None, use the value
+stored in diff_stack_label. Defaults to None</p></li>
+<li><p><strong>client</strong> (<em>Optional</em><em>[</em><em>Client</em><em>]</em><em>, </em><em>optional</em>) – dask.distributed client connected to a cluster to perform
+the computation on. Defaults to None.</p></li>
+<li><p><strong>sync</strong> (<em>bool</em><em>, </em><em>optional</em>) – if True (default), computes and stores immediately, and returns a pandas
+dataframe containing metadata of everything stored, for validation. If False,
+returns a list of dask.delayed objects which encapsulate the computation/storage. Defaults to True.</p></li>
+<li><p><strong>compression</strong> (<em>Union</em><em>[</em><em>int</em><em>, </em><em>str</em><em>]</em><em>, </em><em>optional</em>) – HDF5 compression filter to use. Common choices are ‘gzip’, ‘none’,
+or 32004, which is the lz4 filter often used for diffraction data. Defaults to 32004.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>pandas DataFrame holding ID columns of the computed shots. They can be merged</dt><dd><p>with the shot list to cross-check if everything went ok. If sync=False, a list of futures to tuples
+(file, subset, path, idcs) for each dask array chunk is returned instead.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.store_stacks">
+<code class="sig-name descname">store_stacks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">compression</span><span class="o">=</span><span class="default_value">32004</span></em>, <em class="sig-param"><span class="n">lazy</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">data_pattern</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">progress_bar</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">scheduler</span><span class="o">=</span><span class="default_value">'threading'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.store_stacks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.store_stacks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores stacks with given labels to the HDF5 data files. For stacks which are not
+persisted, at this point the actual calculation is done here.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This way of computing
+and storing data is restricted to threading (which does not help much) or single-threaded computation, i.e.
+it’s <strong>not</strong> recommended for heavy lifting, like computing corrected/aggregated/modified diffraction patterns.
+In this case, better use true parallelism provided by <cite>store_stack_fast</cite>, which uses <cite>dask.distributed</cite> for
+scheduling.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>list</em><em>]</em><em>, </em><em>optional</em>) – Stacks to be written. If None, write all stacks, <em>including</em>
+the diffraction data stack. Defaults to None.</p></li>
+<li><p><strong>exclude</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>list</em><em>]</em><em>, </em><em>optional</em>) – Stacks to exclude. It might be wise to set the diffraction
+data stack here. Defaults to None.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Overwrite existing stacks (HDF5 datasets) in the files. Defaults to False.</p></li>
+<li><p><strong>compression</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>int</em><em>]</em><em>, </em><em>optional</em>) – HDF5 compression filter to use. Common choices are ‘gzip’, ‘none’,
+or 32004, which is the lz4 filter often used for diffraction data. Defaults to 32004.</p></li>
+<li><p><strong>lazy</strong> (<em>bool</em><em>, </em><em>optional</em>) – Instead of computing and storing the arrays, return a list of dask arrays and HDF5
+data sets, which can be inserted into dask.array.store. Defaults to False.</p></li>
+<li><p><strong>data_pattern</strong> (<em>Union</em><em>[</em><em>None</em><em>,</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – store stacks to this data path (% is replaced by subset) instead
+of standard data path if not None.
+Note that stacks stored this way will not be retrievable through Dataset objects. Defaults to None.</p></li>
+<li><p><strong>progress_bar</strong> (<em>bool</em><em>, </em><em>optional</em>) – show a progress bar during calculation/storing. To prevent a mess,
+disable if you’re running store_stacks in multiple processes simultaneously. Defaults to True.</p></li>
+<li><p><strong>scheduler</strong> (<em>str</em><em>, </em><em>optional</em>) – dask scheduler to be used. Can be ‘threading’ or ‘single-threaded’. It is not
+possible to use ‘multiprocessing’ due to conflicting access to HDF5 files. (If you want true parallel
+computation, you have to use <cite>store_stack_fast</cite> instead.) Defaults to ‘threading’.</p></li>
+<li><p><strong>**kwargs</strong> – Will be forwarded to h5py.create_dataset</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>None (if lazy=False)
+da.Array, h5py.Dataset: dask arrays and HDF5 dataset to pass to dask.array.store (if lazy=True)</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.store_tables">
-<code class="sig-name descname">store_tables</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">shots</span><span class="p">:</span> <span class="n">Union[None, bool]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">features</span><span class="p">:</span> <span class="n">Union[None, bool]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">peaks</span><span class="p">:</span> <span class="n">Union[None, bool]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">predict</span><span class="p">:</span> <span class="n">Union[None, bool]</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">format</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'nexus'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.store_tables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.store_tables" title="Permalink to this definition">¶</a></dt>
-<dd><p>Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. For each of the tables,
-it can be automatically determined if they have changed and should be stored…
-HOWEVER, this only works if no inplace changes have been made. So don’t rely on it too much.
-:param shots: True -&gt; store shot list, False -&gt; don’t store shot list, None -&gt; only store if changed
-:param features: similar
-:param peaks: similar
-:param predict: similar
-:param format: format to write metadata tables. ‘nexus’ (recommended) or ‘tables’ (old-style)
-:return:</p>
+<code class="sig-name descname">store_tables</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">shots</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">features</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">peaks</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">predict</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">'nexus'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.store_tables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.store_tables" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files.</p>
+<p>The location into which the tables will be stored is defined in the Dataset object’s attributes. The format
+in which they are stored is, on the other hand, determined by the <em>format</em> argument. If set to ‘tables’,
+PyTables will be used to store the table in a native HDF5 table format, which however is somewhat uncommon
+and not recognized by CrystFEL. If set to ‘nexus’ (Default), each column of the table will be stored as
+a one-dimensional dataset.</p>
+<p>As a general recommendation, <strong>always</strong> use nexus format to store the shots and features. For peaks and
+predictions, ‘tables’ is rather preferred, as it allows faster read/write and is more flexible with
+regards to column labels.</p>
+<p>For each of the tables,
+it can be automatically determined if they have changed and should be stored (however, this only works if
+no inplace changes have been made. So don’t rely on it too much.). If you want this, leave the
+argument at None. Otherwise explicitly specify True or False (strongly recommended).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>shots</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>bool</em><em>]</em><em>, </em><em>optional</em>) – Store shot table. Defaults to None.</p></li>
+<li><p><strong>features</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>bool</em><em>]</em><em>, </em><em>optional</em>) – Store feature table. Defaults to None.</p></li>
+<li><p><strong>peaks</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>bool</em><em>]</em><em>, </em><em>optional</em>) – Store peak table. Defaults to None.</p></li>
+<li><p><strong>predict</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>bool</em><em>]</em><em>, </em><em>optional</em>) – Store prediction table. Defaults to None.</p></li>
+<li><p><strong>format</strong> (<em>str</em><em>, </em><em>optional</em>) – Table storage format in HDF5 file, can be ‘nexus’ or ‘tables’. Defaults to ‘nexus’.</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.transform_stack_groups">
-<code class="sig-name descname">transform_stack_groups</code><span class="sig-paren">(</span><em class="sig-param">stacks: Union[List[str], str], func: Callable[[numpy.ndarray], numpy.ndarray] = &lt;function Dataset.&lt;lambda&gt;&gt;, by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id')</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.transform_stack_groups"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.transform_stack_groups" title="Permalink to this definition">¶</a></dt>
-<dd><p>For all data stacks listed in stacks, transforms sub-stacks within groups defined by “by”.
-As a common example, applies some function to all frames of a diffraction movie. The dimensions of
-each sub-stack must not change in the process. Note that this happens in place, i.e., the stacks
-will be overwritten by a transformed version.
-A typical application is to calculate a cumulative sum of patterns wittin each diffraction movie. This
-is what the default parameter for func is doing. Can do all kinds of other fun things, i.e. calculating
-directly the difference between frames, the difference of each w.r.t. the first,
+<code class="sig-name descname">transform_stack_groups</code><span class="sig-paren">(</span><em class="sig-param">stacks</em>, <em class="sig-param">func=&lt;function Dataset.&lt;lambda&gt;&gt;</em>, <em class="sig-param">by=('sample'</em>, <em class="sig-param">'region'</em>, <em class="sig-param">'run'</em>, <em class="sig-param">'crystal_id')</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.transform_stack_groups"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.transform_stack_groups" title="Permalink to this definition">¶</a></dt>
+<dd><p>For all data stacks listed in stacks, transforms sub-stacks within groups defined by <cite>by</cite> using the
+function in <cite>func</cite>.</p>
+<p>The dimensions of each sub-stack must not change in the process.
+Note that, unlike for <cite>get_selection</cite> or <cite>aggregate</cite>,
+this happens <em>in place</em>, i.e., the stacks will be <strong>overwritten</strong> by a transformed version! If this
+is not what you want, first make a copy of your data set, using <cite>copy</cite>.</p>
+<p>A typical application is to calculate a cumulative sum of patterns wittin each diffraction movie. This
+is what the default parameters for <cite>by</cite> and <cite>func</cite> is doing. Can do all kinds of other fun things, i.e.
+calculating directly the difference between frames, the difference of each w.r.t. the first,
 normalizing them to sth, etc.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>{List</strong><strong> or </strong><strong>str} -- Name</strong> (<em>stacks</em>) – </p>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>{Callable} -- Function applied to each sub-stack. Must act on a numpy</strong> (<em>func</em>) – array and return one of the same dimensions.
-Defaults to: lambda x: np.cumsum(x, axis=0)</p></li>
-<li><p><strong>{List} -- Shot table columns to identify groups.</strong> (<em>by</em>) – Defaults to [‘sample’, ‘region’, ‘run’, ‘crystal_id’]</p></li>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stacks</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – Name(s) of data stacks to be transformed</p></li>
+<li><p><strong>func</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>[[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]) – Function applied to each sub-stack. Must act on a numpy
+array and return one of the same dimensions. Defaults to <cite>lambda x: np.cumsum(x, axis=0)</cite>.</p></li>
+<li><p><strong>by</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>], <code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]]) – Shot table columns to identify groups - similar to how it’s done in <cite>aggregate</cite>.
+Defaults to <cite>(‘sample’, ‘region’, ‘run’, ‘crystal_id’)</cite>.</p></li>
 </ul>
 </dd>
 </dl>
@@ -739,16 +1048,25 @@ Defaults to: lambda x: np.cumsum(x, axis=0)</p></li>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.write_list">
-<code class="sig-name descname">write_list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">listfile</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.write_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.write_list" title="Permalink to this definition">¶</a></dt>
-<dd><p>Writes the files in the dataset into a list file, containing each file on a line.
-:param listfile: list file name
-:return:</p>
+<code class="sig-name descname">write_list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">listfile</span></em>, <em class="sig-param"><span class="n">append</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.write_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.write_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes the files in the dataset into a list file, containing each file on a line.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>listfile</strong> (<em>str</em>) – list file name</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="diffractem.dataset.Dataset.zchunks">
 <em class="property">property </em><code class="sig-name descname">zchunks</code><a class="headerlink" href="#diffractem.dataset.Dataset.zchunks" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Chunks of dask arrays holding the stacks along their first (that is, stacked) axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 
@@ -760,21 +1078,12 @@ Defaults to: lambda x: np.cumsum(x, axis=0)</p></li>
           </div>
           <footer>
   
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="diffractem.io.html" class="btn btn-neutral float-right" title="diffractem.io module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="diffractem.compute.html" class="btn btn-neutral float-left" title="diffractem.compute module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

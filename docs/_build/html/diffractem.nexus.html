@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,10 +38,9 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="diffractem.pre_proc_opts module" href="diffractem.pre_proc_opts.html" />
-    <link rel="prev" title="diffractem.map_image module" href="diffractem.map_image.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -80,28 +84,15 @@
               
             
             
-              <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="diffractem.html">Welcome</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="diffractem.html#submodules">Submodules</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="diffractem.adxv.html">diffractem.adxv module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.compute.html">diffractem.compute module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.dataset.html">diffractem.dataset module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.io.html">diffractem.io module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.legacy.html">diffractem.legacy module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.map_image.html">diffractem.map_image module</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">diffractem.nexus module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_proc_opts.html">diffractem.pre_proc_opts module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_process.html">diffractem.pre_process module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc2d.html">diffractem.proc2d module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc_peaks.html">diffractem.proc_peaks module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.stream_parser.html">diffractem.stream_parser module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.tools.html">diffractem.tools module</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="diffractem.html#module-diffractem">Module contents</a></li>
-</ul>
-</li>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
             
@@ -147,8 +138,6 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="diffractem.html">diffractem package</a> &raquo;</li>
-        
       <li>diffractem.nexus module</li>
     
     
@@ -168,7 +157,31 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="module-diffractem.nexus">
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-diffractem.nexus">
 <span id="diffractem-nexus-module"></span><h1>diffractem.nexus module<a class="headerlink" href="#module-diffractem.nexus" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="diffractem.nexus.copy_h5">
@@ -198,9 +211,11 @@
 
 <dl class="py function">
 <dt id="diffractem.nexus.get_meta_fields">
-<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">get_meta_fields</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>list<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">dataset_paths</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>list<span class="p">, </span>str<span class="p">, </span>tuple<span class="p">, </span>dict<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">shorten_labels</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#get_meta_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.get_meta_fields" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">get_meta_fields</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span></em>, <em class="sig-param"><span class="n">dataset_paths</span></em>, <em class="sig-param"><span class="n">shorten_labels</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#get_meta_fields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.get_meta_fields" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get arbitrary meta data from files.
+:type files: <code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]
 :param files:
+:type dataset_paths: <code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]
 :param dataset_paths: list of dataset paths, or dict of structure {dataset: default value}
 :param shorten_labels: only use final section of labels for columns of returned DataFrame
 :return: pandas DataFrame of metadata</p>
@@ -208,8 +223,13 @@
 
 <dl class="py function">
 <dt id="diffractem.nexus.get_table">
-<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">get_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>list<span class="p">, </span>str<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">'/%/shots'</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; pandas.core.frame.DataFrame<a class="reference internal" href="_modules/diffractem/nexus.html#get_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.get_table" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">get_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">files</span></em>, <em class="sig-param"><span class="n">path</span><span class="o">=</span><span class="default_value">'/%/shots'</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#get_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.get_table" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt id="diffractem.nexus.meta_to_nxs">
@@ -239,12 +259,16 @@ Additionally, it adds a soft link to the actual data for easier retrieval later 
 
 <dl class="py function">
 <dt id="diffractem.nexus.store_table">
-<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">store_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span><span class="p">:</span> <span class="n">pandas.core.frame.DataFrame</span></em>, <em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">format</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'nexus'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#store_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.store_table" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.nexus.</code><code class="sig-name descname">store_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span></em>, <em class="sig-param"><span class="n">path</span></em>, <em class="sig-param"><span class="n">parallel</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">'nexus'</span></em>, <em class="sig-param"><span class="n">file</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">subset</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/nexus.html#store_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.nexus.store_table" title="Permalink to this definition">¶</a></dt>
 <dd><p>Stores a pandas DataFrame containing ‘file’ and ‘subset’ columns to multiple HDF5 files. Essentially a
 multi-file, multi-processed wrapper to pd.to_hdf
+:type table: <code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>
 :param table: DataFrame to be stored
+:type path: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>
 :param path: path in HDF5 files. % will be substituted by the respective subset name
+:type parallel: <code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>
 :param parallel: if True (default), writes files in parallel
+:type format: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>
 :param format: can be ‘nexus’ to write columns of table in separate arrays, or ‘tables’ to use PyTables to write</p>
 <blockquote>
 <div><p>a HDF5 table object.</p>
@@ -264,21 +288,12 @@ multi-file, multi-processed wrapper to pd.to_hdf
           </div>
           <footer>
   
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="diffractem.pre_proc_opts.html" class="btn btn-neutral float-right" title="diffractem.pre_proc_opts module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="diffractem.map_image.html" class="btn btn-neutral float-left" title="diffractem.map_image module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

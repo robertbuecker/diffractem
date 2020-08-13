@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,10 +38,9 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="diffractem.legacy module" href="diffractem.legacy.html" />
-    <link rel="prev" title="diffractem.dataset module" href="diffractem.dataset.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -80,28 +84,15 @@
               
             
             
-              <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="diffractem.html">Welcome</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="diffractem.html#submodules">Submodules</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="diffractem.adxv.html">diffractem.adxv module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.compute.html">diffractem.compute module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.dataset.html">diffractem.dataset module</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">diffractem.io module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.legacy.html">diffractem.legacy module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.map_image.html">diffractem.map_image module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.nexus.html">diffractem.nexus module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_proc_opts.html">diffractem.pre_proc_opts module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_process.html">diffractem.pre_process module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc2d.html">diffractem.proc2d module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc_peaks.html">diffractem.proc_peaks module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.stream_parser.html">diffractem.stream_parser module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.tools.html">diffractem.tools module</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="diffractem.html#module-diffractem">Module contents</a></li>
-</ul>
-</li>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
             
@@ -147,8 +138,6 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="diffractem.html">diffractem package</a> &raquo;</li>
-        
       <li>diffractem.io module</li>
     
     
@@ -168,7 +157,31 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="module-diffractem.io">
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-diffractem.io">
 <span id="diffractem-io-module"></span><h1>diffractem.io module<a class="headerlink" href="#module-diffractem.io" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="diffractem.io.apply_shot_selection">
@@ -201,7 +214,7 @@ subsets of both lists (pandas DataFrames) and stacks (dask arrays).
 
 <dl class="py function">
 <dt id="diffractem.io.expand_files">
-<code class="sig-prename descclassname">diffractem.io.</code><code class="sig-name descname">expand_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_list</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>list<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">scan_shots</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">validate</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/io.html#expand_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.io.expand_files" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.io.</code><code class="sig-name descname">expand_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_list</span></em>, <em class="sig-param"><span class="n">scan_shots</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">validate</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/io.html#expand_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.io.expand_files" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py function">
@@ -242,21 +255,12 @@ subsets of both lists (pandas DataFrames) and stacks (dask arrays).
           </div>
           <footer>
   
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="diffractem.legacy.html" class="btn btn-neutral float-right" title="diffractem.legacy module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="diffractem.dataset.html" class="btn btn-neutral float-left" title="diffractem.dataset module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

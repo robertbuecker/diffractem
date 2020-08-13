@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,8 +38,10 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="EDview" href="edview.html" />
     <link rel="prev" title="diffractem.pre_proc_opts module" href="diffractem.pre_proc_opts.html" /> 
 </head>
 
@@ -80,11 +87,18 @@
             
             
               <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="pre_processing.html">Preprocessing</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="diffractem.pre_proc_opts.html">Pre-processing options</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Pre-processing macros (old)</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
             
@@ -151,117 +165,32 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="module-diffractem.pre_process">
-<span id="diffractem-pre-process-module"></span><h1>diffractem.pre_process module<a class="headerlink" href="#module-diffractem.pre_process" title="Permalink to this headline">¶</a></h1>
-<dl class="py function">
-<dt id="diffractem.pre_process.broadcast">
-<code class="sig-prename descclassname">diffractem.pre_process.</code><code class="sig-name descname">broadcast</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span></em>, <em class="sig-param"><span class="n">opt</span><span class="p">:</span> <span class="n"><a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts" title="diffractem.pre_proc_opts.PreProcOpts">diffractem.pre_proc_opts.PreProcOpts</a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/pre_process.html#broadcast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.pre_process.broadcast" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pre-processes in one go a dataset comprising movie frames, by transferring the found beam center
-positions and diffraction spots (in CXI format) from an aggregated set processed earlier.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>{function} --</strong><strong> [</strong><strong>description</strong><strong>]</strong> (<em>fn</em>) – </p></li>
-<li><p><strong>{PreProcOpts} --</strong><strong> [</strong><strong>description</strong><strong>]</strong> (<em>opt</em>) – </p></li>
-</ul>
-</dd>
-<dt class="field-even">Raises</dt>
-<dd class="field-even"><p><strong>err</strong> – [description]</p>
-</dd>
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>[type] – [description]</p>
-</dd>
-</dl>
-</dd></dl>
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
 
-<dl class="py function">
-<dt id="diffractem.pre_process.cumulate">
-<code class="sig-prename descclassname">diffractem.pre_process.</code><code class="sig-name descname">cumulate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span></em>, <em class="sig-param"><span class="n">opt</span><span class="p">:</span> <span class="n"><a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts" title="diffractem.pre_proc_opts.PreProcOpts">diffractem.pre_proc_opts.PreProcOpts</a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/pre_process.html#cumulate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.pre_process.cumulate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Applies cumulative summation to a data set comprising movie frame stacks. At the moment, requires
-the summed frame stacks to have the same shape as the raw data.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>{function} --</strong><strong> [</strong><strong>description</strong><strong>]</strong> (<em>fn</em>) – </p></li>
-<li><p><strong>{PreProcOpts} --</strong><strong> [</strong><strong>description</strong><strong>]</strong> (<em>opt</em>) – </p></li>
-</ul>
-</dd>
-<dt class="field-even">Raises</dt>
-<dd class="field-even"><p><strong>err</strong> – [description]</p>
-</dd>
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>[type] – [description]</p>
-</dd>
-</dl>
-</dd></dl>
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
 
-<dl class="py function">
-<dt id="diffractem.pre_process.find_peaks">
-<code class="sig-prename descclassname">diffractem.pre_process.</code><code class="sig-name descname">find_peaks</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ds</span><span class="p">:</span> <span class="n">Union<span class="p">[</span><a class="reference internal" href="diffractem.dataset.html#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">diffractem.dataset.Dataset</a><span class="p">, </span>list<span class="p">, </span>str<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">opt</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts" title="diffractem.pre_proc_opts.PreProcOpts">diffractem.pre_proc_opts.PreProcOpts</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">from_cxi</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">return_cxi</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">revalidate_cxi</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">merge_peaks</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">params</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">geo_params</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">procs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exc</span><span class="o">=</span><span class="default_value">'indexamajig'</span></em>, <em class="sig-param"><span class="n">stream_out</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">parse</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>dict<span class="p">, </span><a class="reference internal" href="diffractem.stream_parser.html#diffractem.stream_parser.StreamParser" title="diffractem.stream_parser.StreamParser">diffractem.stream_parser.StreamParser</a><span class="p">]</span><a class="reference internal" href="_modules/diffractem/pre_process.html#find_peaks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.pre_process.find_peaks" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handy function to find peaks using peakfinder8 or extract a stream/pandas list from CXI-format stored peaks</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>{Union</strong><strong>[</strong><strong>Dataset</strong><strong>, </strong><strong>list</strong><strong>, </strong><strong>str</strong><strong>]</strong><strong>} -- dataset</strong><strong>, </strong><strong>list file</strong><strong>, </strong><strong>single nexus file</strong><strong>, or </strong><strong>list of files.</strong> (<em>ds</em>) – If a Dataset is supplied, the peakdata will be merged into it.</p>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>{Optional</strong><strong>[</strong><strong>pre_proc_opts</strong><strong>]</strong><strong>} -- pre-processing option object containing defaults for</strong> (<em>opt</em>) – indexamajig (default: {None})</p></li>
-<li><p><strong>{bool} -- return a dict of CXI peak arrays instead of pandas dataframe</strong><strong> (</strong><strong>default</strong> (<em>return_cxi</em>) – {True})</p></li>
-<li><p><strong>{Optional</strong><strong>[</strong><strong>dict</strong><strong>]</strong><strong>} -- additional parameter for indexamajig</strong><strong> (</strong><strong>default</strong> (<em>params</em>) – {None})</p></li>
-<li><p><strong>{Optional</strong><strong>[</strong><strong>dict</strong><strong>]</strong><strong>} -- additional parameters for geometry file</strong><strong>, </strong><strong>e.g. clen</strong><strong> (</strong><strong>default</strong> (<em>geo_params</em>) – {None})</p></li>
-<li><p><strong>{Optional</strong><strong>[</strong><strong>int</strong><strong>]</strong><strong>} -- number of processes. If None</strong><strong>, </strong><strong>uses all available cores</strong><strong> (</strong><strong>default</strong> (<em>procs</em>) – {None})</p></li>
-<li><p><strong>{str} -- Path of indexamajig executable</strong><strong> (</strong><strong>default</strong> (<em>exc</em>) – {‘indexamajig’})</p></li>
-<li><p><strong>{str} -- File name of stream file</strong><strong>, </strong><strong>if it should be retained.</strong> (<em>stream_out</em>) – </p></li>
-</ul>
-</dd>
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>Union[dict, pd.DataFrame] – Dataframe with peaks if return_cxi==False, otherwise dict of CXI type peak arrays</p>
-</dd>
-</dl>
-</dd></dl>
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
 
-<dl class="py function">
-<dt id="diffractem.pre_process.from_raw">
-<code class="sig-prename descclassname">diffractem.pre_process.</code><code class="sig-name descname">from_raw</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span></em>, <em class="sig-param"><span class="n">opt</span><span class="p">:</span> <span class="n"><a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts" title="diffractem.pre_proc_opts.PreProcOpts">diffractem.pre_proc_opts.PreProcOpts</a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/pre_process.html#from_raw"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.pre_process.from_raw" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
 
-<dl class="py function">
-<dt id="diffractem.pre_process.refine_center">
-<code class="sig-prename descclassname">diffractem.pre_process.</code><code class="sig-name descname">refine_center</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span></em>, <em class="sig-param"><span class="n">opt</span><span class="p">:</span> <span class="n"><a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts" title="diffractem.pre_proc_opts.PreProcOpts">diffractem.pre_proc_opts.PreProcOpts</a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/pre_process.html#refine_center"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.pre_process.refine_center" title="Permalink to this definition">¶</a></dt>
-<dd><p>Refines the centering of diffraction patterns based on Friedel mate positions.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>{str} --</strong><strong> [</strong><strong>file/list name of input files</strong><strong>, </strong><strong>can contain wildcards</strong><strong>]</strong> (<em>fn</em>) – </p></li>
-<li><p><strong>{PreProcOpts} --</strong><strong> [</strong><strong>pre-processing options</strong><strong>]</strong> (<em>opt</em>) – </p></li>
-</ul>
-</dd>
-<dt class="field-even">Raises</dt>
-<dd class="field-even"><p><strong>err</strong> – [description]</p>
-</dd>
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>[list] – [output files]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt id="diffractem.pre_process.subtract_bg">
-<code class="sig-prename descclassname">diffractem.pre_process.</code><code class="sig-name descname">subtract_bg</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span></em>, <em class="sig-param"><span class="n">opt</span><span class="p">:</span> <span class="n"><a class="reference internal" href="diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts" title="diffractem.pre_proc_opts.PreProcOpts">diffractem.pre_proc_opts.PreProcOpts</a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/pre_process.html#subtract_bg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.pre_process.subtract_bg" title="Permalink to this definition">¶</a></dt>
-<dd><p>Subtracts the background of a diffraction pattern by azimuthal integration excluding the Bragg peaks.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>{function} --</strong><strong> [</strong><strong>description</strong><strong>]</strong> (<em>fn</em>) – </p></li>
-<li><p><strong>{PreProcOpts} --</strong><strong> [</strong><strong>description</strong><strong>]</strong> (<em>opt</em>) – </p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>[type] – [description]</p>
-</dd>
-</dl>
-</dd></dl>
-
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="diffractem-pre-process-module">
+<h1>diffractem.pre_process module<a class="headerlink" href="#diffractem-pre-process-module" title="Permalink to this headline">¶</a></h1>
 </div>
 
 
@@ -271,6 +200,8 @@ the summed frame stacks to have the same shape as the raw data.</p>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="edview.html" class="btn btn-neutral float-right" title="EDview" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="diffractem.pre_proc_opts.html" class="btn btn-neutral float-left" title="diffractem.pre_proc_opts module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
@@ -282,7 +213,7 @@ the summed frame stacks to have the same shape as the raw data.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

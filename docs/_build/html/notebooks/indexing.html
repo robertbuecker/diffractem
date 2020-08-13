@@ -1,0 +1,1754 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Indexing using PinkIndexer &mdash; diffractem  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/jupyter-sphinx.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Serial diffraction data preprocessing using diffractem" href="preprocessing.html" />
+    <link rel="prev" title="Tutorial notebooks" href="../notebooks.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> diffractem
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../notebooks.html">Tutorial notebooks</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Indexing using PinkIndexer</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Prepare-data-sets">Prepare data sets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Cell-file-generation-function">Cell file generation function</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Screen-indexing-parameters">Screen indexing parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Run-indexing">Run indexing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Indexing-done!">Indexing done!</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#(Re-)Integration">(Re-)Integration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">Serial diffraction data preprocessing using <em>diffractem</em></a></li>
+<li class="toctree-l2"><a class="reference internal" href="merging.html">Merging of serial data sets</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../file_format.html">Diffractem NeXus files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystfel.html">CrystFEL integration</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">diffractem</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../notebooks.html">Tutorial notebooks</a> &raquo;</li>
+        
+      <li>Indexing using PinkIndexer</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notebooks/indexing.nblink.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container,
+div.nbinput.container div.prompt,
+div.nbinput.container div.input_area,
+div.nbinput.container div[class*=highlight],
+div.nbinput.container div[class*=highlight] pre,
+div.nboutput.container,
+div.nboutput.container div.prompt,
+div.nboutput.container div.output_area,
+div.nboutput.container div[class*=highlight],
+div.nboutput.container div[class*=highlight] pre {
+    background: none;
+    border: none;
+    padding: 0 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    min-width: 5ex;
+    padding-top: 0.3rem;
+    padding-right: 0.3rem;
+    text-align: right;
+    flex: 0;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    background: #f5f5f5;
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 0.3rem;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+<span class="o">%</span><span class="k">pwd</span>
+<span class="kn">import</span> <span class="nn">hdf5plugin</span> <span class="c1"># required to access LZ4-encoded HDF5 data sets</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">diffractem</span> <span class="kn">import</span> <span class="n">io</span><span class="p">,</span> <span class="n">tools</span><span class="p">,</span> <span class="n">proc_peaks</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">pre_process</span>
+<span class="kn">from</span> <span class="nn">diffractem.dataset</span> <span class="kn">import</span> <span class="n">Dataset</span>
+<span class="kn">from</span> <span class="nn">diffractem.stream_parser</span> <span class="kn">import</span> <span class="n">StreamParser</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+
+<span class="n">opts</span> <span class="o">=</span> <span class="n">pre_process</span><span class="o">.</span><span class="n">PreProcOpts</span><span class="p">(</span><span class="s1">&#39;preproc.yaml&#39;</span><span class="p">)</span>
+<span class="n">cfver</span> <span class="o">=</span> <span class="o">!{</span>opts.im_exc<span class="o">}</span> -v
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Running on diffractem:&#39;</span><span class="p">,</span> <span class="n">version</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Running on&#39;</span><span class="p">,</span> <span class="n">cfver</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Current path is:&#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+The autoreload extension is already loaded. To reload it, use:
+  %reload_ext autoreload
+Running on diffractem: v0.2.1-52-g0d34dce
+Running on CrystFEL: 0.8.0+f9101682
+Current path is: /nas/processing/serialed/GV/publication
+</pre></div></div>
+</div>
+<div class="section" id="Indexing-using-PinkIndexer">
+<h1>Indexing using PinkIndexer<a class="headerlink" href="#Indexing-using-PinkIndexer" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="Prepare-data-sets">
+<h2>Prepare data sets<a class="headerlink" href="#Prepare-data-sets" title="Permalink to this headline">¶</a></h2>
+<p>First you can prepare a file list for crystfel (just a text file with a HDF5 on each line), if you didn’t already generate one in pre-processing.</p>
+<p>Then, if you want, you can generate another file list, which just contains a small test set of patterns, to optimize the indexing. By changing <code class="docutils literal notranslate"><span class="pre">min_peaks</span></code> you can restrict it to patterns having at least a given number of detected Bragg peaks. That would be a good idea.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># make an input list file, in case you haven&#39;t so far</span>
+<span class="o">!</span>ls proc_data/GV_*_agg_refined.h5 &gt; aggregated.lst
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># With this, you can prepare a sample data set to optimize indexing</span>
+<span class="n">min_peaks</span> <span class="o">=</span> <span class="mi">40</span>
+<span class="n">sample_size</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="n">ds</span> <span class="o">=</span> <span class="n">Dataset</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="s1">&#39;aggregated.lst&#39;</span><span class="p">,</span> <span class="n">init_stacks</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">load_tables</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">ds</span><span class="o">.</span><span class="n">stacks_to_shots</span><span class="p">(</span><span class="s1">&#39;nPeaks&#39;</span><span class="p">,</span> <span class="s1">&#39;n_peaks&#39;</span><span class="p">)</span>
+<span class="n">shsel</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;n_peaks &gt; </span><span class="si">{</span><span class="n">min_peaks</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">sample_size</span><span class="p">)</span>
+<span class="n">shsel</span><span class="p">[[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;sample_</span><span class="si">{</span><span class="n">sample_size</span><span class="si">}</span><span class="s1">_shot.lst&#39;</span><span class="p">,</span><span class="n">header</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/opts/dev/diffractem/diffractem/dataset.py:735: UserWarning: Could not read stack peakTotalIntensity
+  warn(f&#39;Could not read stack {sn}&#39;)
+/opts/dev/diffractem/diffractem/dataset.py:735: UserWarning: Could not read stack peakXPosRaw
+  warn(f&#39;Could not read stack {sn}&#39;)
+/opts/dev/diffractem/diffractem/dataset.py:735: UserWarning: Could not read stack peakYPosRaw
+  warn(f&#39;Could not read stack {sn}&#39;)
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="Cell-file-generation-function">
+<h2>Cell file generation function<a class="headerlink" href="#Cell-file-generation-function" title="Permalink to this headline">¶</a></h2>
+<p>Consult CrystFEL documentation for how the cell files have to be defined. This is just a handy function useful to parametrically generate one, if you e.g. want to do parameter scans. Obviously, it has to be adapted to the lattice of the studied crystal.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="k">def</span> <span class="nf">make_cell</span><span class="p">(</span><span class="n">unit_cell</span><span class="o">=</span><span class="mf">102.4</span><span class="p">,</span> <span class="n">cell_file</span><span class="o">=</span><span class="s1">&#39;GV.cell&#39;</span><span class="p">):</span>
+    <span class="n">tools</span><span class="o">.</span><span class="n">dict2file</span><span class="p">(</span><span class="n">cell_file</span><span class="p">,</span>
+        <span class="p">{</span><span class="s1">&#39;lattice_type&#39;</span><span class="p">:</span> <span class="s1">&#39;cubic&#39;</span><span class="p">,</span><span class="s1">&#39;centering&#39;</span><span class="p">:</span> <span class="s1">&#39;I&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">unit_cell</span><span class="si">}</span><span class="s1"> A&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">unit_cell</span><span class="si">}</span><span class="s1"> A&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">unit_cell</span><span class="si">}</span><span class="s1"> A&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;al&#39;</span><span class="p">:</span> <span class="s1">&#39;90 deg&#39;</span><span class="p">,</span> <span class="s1">&#39;be&#39;</span><span class="p">:</span> <span class="s1">&#39;90 deg&#39;</span><span class="p">,</span> <span class="s1">&#39;ga&#39;</span><span class="p">:</span> <span class="s1">&#39;90 deg&#39;</span><span class="p">},</span>
+                    <span class="n">header</span><span class="o">=</span><span class="s1">&#39;CrystFEL unit cell file version 1.0&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cell_file</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="Screen-indexing-parameters">
+<h2>Screen indexing parameters<a class="headerlink" href="#Screen-indexing-parameters" title="Permalink to this headline">¶</a></h2>
+<p>The following cell generates a command string for indexamajig (part of CrystFEL) automatically, and also writes it into a shell script. General for indexing can be made in the preproc setting file under <code class="docutils literal notranslate"><span class="pre">indexing_params</span></code>. See <code class="docutils literal notranslate"><span class="pre">man</span> <span class="pre">indexamajig</span></code> for descriptions of them. They can still be overwritten. As an example for screening of indexing parameters, here we scan the input unit cell size. We use the random sub-set as defined above. After running the cell, exectue im_run.sh and have a coffee.</p>
+<p>Once all is done, inspect the resulting stream files with edview (here: <code class="docutils literal notranslate"><span class="pre">edview.py</span> <span class="pre">screening/cell_scan_XX.stream</span></code>) and pick your favorite, and/or load the streams using <code class="docutils literal notranslate"><span class="pre">StreamParser</span></code> and see which ones make most sense, indexed the best etc. - for some ideas, see the cells below.</p>
+<p>For this very case, we know that the answer is 102.4, btw.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">opts</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;screening&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="o">%</span><span class="k">rm</span> screening/*
+
+<span class="n">callstr</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+<span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">cell</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">101.6</span><span class="p">,</span> <span class="mf">103.6</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">)):</span>
+
+    <span class="c1"># here, you can ovewrite settings from the YAML file.</span>
+    <span class="c1"># Adjust thread count/procs to your CPU cores and screening set size.</span>
+    <span class="n">opts</span><span class="o">.</span><span class="n">indexing_params</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;pinkIndexer-thread-count&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">})</span>
+    <span class="n">cell_file</span> <span class="o">=</span> <span class="n">make_cell</span><span class="p">(</span><span class="n">cell</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;screening/GV_</span><span class="si">{</span><span class="n">ii</span><span class="si">}</span><span class="s1">.cell&#39;</span><span class="p">)</span>
+    <span class="n">cfcall</span> <span class="o">=</span> <span class="n">tools</span><span class="o">.</span><span class="n">call_indexamajig</span><span class="p">(</span><span class="s1">&#39;sample_10_shot.lst&#39;</span><span class="p">,</span> <span class="s1">&#39;GV.geom&#39;</span><span class="p">,</span>
+                                    <span class="sa">f</span><span class="s1">&#39;screening/cell_scan_</span><span class="si">{</span><span class="n">ii</span><span class="si">}</span><span class="s1">.stream&#39;</span><span class="p">,</span>
+                                     <span class="n">cell</span><span class="o">=</span><span class="n">cell_file</span><span class="p">,</span> <span class="n">im_params</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">indexing_params</span><span class="p">,</span>
+                                     <span class="n">procs</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">exc</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">im_exc</span><span class="p">)</span>
+
+    <span class="n">callstr</span> <span class="o">+=</span> <span class="n">cfcall</span> <span class="o">+</span> <span class="s1">&#39; </span><span class="se">\n</span><span class="s1">&#39;</span> <span class="c1"># Add a &#39;&amp;&#39; before \n if you want to run them in parallel.</span>
+
+<span class="nb">open</span><span class="p">(</span><span class="s1">&#39;im_run.sh&#39;</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;#!/bin/sh</span><span class="se">\n</span><span class="si">{</span><span class="n">callstr</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span> <span class="c1"># write command string to a shell script</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">callstr</span><span class="p">)</span> <span class="c1"># or copy &amp; paste the cell output, or run directly using &quot;!{callstr}&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+rm: cannot remove &#39;screening/*&#39;: No such file or directory
+/opts/crystfel_eminus/bin/indexamajig -g GV.geom -i sample_10_shot.lst -o screening/cell_scan_0.stream -j 10 -p screening/GV_0.cell --indexing=pinkIndexer --min-peaks=30 --pinkIndexer-considered-peaks-count=4 --pinkIndexer-angle-resolution=3 --pinkIndexer-refinement-type=5 --pinkIndexer-thread-count=4 --pinkIndexer-tolerance=0.1 --pinkIndexer-reflection-radius=0.003 --pinkIndexer-mrfi=0.4 --fix-profile-radius=3e6 --integration=rings-grad-nocen --push-res=2 --int-radius=3,6,7 --peaks=cxi --hdf5-peaks=/entry/data --no-revalidate --max-res=600 --no-refine --no-retry --no-check-peaks --copy-hdf5-field=/%/shots/crystal_id
+/opts/crystfel_eminus/bin/indexamajig -g GV.geom -i sample_10_shot.lst -o screening/cell_scan_1.stream -j 10 -p screening/GV_1.cell --indexing=pinkIndexer --min-peaks=30 --pinkIndexer-considered-peaks-count=4 --pinkIndexer-angle-resolution=3 --pinkIndexer-refinement-type=5 --pinkIndexer-thread-count=4 --pinkIndexer-tolerance=0.1 --pinkIndexer-reflection-radius=0.003 --pinkIndexer-mrfi=0.4 --fix-profile-radius=3e6 --integration=rings-grad-nocen --push-res=2 --int-radius=3,6,7 --peaks=cxi --hdf5-peaks=/entry/data --no-revalidate --max-res=600 --no-refine --no-retry --no-check-peaks --copy-hdf5-field=/%/shots/crystal_id
+/opts/crystfel_eminus/bin/indexamajig -g GV.geom -i sample_10_shot.lst -o screening/cell_scan_2.stream -j 10 -p screening/GV_2.cell --indexing=pinkIndexer --min-peaks=30 --pinkIndexer-considered-peaks-count=4 --pinkIndexer-angle-resolution=3 --pinkIndexer-refinement-type=5 --pinkIndexer-thread-count=4 --pinkIndexer-tolerance=0.1 --pinkIndexer-reflection-radius=0.003 --pinkIndexer-mrfi=0.4 --fix-profile-radius=3e6 --integration=rings-grad-nocen --push-res=2 --int-radius=3,6,7 --peaks=cxi --hdf5-peaks=/entry/data --no-revalidate --max-res=600 --no-refine --no-retry --no-check-peaks --copy-hdf5-field=/%/shots/crystal_id
+/opts/crystfel_eminus/bin/indexamajig -g GV.geom -i sample_10_shot.lst -o screening/cell_scan_3.stream -j 10 -p screening/GV_3.cell --indexing=pinkIndexer --min-peaks=30 --pinkIndexer-considered-peaks-count=4 --pinkIndexer-angle-resolution=3 --pinkIndexer-refinement-type=5 --pinkIndexer-thread-count=4 --pinkIndexer-tolerance=0.1 --pinkIndexer-reflection-radius=0.003 --pinkIndexer-mrfi=0.4 --fix-profile-radius=3e6 --integration=rings-grad-nocen --push-res=2 --int-radius=3,6,7 --peaks=cxi --hdf5-peaks=/entry/data --no-revalidate --max-res=600 --no-refine --no-retry --no-check-peaks --copy-hdf5-field=/%/shots/crystal_id
+/opts/crystfel_eminus/bin/indexamajig -g GV.geom -i sample_10_shot.lst -o screening/cell_scan_4.stream -j 10 -p screening/GV_4.cell --indexing=pinkIndexer --min-peaks=30 --pinkIndexer-considered-peaks-count=4 --pinkIndexer-angle-resolution=3 --pinkIndexer-refinement-type=5 --pinkIndexer-thread-count=4 --pinkIndexer-tolerance=0.1 --pinkIndexer-reflection-radius=0.003 --pinkIndexer-mrfi=0.4 --fix-profile-radius=3e6 --integration=rings-grad-nocen --push-res=2 --int-radius=3,6,7 --peaks=cxi --hdf5-peaks=/entry/data --no-revalidate --max-res=600 --no-refine --no-retry --no-check-peaks --copy-hdf5-field=/%/shots/crystal_id
+
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># only if you want to run the indexer directly in this notebook (not advised)</span>
+<span class="o">!{</span>callstr<span class="o">}</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+This is what I understood your unit cell to be:
+cubic I, right handed.
+a      b      c            alpha   beta  gamma
+101.60 101.60 101.60 A     90.00  90.00  90.00 deg
+List of indexing methods:
+   0: pinkIndexer-nolatt-cell   (pinkIndexer using cell parameters as prior information)
+Indexing parameters:
+                  Check unit cell parameters: on
+                        Check peak alignment: off
+                   Refine indexing solutions: off
+ Multi-lattice indexing (&#34;delete and retry&#34;): off
+                              Retry indexing: off
+Waiting for the last patterns to be processed...
+peak count used for indexing: 60
+computed 0%
+peak count used for indexing: 148
+computed 0%
+peak count used for indexing: 154
+computed 0%
+peak count used for indexing: 132
+computed 0%
+peak count used for indexing: 152
+computed 0%
+peak count used for indexing: 43
+computed 0%
+peak count used for indexing: 105
+computed 0%
+peak count used for indexing: 162
+computed 0%
+peak count used for indexing: 115
+computed 0%
+peak count used for indexing: 150
+computed 0%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 37.2093%
+computed 12.1212%
+computed 9.87654%
+computed 10.8108%
+computed 26.6667%
+computed 15.2381%
+computed 10.5263%
+computed 13.913%
+computed 10.6667%
+computed 10.3896%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 24.2424%
+computed 74.4186%
+computed 19.7531%
+computed 30.4762%
+computed 53.3333%
+computed 21.6216%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 20.7792%
+computed 21.0526%
+computed 27.8261%
+computed 21.3333%
+computed 36.3636%
+computed 29.6296%
+computed 45.7143%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 80%
+computed 32.4324%
+computed 31.5789%
+computed 41.7391%
+computed 31.1688%
+computed 32%
+computed 48.4848%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 60.9524%
+computed 39.5062%
+computed 43.2432%
+computed 42.1053%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 55.6522%
+computed 41.5584%
+computed 42.6667%
+computed 60.6061%
+computed 49.3827%
+computed 76.1905%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 54.0541%
+computed 52.6316%
+computed 69.5652%
+computed 51.9481%
+computed 53.3333%
+computed 59.2593%
+computed 72.7273%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 91.4286%
+computed 64.8649%
+computed 63.1579%
+computed 62.3377%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 83.4783%
+computed 64%
+computed 84.8485%
+computed 69.1358%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 73.6842%
+computed 75.6757%
+computed 72.7273%
+computed 97.3913%
+computed 74.6667%
+computed 79.0123%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 96.9697%
+computed 86.4865%
+computed 84.2105%
+computed 83.1169%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 85.3333%
+computed 88.8889%
+computed 97.2973%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 93.5065%
+computed 94.7368%
+computed 96%
+computed 98.7654%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.2 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.2 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.2 images/sec.
+3 images processed, 3 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+WARNING: 403 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_005_00000_agg_refined.h5 entry//560
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.2 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 1 indexable (25.0% of hits, 25.0% overall), 1 crystals, 0.0 images/sec.
+WARNING: 393 reflections could not be integrated
+WARNING: 221 reflections could not be integrated
+6 images processed, 6 hits (100.0%), 3 indexable (50.0% of hits, 50.0% overall), 3 crystals, 0.4 images/sec.
+WARNING: 348 reflections could not be integrated
+7 images processed, 7 hits (100.0%), 4 indexable (57.1% of hits, 57.1% overall), 4 crystals, 0.2 images/sec.
+WARNING: 227 reflections could not be integrated
+8 images processed, 8 hits (100.0%), 5 indexable (62.5% of hits, 62.5% overall), 5 crystals, 0.2 images/sec.
+WARNING: 291 reflections could not be integrated
+9 images processed, 9 hits (100.0%), 6 indexable (66.7% of hits, 66.7% overall), 6 crystals, 0.2 images/sec.
+9 images processed, 9 hits (100.0%), 6 indexable (66.7% of hits, 66.7% overall), 6 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 6 indexable (66.7% of hits, 66.7% overall), 6 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 6 indexable (66.7% of hits, 66.7% overall), 6 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 6 indexable (66.7% of hits, 66.7% overall), 6 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 6 indexable (66.7% of hits, 66.7% overall), 6 crystals, 0.0 images/sec.
+Final: 10 images processed, 10 hits (100.0%), 6 indexable (60.0% of hits, 60.0% overall), 6 crystals.
+This is what I understood your unit cell to be:
+cubic I, right handed.
+a      b      c            alpha   beta  gamma
+102.00 102.00 102.00 A     90.00  90.00  90.00 deg
+List of indexing methods:
+   0: pinkIndexer-nolatt-cell   (pinkIndexer using cell parameters as prior information)
+Indexing parameters:
+                  Check unit cell parameters: on
+                        Check peak alignment: off
+                   Refine indexing solutions: off
+ Multi-lattice indexing (&#34;delete and retry&#34;): off
+                              Retry indexing: off
+peak count used for indexing: 60
+computed 0%
+peak count used for indexing: 154
+computed 0%
+peak count used for indexing: 43
+computed 0%
+peak count used for indexing: 148
+computed 0%
+peak count used for indexing: 152
+computed 0%
+peak count used for indexing: 162
+computed 0%
+peak count used for indexing: 105
+computed 0%
+peak count used for indexing: 115
+computed 0%
+peak count used for indexing: 132
+computed 0%
+peak count used for indexing: 150
+computed 0%
+Waiting for the last patterns to be processed...
+computed 26.6667%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 37.2093%
+computed 13.913%
+computed 9.87654%
+computed 10.5263%
+computed 15.2381%
+computed 10.8108%
+computed 10.3896%
+computed 10.6667%
+computed 12.1212%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 74.4186%
+computed 53.3333%
+computed 27.8261%
+computed 20.7792%
+computed 19.7531%
+computed 21.0526%
+computed 21.6216%
+computed 30.4762%
+computed 21.3333%
+computed 24.2424%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 80%
+computed 29.6296%
+computed 41.7391%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 31.1688%
+computed 32.4324%
+computed 45.7143%
+computed 31.5789%
+computed 36.3636%
+computed 32%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 39.5062%
+computed 55.6522%
+computed 43.2432%
+computed 60.9524%
+computed 42.1053%
+computed 42.6667%
+computed 48.4848%
+computed 41.5584%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 49.3827%
+computed 69.5652%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 53.3333%
+computed 54.0541%
+computed 60.6061%
+computed 52.6316%
+computed 51.9481%
+computed 76.1905%
+computed 59.2593%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 83.4783%
+computed 64%
+computed 64.8649%
+computed 62.3377%
+computed 63.1579%
+computed 72.7273%
+computed 91.4286%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 69.1358%
+computed 97.3913%
+computed 74.6667%
+computed 75.6757%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 72.7273%
+computed 84.8485%
+computed 73.6842%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 79.0123%
+computed 86.4865%
+computed 85.3333%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 83.1169%
+computed 96.9697%
+computed 84.2105%
+computed 97.2973%
+computed 88.8889%
+computed 96%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 93.5065%
+computed 94.7368%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 98.7654%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.2 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 0 indexable (0.0% of hits, 0.0% overall), 0 crystals, 0.0 images/sec.
+WARNING: 207 reflections could not be integrated
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.2 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 1 indexable (50.0% of hits, 50.0% overall), 1 crystals, 0.0 images/sec.
+WARNING: 229 reflections could not be integrated
+3 images processed, 3 hits (100.0%), 2 indexable (66.7% of hits, 66.7% overall), 2 crystals, 0.2 images/sec.
+3 images processed, 3 hits (100.0%), 2 indexable (66.7% of hits, 66.7% overall), 2 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 2 indexable (66.7% of hits, 66.7% overall), 2 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 2 indexable (66.7% of hits, 66.7% overall), 2 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 2 indexable (66.7% of hits, 66.7% overall), 2 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 2 indexable (66.7% of hits, 66.7% overall), 2 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 2 indexable (66.7% of hits, 66.7% overall), 2 crystals, 0.0 images/sec.
+WARNING: 432 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_005_00000_agg_refined.h5 entry//560
+4 images processed, 4 hits (100.0%), 3 indexable (75.0% of hits, 75.0% overall), 3 crystals, 0.2 images/sec.
+4 images processed, 4 hits (100.0%), 3 indexable (75.0% of hits, 75.0% overall), 3 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 3 indexable (75.0% of hits, 75.0% overall), 3 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 3 indexable (75.0% of hits, 75.0% overall), 3 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 3 indexable (75.0% of hits, 75.0% overall), 3 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 3 indexable (75.0% of hits, 75.0% overall), 3 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 3 indexable (75.0% of hits, 75.0% overall), 3 crystals, 0.0 images/sec.
+WARNING: 209 reflections could not be integrated
+5 images processed, 5 hits (100.0%), 4 indexable (80.0% of hits, 80.0% overall), 4 crystals, 0.2 images/sec.
+WARNING: 166 reflections could not be integrated
+6 images processed, 6 hits (100.0%), 5 indexable (83.3% of hits, 83.3% overall), 5 crystals, 0.2 images/sec.
+6 images processed, 6 hits (100.0%), 5 indexable (83.3% of hits, 83.3% overall), 5 crystals, 0.0 images/sec.
+6 images processed, 6 hits (100.0%), 5 indexable (83.3% of hits, 83.3% overall), 5 crystals, 0.0 images/sec.
+7 images processed, 7 hits (100.0%), 5 indexable (71.4% of hits, 71.4% overall), 5 crystals, 0.2 images/sec.
+7 images processed, 7 hits (100.0%), 5 indexable (71.4% of hits, 71.4% overall), 5 crystals, 0.0 images/sec.
+WARNING: 399 reflections could not be integrated
+8 images processed, 8 hits (100.0%), 6 indexable (75.0% of hits, 75.0% overall), 6 crystals, 0.2 images/sec.
+WARNING: 223 reflections could not be integrated
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.2 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 7 indexable (77.8% of hits, 77.8% overall), 7 crystals, 0.0 images/sec.
+WARNING: 318 reflections could not be integrated
+Final: 10 images processed, 10 hits (100.0%), 8 indexable (80.0% of hits, 80.0% overall), 8 crystals.
+This is what I understood your unit cell to be:
+cubic I, right handed.
+a      b      c            alpha   beta  gamma
+102.40 102.40 102.40 A     90.00  90.00  90.00 deg
+List of indexing methods:
+   0: pinkIndexer-nolatt-cell   (pinkIndexer using cell parameters as prior information)
+Indexing parameters:
+                  Check unit cell parameters: on
+                        Check peak alignment: off
+                   Refine indexing solutions: off
+ Multi-lattice indexing (&#34;delete and retry&#34;): off
+                              Retry indexing: off
+peak count used for indexing: 60
+computed 0%
+peak count used for indexing: 43
+computed 0%
+peak count used for indexing: 148
+computed 0%
+peak count used for indexing: 154
+computed 0%
+peak count used for indexing: 152
+computed 0%
+peak count used for indexing: 162
+computed 0%
+peak count used for indexing: 105
+computed 0%
+peak count used for indexing: 132
+computed 0%
+peak count used for indexing: 115
+computed 0%
+peak count used for indexing: 150
+computed 0%
+Waiting for the last patterns to be processed...
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 37.2093%
+computed 26.6667%
+computed 10.8108%
+computed 13.913%
+computed 10.5263%
+computed 9.87654%
+computed 15.2381%
+computed 10.6667%
+computed 10.3896%
+computed 12.1212%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 74.4186%
+computed 53.3333%
+computed 21.0526%
+computed 27.8261%
+computed 21.6216%
+computed 19.7531%
+computed 30.4762%
+computed 20.7792%
+computed 21.3333%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 24.2424%
+computed 80%
+computed 29.6296%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 31.5789%
+computed 32.4324%
+computed 45.7143%
+computed 41.7391%
+computed 31.1688%
+computed 32%
+computed 36.3636%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 39.5062%
+computed 42.1053%
+computed 60.9524%
+computed 41.5584%
+computed 43.2432%
+computed 55.6522%
+computed 42.6667%
+computed 48.4848%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 49.3827%
+computed 52.6316%
+computed 54.0541%
+computed 51.9481%
+computed 76.1905%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 69.5652%
+computed 53.3333%
+computed 60.6061%
+computed 59.2593%
+computed 62.3377%
+computed 64.8649%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 63.1579%
+computed 91.4286%
+computed 83.4783%
+computed 64%
+computed 72.7273%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 69.1358%
+computed 75.6757%
+computed 72.7273%
+computed 73.6842%
+computed 74.6667%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 97.3913%
+computed 84.8485%
+computed 86.4865%
+computed 79.0123%
+computed 83.1169%
+computed 84.2105%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 85.3333%
+computed 97.2973%
+computed 88.8889%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 93.5065%
+computed 96.9697%
+computed 94.7368%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 96%
+WARNING: 142 reflections could not be integrated
+computed 98.7654%
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.2 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+WARNING: 202 reflections could not be integrated
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.2 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+WARNING: 232 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_001_00000_agg_refined.h5 entry//151
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.2 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+WARNING: 444 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_005_00000_agg_refined.h5 entry//560
+4 images processed, 4 hits (100.0%), 4 indexable (100.0% of hits, 100.0% overall), 4 crystals, 0.2 images/sec.
+4 images processed, 4 hits (100.0%), 4 indexable (100.0% of hits, 100.0% overall), 4 crystals, 0.0 images/sec.
+WARNING: 257 reflections could not be integrated
+5 images processed, 5 hits (100.0%), 5 indexable (100.0% of hits, 100.0% overall), 5 crystals, 0.2 images/sec.
+5 images processed, 5 hits (100.0%), 5 indexable (100.0% of hits, 100.0% overall), 5 crystals, 0.0 images/sec.
+WARNING: 226 reflections could not be integrated
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.2 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+WARNING: 388 reflections could not be integrated
+7 images processed, 7 hits (100.0%), 7 indexable (100.0% of hits, 100.0% overall), 7 crystals, 0.2 images/sec.
+7 images processed, 7 hits (100.0%), 7 indexable (100.0% of hits, 100.0% overall), 7 crystals, 0.0 images/sec.
+WARNING: 262 reflections could not be integrated
+8 images processed, 8 hits (100.0%), 8 indexable (100.0% of hits, 100.0% overall), 8 crystals, 0.2 images/sec.
+8 images processed, 8 hits (100.0%), 8 indexable (100.0% of hits, 100.0% overall), 8 crystals, 0.0 images/sec.
+8 images processed, 8 hits (100.0%), 8 indexable (100.0% of hits, 100.0% overall), 8 crystals, 0.0 images/sec.
+8 images processed, 8 hits (100.0%), 8 indexable (100.0% of hits, 100.0% overall), 8 crystals, 0.0 images/sec.
+8 images processed, 8 hits (100.0%), 8 indexable (100.0% of hits, 100.0% overall), 8 crystals, 0.0 images/sec.
+WARNING: 320 reflections could not be integrated
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.2 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+WARNING: 156 reflections could not be integrated
+Final: 10 images processed, 10 hits (100.0%), 10 indexable (100.0% of hits, 100.0% overall), 10 crystals.
+This is what I understood your unit cell to be:
+cubic I, right handed.
+a      b      c            alpha   beta  gamma
+102.80 102.80 102.80 A     90.00  90.00  90.00 deg
+List of indexing methods:
+   0: pinkIndexer-nolatt-cell   (pinkIndexer using cell parameters as prior information)
+Indexing parameters:
+                  Check unit cell parameters: on
+                        Check peak alignment: off
+                   Refine indexing solutions: off
+ Multi-lattice indexing (&#34;delete and retry&#34;): off
+                              Retry indexing: off
+peak count used for indexing: 60
+computed 0%
+peak count used for indexing: 43
+computed 0%
+peak count used for indexing: 154
+computed 0%
+peak count used for indexing: 148
+computed 0%
+peak count used for indexing: 152
+computed 0%
+peak count used for indexing: 162
+computed 0%
+peak count used for indexing: 105
+computed 0%
+peak count used for indexing: 132
+computed 0%
+peak count used for indexing: 115
+computed 0%
+peak count used for indexing: 150
+computed 0%
+Waiting for the last patterns to be processed...
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 37.2093%
+computed 10.3896%
+computed 9.87654%
+computed 10.5263%
+computed 10.8108%
+computed 26.6667%
+computed 13.913%
+computed 15.2381%
+computed 12.1212%
+computed 10.6667%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 74.4186%
+computed 21.0526%
+computed 19.7531%
+computed 20.7792%
+computed 21.6216%
+computed 24.2424%
+computed 30.4762%
+computed 27.8261%
+computed 21.3333%
+computed 53.3333%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 29.6296%
+computed 31.5789%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 45.7143%
+computed 32.4324%
+computed 41.7391%
+computed 31.1688%
+computed 36.3636%
+computed 80%
+computed 32%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 42.1053%
+computed 39.5062%
+computed 60.9524%
+computed 48.4848%
+computed 43.2432%
+computed 41.5584%
+computed 55.6522%
+computed 42.6667%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 49.3827%
+computed 52.6316%
+computed 54.0541%
+computed 51.9481%
+computed 53.3333%
+computed 76.1905%
+computed 60.6061%
+computed 69.5652%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 59.2593%
+computed 63.1579%
+computed 62.3377%
+computed 64.8649%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 91.4286%
+computed 64%
+computed 72.7273%
+computed 83.4783%
+computed 69.1358%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 73.6842%
+computed 75.6757%
+computed 72.7273%
+computed 74.6667%
+computed 84.8485%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 97.3913%
+computed 79.0123%
+computed 86.4865%
+computed 84.2105%
+computed 83.1169%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 85.3333%
+computed 96.9697%
+computed 88.8889%
+computed 97.2973%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 94.7368%
+computed 93.5065%
+computed 96%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 98.7654%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+WARNING: 138 reflections could not be integrated
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.2 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+WARNING: 239 reflections could not be integrated
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.2 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+WARNING: 301 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_001_00000_agg_refined.h5 entry//151
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.2 images/sec.
+WARNING: 391 reflections could not be integrated
+WARNING: 3 implausibly negative reflections in proc_data/GV_S11_005_00000_agg_refined.h5 entry//560
+4 images processed, 4 hits (100.0%), 4 indexable (100.0% of hits, 100.0% overall), 4 crystals, 0.2 images/sec.
+WARNING: 233 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_003_00000_agg_refined.h5 entry//118
+5 images processed, 5 hits (100.0%), 5 indexable (100.0% of hits, 100.0% overall), 5 crystals, 0.2 images/sec.
+5 images processed, 5 hits (100.0%), 5 indexable (100.0% of hits, 100.0% overall), 5 crystals, 0.0 images/sec.
+5 images processed, 5 hits (100.0%), 5 indexable (100.0% of hits, 100.0% overall), 5 crystals, 0.0 images/sec.
+5 images processed, 5 hits (100.0%), 5 indexable (100.0% of hits, 100.0% overall), 5 crystals, 0.0 images/sec.
+WARNING: 267 reflections could not be integrated
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.2 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+WARNING: 384 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_008_00000_agg_refined.h5 entry//94
+7 images processed, 7 hits (100.0%), 7 indexable (100.0% of hits, 100.0% overall), 7 crystals, 0.2 images/sec.
+WARNING: 263 reflections could not be integrated
+8 images processed, 8 hits (100.0%), 8 indexable (100.0% of hits, 100.0% overall), 8 crystals, 0.2 images/sec.
+8 images processed, 8 hits (100.0%), 8 indexable (100.0% of hits, 100.0% overall), 8 crystals, 0.0 images/sec.
+WARNING: 219 reflections could not be integrated
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.2 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+WARNING: 232 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_005_00000_agg_refined.h5 entry//493
+Final: 10 images processed, 10 hits (100.0%), 10 indexable (100.0% of hits, 100.0% overall), 10 crystals.
+This is what I understood your unit cell to be:
+cubic I, right handed.
+a      b      c            alpha   beta  gamma
+103.20 103.20 103.20 A     90.00  90.00  90.00 deg
+List of indexing methods:
+   0: pinkIndexer-nolatt-cell   (pinkIndexer using cell parameters as prior information)
+Indexing parameters:
+                  Check unit cell parameters: on
+                        Check peak alignment: off
+                   Refine indexing solutions: off
+ Multi-lattice indexing (&#34;delete and retry&#34;): off
+                              Retry indexing: off
+peak count used for indexing: 60
+computed 0%
+peak count used for indexing: 154
+computed 0%
+peak count used for indexing: 43
+computed 0%
+peak count used for indexing: 148
+computed 0%
+peak count used for indexing: 152
+computed 0%
+peak count used for indexing: 162
+computed 0%
+peak count used for indexing: 105
+computed 0%
+peak count used for indexing: 132
+computed 0%
+peak count used for indexing: 115
+computed 0%
+peak count used for indexing: 150
+computed 0%
+Waiting for the last patterns to be processed...
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 26.6667%
+computed 37.2093%
+computed 10.6667%
+computed 10.5263%
+computed 9.87654%
+computed 10.8108%
+computed 10.3896%
+computed 12.1212%
+computed 13.913%
+computed 15.2381%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 74.4186%
+computed 53.3333%
+computed 21.0526%
+computed 21.3333%
+computed 19.7531%
+computed 20.7792%
+computed 24.2424%
+computed 21.6216%
+computed 27.8261%
+computed 30.4762%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 80%
+computed 29.6296%
+computed 31.5789%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 45.7143%
+computed 31.1688%
+computed 41.7391%
+computed 36.3636%
+computed 32.4324%
+computed 32%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 42.1053%
+computed 39.5062%
+computed 60.9524%
+computed 41.5584%
+computed 48.4848%
+computed 43.2432%
+computed 55.6522%
+computed 42.6667%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 49.3827%
+computed 52.6316%
+computed 51.9481%
+computed 54.0541%
+computed 60.6061%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 76.1905%
+computed 69.5652%
+computed 53.3333%
+computed 59.2593%
+computed 63.1579%
+computed 62.3377%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 64.8649%
+computed 72.7273%
+computed 91.4286%
+computed 83.4783%
+computed 64%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 69.1358%
+computed 73.6842%
+computed 75.6757%
+computed 72.7273%
+computed 84.8485%
+computed 74.6667%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 97.3913%
+computed 79.0123%
+computed 86.4865%
+computed 83.1169%
+computed 84.2105%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 85.3333%
+computed 96.9697%
+computed 88.8889%
+0 images processed, 0 hits (-nan%), 0 indexable (-nan% of hits, -nan% overall), 0 crystals, 0.0 images/sec.
+computed 97.2973%
+computed 93.5065%
+WARNING: 135 reflections could not be integrated
+computed 94.7368%
+computed 96%
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.2 images/sec.
+computed 98.7654%
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+1 images processed, 1 hits (100.0%), 1 indexable (100.0% of hits, 100.0% overall), 1 crystals, 0.0 images/sec.
+WARNING: 255 reflections could not be integrated
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.2 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+2 images processed, 2 hits (100.0%), 2 indexable (100.0% of hits, 100.0% overall), 2 crystals, 0.0 images/sec.
+WARNING: 236 reflections could not be integrated
+WARNING: 1 implausibly negative reflection in proc_data/GV_S11_001_00000_agg_refined.h5 entry//151
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.2 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+3 images processed, 3 hits (100.0%), 3 indexable (100.0% of hits, 100.0% overall), 3 crystals, 0.0 images/sec.
+WARNING: 376 reflections could not be integrated
+WARNING: 4 implausibly negative reflections in proc_data/GV_S11_005_00000_agg_refined.h5 entry//560
+4 images processed, 4 hits (100.0%), 4 indexable (100.0% of hits, 100.0% overall), 4 crystals, 0.2 images/sec.
+4 images processed, 4 hits (100.0%), 4 indexable (100.0% of hits, 100.0% overall), 4 crystals, 0.0 images/sec.
+4 images processed, 4 hits (100.0%), 4 indexable (100.0% of hits, 100.0% overall), 4 crystals, 0.0 images/sec.
+WARNING: 267 reflections could not be integrated
+5 images processed, 5 hits (100.0%), 5 indexable (100.0% of hits, 100.0% overall), 5 crystals, 0.2 images/sec.
+WARNING: 229 reflections could not be integrated
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.2 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+6 images processed, 6 hits (100.0%), 6 indexable (100.0% of hits, 100.0% overall), 6 crystals, 0.0 images/sec.
+WARNING: 207 reflections could not be integrated
+7 images processed, 7 hits (100.0%), 7 indexable (100.0% of hits, 100.0% overall), 7 crystals, 0.2 images/sec.
+7 images processed, 7 hits (100.0%), 7 indexable (100.0% of hits, 100.0% overall), 7 crystals, 0.0 images/sec.
+WARNING: 263 reflections could not be integrated
+8 images processed, 8 hits (100.0%), 8 indexable (100.0% of hits, 100.0% overall), 8 crystals, 0.2 images/sec.
+WARNING: 420 reflections could not be integrated
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.2 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+9 images processed, 9 hits (100.0%), 9 indexable (100.0% of hits, 100.0% overall), 9 crystals, 0.0 images/sec.
+WARNING: 312 reflections could not be integrated
+Final: 10 images processed, 10 hits (100.0%), 10 indexable (100.0% of hits, 100.0% overall), 10 crystals.
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># read and collate the resulting streams.</span>
+<span class="n">shots</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;screening/*.stream&#39;</span><span class="p">)):</span>
+    <span class="n">the_stream</span> <span class="o">=</span> <span class="n">StreamParser</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="n">the_stream</span><span class="o">.</span><span class="n">_shots</span><span class="p">[</span><span class="s1">&#39;stream&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">shots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">the_stream</span><span class="o">.</span><span class="n">shots</span><span class="p">)</span>
+<span class="n">shots</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">shots</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># analyze, e.g. using a pivot table. Rows are the test patterns,</span>
+<span class="c1"># columns are the streamfile and resulting variables</span>
+<span class="c1"># NaNs mean, that the indexing did not work on that shot</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">shots</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s1">&#39;stream&#39;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]))</span>
+
+<span class="c1"># also calculate mean lattice, to get an idea in which direction to try next</span>
+<span class="n">ovtbl</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">shots</span><span class="p">[[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span><span class="s2">&quot;b&quot;</span><span class="p">,</span><span class="s2">&quot;c&quot;</span><span class="p">,</span><span class="s2">&quot;al&quot;</span><span class="p">,</span><span class="s2">&quot;be&quot;</span><span class="p">,</span><span class="s2">&quot;ga&quot;</span><span class="p">,</span><span class="s2">&quot;xshift&quot;</span><span class="p">,</span><span class="s2">&quot;yshift&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                   <span class="n">shots</span><span class="p">[[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span><span class="s2">&quot;b&quot;</span><span class="p">,</span><span class="s2">&quot;c&quot;</span><span class="p">,</span><span class="s2">&quot;al&quot;</span><span class="p">,</span><span class="s2">&quot;be&quot;</span><span class="p">,</span><span class="s2">&quot;ga&quot;</span><span class="p">,</span><span class="s2">&quot;xshift&quot;</span><span class="p">,</span><span class="s2">&quot;yshift&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">std</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">],</span>
+                  <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="s1">&#39;std&#39;</span><span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;----</span><span class="se">\n</span><span class="s1">Lattice/geometry parameters:&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ovtbl</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+                 a                                                  \
+stream cell_scan_0 cell_scan_1 cell_scan_2 cell_scan_3 cell_scan_4
+serial
+0              NaN    10.31306    10.32278    10.29012    10.40311
+1         10.24899    10.24614    10.29207    10.40864    10.45730
+2              NaN         NaN    10.27153    10.34148    10.25313
+3         10.28219    10.28041    10.41902    10.29330    10.38548
+4         10.24890    10.32012    10.35173    10.49047    10.42244
+5         10.29095    10.23797    10.34989    10.37067    10.36725
+6              NaN    10.26615    10.30410    10.35127    10.42647
+7         10.19354    10.27804    10.10549    10.28051    10.35364
+8         10.30241    10.33925    10.32433    10.33660    10.38174
+9              NaN         NaN    10.23579    10.29231    10.26236
+
+                 c
+stream cell_scan_0 cell_scan_1 cell_scan_2 cell_scan_3 cell_scan_4
+serial
+0              NaN    10.28821    10.11643    10.29537    10.40252
+1         10.11920    10.11534    10.15708    10.24540    10.29508
+2              NaN         NaN    10.19269    10.26700    10.27030
+3         10.15044    10.16636    10.31522    10.29388    10.32743
+4         10.10567    10.24685    10.22940    10.23883    10.14663
+5         10.12204    10.27641    10.31073    10.17510    10.36105
+6              NaN    10.33933    10.35207    10.29679    10.30200
+7         10.14700     9.97741    10.16834    10.23328    10.05697
+8          9.89225    10.08760    10.22985    10.17798    10.27654
+9              NaN         NaN    10.33139    10.22691    10.33815
+----
+Lattice/geometry parameters:
+             mean       std
+a       10.318026  0.072742
+b       10.289024  0.079128
+c       10.219648  0.105859
+al      89.775197  0.646667
+be      89.625283  0.540013
+ga      90.076391  0.497458
+xshift  -0.005227  0.023700
+yshift   0.006545  0.024438
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="Run-indexing">
+<h2>Run indexing<a class="headerlink" href="#Run-indexing" title="Permalink to this headline">¶</a></h2>
+<p>You should have found from the screening above, that 102.4 is a good cell length. Now the actual indexing is run… so, no more loop, and the list containing all shots is used. This might take very long, so better run it over night.</p>
+<p>Two hints to monitor the progress of indexing: - <code class="docutils literal notranslate"><span class="pre">edview.py</span> <span class="pre">stream/aggregated.stream</span> <span class="pre">--internal</span></code>… and hit reload/last occasionally. The –internal is important in this case to avoid file locking issues. - <code class="docutils literal notranslate"><span class="pre">less</span> <span class="pre">stream/aggregated.stream</span></code>… to navigate around the file</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">opts</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+
+<span class="c1"># here, you can ovewrite settings from the YAML file.</span>
+<span class="n">opts</span><span class="o">.</span><span class="n">indexing_params</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;min-peaks&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="s1">&#39;integration&#39;</span><span class="p">:</span> <span class="s1">&#39;rings-grad-nocen&#39;</span><span class="p">})</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;stream&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">cell_file</span> <span class="o">=</span> <span class="n">make_cell</span><span class="p">(</span><span class="mf">102.4</span><span class="p">,</span> <span class="s1">&#39;GV.cell&#39;</span><span class="p">)</span>
+<span class="n">callstr</span> <span class="o">=</span> <span class="n">tools</span><span class="o">.</span><span class="n">call_indexamajig</span><span class="p">(</span><span class="s1">&#39;aggregated.lst&#39;</span><span class="p">,</span> <span class="s1">&#39;GV.geom&#39;</span><span class="p">,</span> <span class="s1">&#39;stream/aggregated.stream&#39;</span><span class="p">,</span>
+                                 <span class="n">cell</span><span class="o">=</span><span class="n">cell_file</span><span class="p">,</span> <span class="n">im_params</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">indexing_params</span><span class="p">,</span>
+                                 <span class="n">procs</span><span class="o">=</span><span class="mi">96</span><span class="p">,</span> <span class="n">exc</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">im_exc</span><span class="p">)</span>
+
+<span class="nb">open</span><span class="p">(</span><span class="s1">&#39;im_run.sh&#39;</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;#!/bin/sh</span><span class="se">\n</span><span class="si">{</span><span class="n">callstr</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span> <span class="c1"># write command string to a shell script</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">callstr</span><span class="p">)</span> <span class="c1"># or copy &amp; paste</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+/opts/crystfel_eminus/bin/indexamajig -g GV.geom -i aggregated.lst -o stream/aggregated.stream -j 96 -p GV.cell --indexing=pinkIndexer --min-peaks=30 --pinkIndexer-considered-peaks-count=4 --pinkIndexer-angle-resolution=3 --pinkIndexer-refinement-type=5 --pinkIndexer-thread-count=1 --pinkIndexer-tolerance=0.1 --pinkIndexer-reflection-radius=0.003 --pinkIndexer-mrfi=0.4 --fix-profile-radius=3e6 --integration=rings-grad-nocen --push-res=2 --int-radius=3,6,7 --peaks=cxi --hdf5-peaks=/entry/data --no-revalidate --max-res=600 --no-refine --no-retry --no-check-peaks --copy-hdf5-field=/%/shots/crystal_id
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="Indexing-done!">
+<h2>Indexing done!<a class="headerlink" href="#Indexing-done!" title="Permalink to this headline">¶</a></h2>
+<p>Congratulations… now let’s briefly look at the results - run <code class="docutils literal notranslate"><span class="pre">edview.py</span> <span class="pre">stream/aggregated.stream</span></code> for visual inspection, which is the most important check - analyze the stream file… see cell below for some ideas. In a perfect world, the indexed fraction is close to the hit fraction, and the standard deviation of the parameters are small and close to what you expect.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">stream</span> <span class="o">=</span> <span class="n">StreamParser</span><span class="p">(</span><span class="s1">&#39;stream/aggregated.stream&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">nshots</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Hit fraction is </span><span class="si">{</span><span class="n">stream</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">hit</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">/</span><span class="n">nshots</span><span class="o">*</span><span class="mi">100</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1">%&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Indexed fraction (total) is </span><span class="si">{</span><span class="p">(</span><span class="n">stream</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">indexed_by</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">/</span><span class="n">nshots</span><span class="o">*</span><span class="mi">100</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1">%&#39;</span><span class="p">)</span>
+<span class="n">ovtbl</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">stream</span><span class="o">.</span><span class="n">shots</span><span class="p">[[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span><span class="s2">&quot;b&quot;</span><span class="p">,</span><span class="s2">&quot;c&quot;</span><span class="p">,</span><span class="s2">&quot;al&quot;</span><span class="p">,</span><span class="s2">&quot;be&quot;</span><span class="p">,</span><span class="s2">&quot;ga&quot;</span><span class="p">,</span><span class="s2">&quot;xshift&quot;</span><span class="p">,</span><span class="s2">&quot;yshift&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                   <span class="n">stream</span><span class="o">.</span><span class="n">shots</span><span class="p">[[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span><span class="s2">&quot;b&quot;</span><span class="p">,</span><span class="s2">&quot;c&quot;</span><span class="p">,</span><span class="s2">&quot;al&quot;</span><span class="p">,</span><span class="s2">&quot;be&quot;</span><span class="p">,</span><span class="s2">&quot;ga&quot;</span><span class="p">,</span><span class="s2">&quot;xshift&quot;</span><span class="p">,</span><span class="s2">&quot;yshift&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">std</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">],</span>
+                  <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="s1">&#39;std&#39;</span><span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Lattice/geometry parameters:&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ovtbl</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Hit fraction is 87.1%
+Indexed fraction (total) is 79.1%
+Lattice/geometry parameters:
+             mean       std
+a       10.311454  0.065553
+b       10.282641  0.052176
+c       10.232567  0.076982
+al      89.948959  0.551735
+be      89.588325  0.655149
+ga      90.159840  0.486913
+xshift   0.002665  0.022375
+yshift   0.000551  0.021914
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="(Re-)Integration">
+<h2>(Re-)Integration<a class="headerlink" href="#(Re-)Integration" title="Permalink to this headline">¶</a></h2>
+<p>Now you have a nice indexing solution, and you can use the resulting stream file for merging. However, you might be able to do better, by using the more sophisticated pre-processed images, which should be available by now. E.g. you can try different effective exposure times in the cumulative data sets, and see which trade-off between signal and radiation damage gives the most pleasant results.</p>
+<p>Unfortunately, as of November 2019, the only way to achieve this with CrystFEL is by re-indexing each data set as shown here. The indexing result will always be the same, as it is derived from the peaks stored in the HDF5 files, but still take long to compute. If this is a problem for your data, for more information/hacky workarounds, please contact <code class="docutils literal notranslate"><span class="pre">robert.buecker&#64;mpsd.mpg.de</span></code>. For this example data set, we fortunately know already, that cumulating to frame 4 gives the best result. So let’s
+do that.</p>
+<p>While it’s running you could e.g. start playing with merging of the previous result (<code class="docutils literal notranslate"><span class="pre">aggregated.stream</span></code>), or even get a first structure from the merging result.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># make a list file from all patterns with frame==4</span>
+<span class="n">ds</span> <span class="o">=</span> <span class="n">Dataset</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="s1">&#39;proc_data/GV_S11_*_all_nobg_cumfrom0.h5&#39;</span><span class="p">,</span>
+                      <span class="n">init_stacks</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">load_tables</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">ds</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;frame==4&#39;</span><span class="p">)[[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;frame0to4.lst&#39;</span><span class="p">,</span>
+                                                     <span class="n">header</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">opts</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+<span class="n">opts</span><span class="o">.</span><span class="n">im_exc</span> <span class="o">=</span> <span class="s1">&#39;/opts/crystfel_eminus/bin/indexamajig&#39;</span>
+
+<span class="n">cell_file</span> <span class="o">=</span> <span class="n">make_cell</span><span class="p">(</span><span class="mf">102.4</span><span class="p">,</span> <span class="s1">&#39;GV.cell&#39;</span><span class="p">)</span>
+<span class="n">callstr</span> <span class="o">=</span> <span class="n">tools</span><span class="o">.</span><span class="n">call_indexamajig</span><span class="p">(</span><span class="s1">&#39;frame0to4.lst&#39;</span><span class="p">,</span> <span class="s1">&#39;GV.geom&#39;</span><span class="p">,</span> <span class="s1">&#39;stream/frame0to4.stream&#39;</span><span class="p">,</span>
+                                 <span class="n">cell</span><span class="o">=</span><span class="n">cell_file</span><span class="p">,</span> <span class="n">im_params</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">integration_params</span><span class="p">,</span>
+                                 <span class="n">procs</span><span class="o">=</span><span class="mi">96</span><span class="p">,</span> <span class="n">exc</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">im_exc</span><span class="p">)</span>
+
+<span class="nb">open</span><span class="p">(</span><span class="s1">&#39;im_run.sh&#39;</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;#!/bin/sh</span><span class="se">\n</span><span class="si">{</span><span class="n">callstr</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span> <span class="c1"># write command string to a shell script</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">callstr</span><span class="p">)</span> <span class="c1"># or copy &amp; paste</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+/opts/crystfel_eminus/bin/indexamajig -g GV.geom -i frame0to4.lst -o stream/frame0to4.stream -j 96 -p GV.cell --indexing=pinkIndexer --min-peaks=30 --pinkIndexer-considered-peaks-count=4 --pinkIndexer-angle-resolution=3 --pinkIndexer-refinement-type=5 --pinkIndexer-thread-count=1 --pinkIndexer-tolerance=0.1 --pinkIndexer-reflection-radius=0.003 --pinkIndexer-mrfi=0.4 --fix-profile-radius=3e6 --integration=rings-nograd-nocen --push-res=2 --int-radius=3,6,7 --peaks=cxi --hdf5-peaks=/entry/data --no-revalidate --max-res=600 --no-refine --no-retry --no-check-peaks --copy-hdf5-field=/%/shots/crystal_id
+</pre></div></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="preprocessing.html" class="btn btn-neutral float-right" title="Serial diffraction data preprocessing using diffractem" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../notebooks.html" class="btn btn-neutral float-left" title="Tutorial notebooks" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Robert Bücker
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

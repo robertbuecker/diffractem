@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,10 +38,9 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="diffractem.nexus module" href="diffractem.nexus.html" />
-    <link rel="prev" title="diffractem.legacy module" href="diffractem.legacy.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -80,28 +84,15 @@
               
             
             
-              <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="diffractem.html">Welcome</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="diffractem.html#submodules">Submodules</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="diffractem.adxv.html">diffractem.adxv module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.compute.html">diffractem.compute module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.dataset.html">diffractem.dataset module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.io.html">diffractem.io module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.legacy.html">diffractem.legacy module</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">diffractem.map_image module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.nexus.html">diffractem.nexus module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_proc_opts.html">diffractem.pre_proc_opts module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.pre_process.html">diffractem.pre_process module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc2d.html">diffractem.proc2d module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.proc_peaks.html">diffractem.proc_peaks module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.stream_parser.html">diffractem.stream_parser module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="diffractem.tools.html">diffractem.tools module</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="diffractem.html#module-diffractem">Module contents</a></li>
-</ul>
-</li>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
             
@@ -147,8 +138,6 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="diffractem.html">diffractem package</a> &raquo;</li>
-        
       <li>diffractem.map_image module</li>
     
     
@@ -168,185 +157,32 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="module-diffractem.map_image">
-<span id="diffractem-map-image-module"></span><h1>diffractem.map_image module<a class="headerlink" href="#module-diffractem.map_image" title="Permalink to this headline">¶</a></h1>
-<dl class="py class">
-<dt id="diffractem.map_image.MapImage">
-<em class="property">class </em><code class="sig-prename descclassname">diffractem.map_image.</code><code class="sig-name descname">MapImage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">coordinates</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">basename</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">region_id</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">run_id</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">subset</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sample</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">detector_file</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">flatten_meta</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.align_overview">
-<code class="sig-name descname">align_overview</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">reference</span></em>, <em class="sig-param"><span class="n">show_plot</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'ecc'</span></em>, <em class="sig-param"><span class="n">use_gradient</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">transfer_props</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.align_overview"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.align_overview" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
 
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.coordinates">
-<em class="property">property </em><code class="sig-name descname">coordinates</code><a class="headerlink" href="#diffractem.map_image.MapImage.coordinates" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
 
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.detector_file">
-<em class="property">property </em><code class="sig-name descname">detector_file</code><a class="headerlink" href="#diffractem.map_image.MapImage.detector_file" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
 
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.export_scan_list">
-<code class="sig-name descname">export_scan_list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">delim</span><span class="o">=</span><span class="default_value">' '</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.export_scan_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.export_scan_list" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
 
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.features">
-<em class="property">property </em><code class="sig-name descname">features</code><a class="headerlink" href="#diffractem.map_image.MapImage.features" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.find_particles">
-<code class="sig-name descname">find_particles</code><span class="sig-paren">(</span><em class="sig-param">show_plot=True</em>, <em class="sig-param">show_segments=True</em>, <em class="sig-param">return_images=False</em>, <em class="sig-param">thr_fun=&lt;function threshold_li&gt;</em>, <em class="sig-param">thr_offset=0</em>, <em class="sig-param">local=False</em>, <em class="sig-param">disk_size=49</em>, <em class="sig-param">two_pass=False</em>, <em class="sig-param">morph_method='legacy'</em>, <em class="sig-param">morph_disk=2</em>, <em class="sig-param">remove_carbon_lacing=False</em>, <em class="sig-param">segmentation_method='distance-watershed'</em>, <em class="sig-param">min_dist=8</em>, <em class="sig-param">picking_method='region-centroid'</em>, <em class="sig-param">beam_radius=5</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.find_particles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.find_particles" title="Permalink to this definition">¶</a></dt>
-<dd><p>Crystal finding algorithm. Attempts to find images in 4 steps:
-(1) thresholding, yielding a binarized image. Can be done using a global or local (adaptive) threshold.</p>
-<blockquote>
-<div><p>Usually, global works better for STEM images, unless the background is very inhomogeneous. If there are
-bright-ish “blobs” containing the particles, two_pass should be used.</p>
-</div></blockquote>
-<ol class="arabic simple" start="2">
-<li><p>morphological operations, eliminating small features, filling holes etc.. Different sequences of operations
-are provided which are worth trying out</p></li>
-<li><p>segmentation of the bright regions found by the previous steps, using watershed or random walker schemes</p></li>
-<li><p>generation of crystal coordinates, either using segment centroids, or by filling up the segments with a
-number of points derived from a typical spacing (beam radius)</p></li>
-</ol>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>show_plot</strong> – show a plot in the end to assess the result</p></li>
-<li><p><strong>show_segments</strong> – show segments in the plot. Helps, but can be slow</p></li>
-<li><p><strong>return_images</strong> – return the intermediate-step images from the function</p></li>
-<li><p><strong>thr_fun</strong> – function used for global thresholding. Anything that takes the image as only positional argument
-can be inserted here (e.g. those from skimage.filters.thresholding). Defaults to threshold_li</p></li>
-<li><p><strong>thr_offset</strong> – additional offset for found global threshold. Note that the images are normalized to the
-full 16bit range initially, so typically this value is in the range of 1000s</p></li>
-<li><p><strong>local</strong> – use local thresholding instead, using the threshold_local function in skimage.filters. Usually
-a global threshold with two_pass=True works better.</p></li>
-<li><p><strong>disk_size</strong> – averaging disk range, when local=True</p></li>
-<li><p><strong>two_pass</strong> – use a two-pass thresholding scheme, where after thresholding and morphological filtering, a
-separate local threshold is found for each bright region. Then the thresholding is repeated. Often this
-is far superior to using a local threshold.</p></li>
-<li><p><strong>morph_method</strong> – selects a sequence of morphological operations. Current options are ‘legacy’ and
-‘instamatic’, the latter derived from Stef Smeets’ instamatic package. Just try what works best.</p></li>
-<li><p><strong>morph_disk</strong> – disk radius for morphological operations.</p></li>
-<li><p><strong>remove_carbon_lacing</strong> – attempts to remove lacey carbon artifacts. Only works if morph_method is set
-to ‘instamatic’</p></li>
-<li><p><strong>segmentation_method</strong> – method for segmentation. Options are ‘distance-watershed’, ‘intensity-watershed’,
-and ‘random-walker’. The latter is not well tested yet. Usually, ‘distance-watershed’ is better for clearly
-visible particles that aggregate slightly, and ‘intensity-watershed’ for particles within larger blobs.</p></li>
-<li><p><strong>min_dist</strong> – minimum distance between initial points for segmentation. Ideally corresponds to minimum
-distance between crystals. Not used for random walker segmentation.</p></li>
-<li><p><strong>picking_method</strong> – ‘region-centroid’ and ‘intensity-centroid’ will place a single coordinate marker for
-acquisition into each segment; the latter weighs the pixels by their intensity. ‘k-means’ will place
-many coordinate markers on the segment, approximately spaced by beam_radius/2; this is the ‘brute-force’
-option.</p></li>
-<li><p><strong>beam_radius</strong> – spacing between coordinates when using ‘brute-force’ acquisition</p></li>
-<li><p><strong>kwargs</strong> – </p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>various intermediate images (img, binarized, morph, label_image, labels) if return_images=True</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.from_files">
-<code class="sig-name descname">from_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">basename</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.from_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.from_files" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.from_nxs">
-<em class="property">classmethod </em><code class="sig-name descname">from_nxs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">subset</span><span class="o">=</span><span class="default_value">'entry'</span></em>, <em class="sig-param"><span class="n">map_grp</span><span class="o">=</span><span class="default_value">'map'</span></em>, <em class="sig-param"><span class="n">diffdata_grp</span><span class="o">=</span><span class="default_value">'data'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.from_nxs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.from_nxs" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.get_regionprops">
-<code class="sig-name descname">get_regionprops</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.get_regionprops"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.get_regionprops" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.img">
-<em class="property">property </em><code class="sig-name descname">img</code><a class="headerlink" href="#diffractem.map_image.MapImage.img" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.img_scatter_plot">
-<code class="sig-name descname">img_scatter_plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ax</span></em>, <em class="sig-param"><span class="n">colors</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.img_scatter_plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.img_scatter_plot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Tool function to make a nice combined scatter and stem figure plot.
-:param ax: matplotlib axes object to plot into. Mandatory.
-:param colors: list of color values to be used for the scatter plot. Can be used to get consistent dot colors</p>
-<blockquote>
-<div><p>between many images (e.g. to check if tracking works)</p>
-</div></blockquote>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>colors (colors used for the scatter points), imgh (handle to image plot), scath (handle to scatter plot)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.make_mask">
-<code class="sig-name descname">make_mask</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">offset_x</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">offset_y</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">spotsize</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">pattern</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">init_cols</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">binary_fn</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.make_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.make_mask" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.make_scan_list">
-<code class="sig-name descname">make_scan_list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">offset_x</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">offset_y</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">frames</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">y_pos_tol</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">predist</span><span class="o">=</span><span class="default_value">100</span></em>, <em class="sig-param"><span class="n">dxmax</span><span class="o">=</span><span class="default_value">300</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.make_scan_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.make_scan_list" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.meta">
-<em class="property">property </em><code class="sig-name descname">meta</code><a class="headerlink" href="#diffractem.map_image.MapImage.meta" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.meta_diff">
-<em class="property">property </em><code class="sig-name descname">meta_diff</code><a class="headerlink" href="#diffractem.map_image.MapImage.meta_diff" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.shots">
-<em class="property">property </em><code class="sig-name descname">shots</code><a class="headerlink" href="#diffractem.map_image.MapImage.shots" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.subset">
-<em class="property">property </em><code class="sig-name descname">subset</code><a class="headerlink" href="#diffractem.map_image.MapImage.subset" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.to_files">
-<code class="sig-name descname">to_files</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">basename</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.to_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.to_files" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.map_image.MapImage.to_nxs">
-<code class="sig-name descname">to_nxs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">subset</span><span class="o">=</span><span class="default_value">'entry'</span></em>, <em class="sig-param"><span class="n">map_grp</span><span class="o">=</span><span class="default_value">'map'</span></em>, <em class="sig-param"><span class="n">diffdata_grp</span><span class="o">=</span><span class="default_value">'data'</span></em>, <em class="sig-param"><span class="n">store_diff_meta</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#MapImage.to_nxs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.MapImage.to_nxs" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py function">
-<dt id="diffractem.map_image.align_ecc">
-<code class="sig-prename descclassname">diffractem.map_image.</code><code class="sig-name descname">align_ecc</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">img_ref</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'ecc'</span></em>, <em class="sig-param"><span class="n">mode</span><span class="o">=</span><span class="default_value">'affine'</span></em>, <em class="sig-param"><span class="n">coords</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rescale</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">use_gradient</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#align_ecc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.align_ecc" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt id="diffractem.map_image.whiten">
-<code class="sig-prename descclassname">diffractem.map_image.</code><code class="sig-name descname">whiten</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obs</span></em>, <em class="sig-param"><span class="n">check_finite</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/map_image.html#whiten"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.map_image.whiten" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="simple">
-<dt>Adapted from c:/python27/lib/site-packages/skimage/filters/thresholding.py</dt><dd><p>to return array and std_dev</p>
-</dd>
-</dl>
-</dd></dl>
-
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="diffractem-map-image-module">
+<h1>diffractem.map_image module<a class="headerlink" href="#diffractem-map-image-module" title="Permalink to this headline">¶</a></h1>
 </div>
 
 
@@ -355,21 +191,12 @@ option.</p></li>
           </div>
           <footer>
   
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="diffractem.nexus.html" class="btn btn-neutral float-right" title="diffractem.nexus module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="diffractem.legacy.html" class="btn btn-neutral float-left" title="diffractem.legacy module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

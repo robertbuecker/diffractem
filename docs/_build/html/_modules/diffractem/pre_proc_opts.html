@@ -25,6 +25,11 @@
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
         <script src="../../_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
@@ -33,6 +38,7 @@
   
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -79,7 +85,13 @@
             
             
               <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../map_image.html">Crystal-map images</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../crystfel.html">CrystFEL integration</a></li>
 </ul>
 
@@ -148,7 +160,9 @@
 <span class="kn">import</span> <span class="nn">yaml</span>
 <span class="kn">import</span> <span class="nn">pprint</span>
 <span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
 
+<span class="c1">#TODO consider to make this a types.SimpleNamespace or use dataclasses.dataclass</span>
 <div class="viewcode-block" id="PreProcOpts"><a class="viewcode-back" href="../../diffractem.pre_proc_opts.html#diffractem.pre_proc_opts.PreProcOpts">[docs]</a><span class="k">class</span> <span class="nc">PreProcOpts</span><span class="p">:</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  
 
@@ -164,11 +178,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">correct_saturation</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>          <span class="c1">#: Correct for detector saturation using paralyzable model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dead_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.9e-3</span>                 <span class="c1">#: Dead time (in ms) for paralyzable detector model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">shutter_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">2</span>                   <span class="c1">#: Shutter time (in ms) for paralyzable detector model</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mask_gaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">float</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cam_length</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">2</span>                     <span class="c1">#: Coarse camera length (in m) for estimations. Not used for indexing</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">y_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.98</span>                     <span class="c1">#: Scaling of camera length along y axis (tilted detector)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask_gaps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>                     <span class="c1">#: Always mask detector gaps (regardless of dead pixel mask)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interpolate_dead</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>             <span class="c1">#: Interpolate dead pixels instead of masking</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">float</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>                        <span class="c1">#: Process images as floating-point</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">32004</span>       <span class="c1">#: standard HDF5 compression. Suggested values: gzip, none, 32004 (lz4)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cam_length</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">2</span>                     <span class="c1">#: Average camera length (in m).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.98</span>                     <span class="c1">#: Scaling of camera length along y. DEPRECATED!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ellipse_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span>                  <span class="c1">#: ellipticity of camera lentgh along arbitrary axis</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ellipse_angle</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>                     <span class="c1">#: cam length ellipticity angle. (e.g. 0 is x, pi/2 is y,...)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pixel_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">55e-6</span>                 <span class="c1">#: Pixel size (in m)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0251</span>                 <span class="c1">#: Radiation wave length (in A)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">com_threshold</span><span class="p">:</span><span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">com_xrng</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">800</span>                     <span class="c1">#: x range (px) around pattern center in which to look for center of mass</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">com_yrng</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">800</span>                     <span class="c1">#: y range (px) around pattern center in which to look for center of mass</span>
@@ -274,7 +293,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>

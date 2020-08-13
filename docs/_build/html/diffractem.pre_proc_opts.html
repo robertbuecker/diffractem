@@ -25,6 +25,11 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -33,10 +38,11 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="diffractem.pre_process module" href="diffractem.pre_process.html" />
-    <link rel="prev" title="diffractem.nexus module" href="diffractem.nexus.html" /> 
+    <link rel="prev" title="Pre-processing with diffractem" href="pre_processing.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -81,12 +87,18 @@
             
             
               <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="diffractem.html">Welcome</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="pre_processing.html">Preprocessing</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Pre-processing options</a></li>
 <li class="toctree-l2"><a class="reference internal" href="diffractem.pre_process.html">Pre-processing macros (old)</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="edview.html">EDview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_image.html">Crystal-map images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystfel.html">CrystFEL integration</a></li>
 </ul>
 
             
@@ -132,7 +144,7 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-          <li><a href="diffractem.html">diffractem package</a> &raquo;</li>
+          <li><a href="pre_processing.html">Pre-processing with diffractem</a> &raquo;</li>
         
       <li>diffractem.pre_proc_opts module</li>
     
@@ -153,7 +165,31 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="diffractem-pre-proc-opts-module">
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="diffractem-pre-proc-opts-module">
 <h1>diffractem.pre_proc_opts module<a class="headerlink" href="#diffractem-pre-proc-opts-module" title="Permalink to this headline">¶</a></h1>
 <p>The preprocessing options class.</p>
 <dl class="py class">
@@ -181,7 +217,7 @@
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.cam_length">
 <code class="sig-name descname">cam_length</code><em class="property">: float</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.cam_length" title="Permalink to this definition">¶</a></dt>
-<dd><p>Coarse camera length (in m) for estimations. Not used for indexing</p>
+<dd><p>Average camera length (in m).</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -197,6 +233,17 @@
 </dd></dl>
 
 <dl class="py attribute">
+<dt id="diffractem.pre_proc_opts.PreProcOpts.compression">
+<code class="sig-name descname">compression</code><em class="property">: Union[int, str]</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.compression" title="Permalink to this definition">¶</a></dt>
+<dd><p>gzip, none, 32004 (lz4)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>standard HDF5 compression. Suggested values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.correct_saturation">
 <code class="sig-name descname">correct_saturation</code><em class="property">: bool</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.correct_saturation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Correct for detector saturation using paralyzable model</p>
@@ -209,6 +256,24 @@
 </dd></dl>
 
 <dl class="py attribute">
+<dt id="diffractem.pre_proc_opts.PreProcOpts.ellipse_angle">
+<code class="sig-name descname">ellipse_angle</code><em class="property">: float</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.ellipse_angle" title="Permalink to this definition">¶</a></dt>
+<dd><p>cam length ellipticity angle. (e.g. 0 is x, pi/2 is y,…)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.pre_proc_opts.PreProcOpts.ellipse_ratio">
+<code class="sig-name descname">ellipse_ratio</code><em class="property">: float</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.ellipse_ratio" title="Permalink to this definition">¶</a></dt>
+<dd><p>ellipticity of camera lentgh along arbitrary axis</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.pre_proc_opts.PreProcOpts.float">
+<code class="sig-name descname">float</code><em class="property">: bool</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.float" title="Permalink to this definition">¶</a></dt>
+<dd><p>Process images as floating-point</p>
+</dd></dl>
+
+<dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.indexing_params">
 <code class="sig-name descname">indexing_params</code><em class="property">: dict</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.indexing_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>indexamajig parameters for indexing (of virtual files)</p>
@@ -218,6 +283,12 @@
 <dt id="diffractem.pre_proc_opts.PreProcOpts.integration_params">
 <code class="sig-name descname">integration_params</code><em class="property">: dict</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.integration_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>indexamajig parameters for integration</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.pre_proc_opts.PreProcOpts.interpolate_dead">
+<code class="sig-name descname">interpolate_dead</code><em class="property">: bool</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.interpolate_dead" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interpolate dead pixels instead of masking</p>
 </dd></dl>
 
 <dl class="py method">
@@ -235,6 +306,12 @@
 <dt id="diffractem.pre_proc_opts.PreProcOpts.lorentz_radius">
 <code class="sig-name descname">lorentz_radius</code><em class="property">: int</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.lorentz_radius" title="Permalink to this definition">¶</a></dt>
 <dd><p>radius (px) around center of mass for Lorentz fit of zero order</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.pre_proc_opts.PreProcOpts.mask_gaps">
+<code class="sig-name descname">mask_gaps</code><em class="property">: bool</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.mask_gaps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Always mask detector gaps (regardless of dead pixel mask)</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -287,7 +364,7 @@
 
 <dl class="py method">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.save">
-<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/pre_proc_opts.html#PreProcOpts.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.save" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/pre_proc_opts.html#PreProcOpts.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.save" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -309,6 +386,12 @@
 </dd></dl>
 
 <dl class="py attribute">
+<dt id="diffractem.pre_proc_opts.PreProcOpts.wavelength">
+<code class="sig-name descname">wavelength</code><em class="property">: float</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.wavelength" title="Permalink to this definition">¶</a></dt>
+<dd><p>Radiation wave length (in A)</p>
+</dd></dl>
+
+<dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.xsize">
 <code class="sig-name descname">xsize</code><em class="property">: int</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.xsize" title="Permalink to this definition">¶</a></dt>
 <dd><p>x image size (px)</p>
@@ -317,7 +400,7 @@
 <dl class="py attribute">
 <dt id="diffractem.pre_proc_opts.PreProcOpts.y_scale">
 <code class="sig-name descname">y_scale</code><em class="property">: float</em><em class="property"> = None</em><a class="headerlink" href="#diffractem.pre_proc_opts.PreProcOpts.y_scale" title="Permalink to this definition">¶</a></dt>
-<dd><p>Scaling of camera length along y axis (tilted detector)</p>
+<dd><p>Scaling of camera length along y. DEPRECATED!</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -341,7 +424,7 @@
         <a href="diffractem.pre_process.html" class="btn btn-neutral float-right" title="diffractem.pre_process module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="diffractem.nexus.html" class="btn btn-neutral float-left" title="diffractem.nexus module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="pre_processing.html" class="btn btn-neutral float-left" title="Pre-processing with diffractem" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -350,7 +433,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Robert Buecker
+        &copy; Copyright 2020, Robert Bücker
 
     </p>
   </div>
