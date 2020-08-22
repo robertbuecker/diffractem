@@ -5,7 +5,7 @@ import dask.array as da
 import dask
 from dask.distributed import Client
 from numba import jit, prange, int64
-from . import gap_pixels
+from . import gap_pixels, nexus
 from .pre_proc_opts import PreProcOpts
 from scipy import optimize, sparse, special, interpolate
 from scipy.ndimage.morphology import binary_dilation
@@ -16,6 +16,7 @@ from functools import wraps
 from typing import Optional, Tuple, Union, List, Callable, Dict
 from warnings import warn, catch_warnings, simplefilter
 import pandas as pd
+import h5py
 
 
 def stack_nested(data_list: Union[tuple, list, dict], func: Callable = np.stack): 
@@ -257,7 +258,9 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                      centers: Optional[Union[np.ndarray, da.Array]] = None,
                      lorentz_fit: Optional[bool] = True,
                      lazy: bool = False, sync: bool = True,
-                     errors: str = 'raise', via_array: bool = False) -> Tuple[pd.DataFrame, dict]:
+                     errors: str = 'raise', via_array: bool = False,
+                     output_file: Optional[str] = None, 
+                     shots: Optional[pd.DataFrame] = None) -> Tuple[pd.DataFrame, dict]:
     """'Macro' function for getting information about diffraction patterns.
     
     `get_pattern_info` finds diffraction peaks and computes information such as pattern center on a given diffraction 
@@ -296,6 +299,10 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         via_array (bool, optional): Modify calculation such that it avoids `dask.delayed` objects.
             This drastically improves the scheduling behavior for large datasets. It is also required if you
             supply the pattern centers to the function. However, precludes the use of lazy and sync. Defaults to False.
+        output_file (str, optional): Filename to store calculation results into. The file will be a valid diffractem-type
+            data file that can be loaded using Dataset objects.
+        shots (pd.DataFrame, optional): Dataframe of shot data of same height as the image array. If not None,
+            its columns will be joined to those of the shot data for storing the results into the output file.
 
     Returns:
         Tuple[pd.DataFrame, dict]: pandas DataFrame holding general pattern information, and dict holding CXI-format
@@ -374,6 +381,14 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         
     shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
     peakinfo = alldat['peak_data']
+    
+    if output_file is not None:
+        with h5py.File('image_info.h5', 'w') as fh:
+            for k, v in peakinfo.items():
+                fh.create_dataset('/entry/data/' + k, data=v, compression='gzip', chunks=(1,) + v.shape[1:])
+        fh['/entry/data'].attrs['recommended_zchunks'] = -1
+        shotdata_id = pd.concat([shots, shotdata], axis=1)
+        nexus.store_table(shotdata_id, file='image_info.h5', subset='entry', path='/%/shots')
     
     return shotdata, peakinfo    
 
