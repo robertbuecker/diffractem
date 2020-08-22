@@ -428,8 +428,16 @@ class Dataset:
         if features:
             try:
                 self._features = nexus.get_table(files, self.map_pattern + '/features', parallel=self.parallel_io)
+                # print(len(self._features))
                 self._features_changed = False
+                
+            except KeyError as err:
+                warn(str(err))
+                warn('No features found at ' + self.map_pattern + '/features')
+                # raise err
 
+            try:
+                
                 if 'sample' not in self._features.columns:
                     sdat = nexus.get_meta_fields(list(self._features.file.unique()),
                                                  ['/%/sample/name', '/%/sample/region_id', '/%/sample/run_id']). \
@@ -437,10 +445,11 @@ class Dataset:
                     self._features = self._features.merge(sdat, how='left', on=['file', 'subset'])
 
                 self._features.drop_duplicates(self._feature_id_cols, inplace=True) # for multi files with identical features
-                self._features.drop(columns=['file', 'subset'], inplace=True)
+                self._features.drop(columns=[c for c in ['file', 'subset'] if c in self._features.columns], inplace=True)
 
-            except KeyError:
-                print('No features found at ' + self.map_pattern + '/features')
+            except Exception as err:
+                print('Error processing ' + self.map_pattern + '/features')
+                raise err
 
         if peaks:
             try:

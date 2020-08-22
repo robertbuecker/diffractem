@@ -9,6 +9,8 @@ import h5py
 import numpy as np
 import pandas as pd
 from warnings import warn
+
+from tornado.gen import KeyReuseError
 from diffractem.io import expand_files, dict_to_h5
 
 
@@ -24,6 +26,10 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
 
         for subset in subsets:
             tbl_path = path.replace('%', subset)
+            if tbl_path not in fh:
+                raise KeyError(f'Group {tbl_path} not found in {fn}.')
+                # newlist = None
+                
             if 'pandas_type' in fh[tbl_path].attrs:
                 # print(f'Found list {tbl_path} in Pandas/PyTables format')
                 newlist = pd.read_hdf(fn, tbl_path)
