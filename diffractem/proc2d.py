@@ -413,7 +413,7 @@ def _get_corr_img(img: np.ndarray,
     
     img = img.astype(np.float32)
     if opts.correct_saturation:
-        img = apply_saturation_correction(img, opts.shutter_time, opts.dead_time)
+        img = apply_saturation_correction(img, opts.shutter_time, opts.dead_time, opts.dead_time_gap_factor)
     img = apply_flatfield(img, reference=reference)
     
     # here, _always_ choose strategy='replace'. Interpolation will only be done on the final step
@@ -439,7 +439,7 @@ def correct_image(img: Union[np.ndarray, da.Array], opts: PreProcOpts,
     background (recommended).
         
     Note:
-        This function essentially wraps `proc2d._get_corr_image` with smart functions to take care
+        This function essentially wraps `proc2d._get_corr_image` with smart features to take care
         of dask input arrays. If you want to change the 
         correction pipeline, that is the function to modify.
 
@@ -1166,6 +1166,9 @@ def remove_background(img: np.ndarray, x0: Optional[float] = None, y0: Optional[
         img_nopk = cut_peaks(img, nPeaks, peakXPosRaw, peakYPosRaw, radius=peak_radius, replaceval=replace_val)
     else:
         img_nopk = img
+        
+    # ALWAYS mask gaps for the background determination
+    img_nopk = correct_dead_pixels(img_nopk, pxmask, mask_gaps=True, strategy='replace')
 
     r0 = radial_proj(img_nopk, x0, y0, my_func=rfunc, filter_len=filter_len)
     img_nobg = strip_img(img, prof=r0, x0=x0, y0=y0, pxmask=pxmask, truncate=truncate, 
@@ -1296,7 +1299,8 @@ def center_image(imgs: Union[np.ndarray, da.Array], x0: Union[np.ndarray, da.Arr
     return simgs
 
 
-def apply_saturation_correction(img: np.ndarray, exp_time: float, dead_time: float = 1.9e-3):
+def apply_saturation_correction(img: np.ndarray, exp_time: float, dead_time: float = 1.9e-3, 
+                                gap_factor: float = 2):
     """Apply detector correction function to image. Should ideally be done even before flatfield.
     Uses a 5th order polynomial approximation to the Lambert function, which is appropriate
     for a paralyzable detector, up to the point where its signal starts inverting (which is where
@@ -1308,11 +1312,16 @@ def apply_saturation_correction(img: np.ndarray, exp_time: float, dead_time: flo
         img (np.ndarray): Input image or image stack
         exp (float): Exposure time in ms
         dead_time (float, optional): Dead time of detector in ms. Defaults to 1.9e-3.
+        gap_factor (float, optional): Factor to scale dead time for gap pixels. Defaults to 2.4.
     """
     lambert = lambda x: x - x**2 + 3/2*x**3 - 8/3*x**4 + 125/24*x**5
     satcorr = lambda y, sat: -lambert(-sat*y)/sat # saturation parameter: dead time/exposure time
-
-    return satcorr(img, dead_time/exp_time)
+    if gap_factor != 1:
+        dt = dead_time * (1 + (gap_factor-1)*gap_pixels())
+    else:
+        dt = dead_time
+        
+    return satcorr(img, dt/exp_time)
 
 
 def apply_flatfield(img: np.ndarray, reference: Union[np.ndarray, str], keep_type: bool = True, 

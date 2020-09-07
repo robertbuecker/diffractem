@@ -1670,7 +1670,7 @@ class Dataset:
                     warn(f'{lbl_from} not in stacks, skipping.')
                 self.shots[lbl_to] = stk[lbl_from]
             
-    def merge_pattern_info(self, ds_from: 'Dataset', merge_cols: Optional[List[str]] = None, 
+    def merge_pattern_info(self, ds_from: Union['Dataset', str], merge_cols: Optional[List[str]] = None, 
                            by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id'), 
                            persist: bool = True):
         """Merge shot-table and CXI peak data from another data set into this one, based
@@ -1685,7 +1685,8 @@ class Dataset:
         aggregated data set to get the information from.
 
         Args:
-            ds_from (Dataset): Diffractem Dataset to take information from
+            ds_from (Uniton[Dataset, str]): Diffractem Dataset to take information from, or filename of h5 or list file.
+                Esepcially friendly for h5 files written by get_image_info.
             merge_cols (Optional[List[str]], optional): Shot table columns to take over from other data set. If None,
                 all columns are taken over which are not present in the shot table currently. Defaults to None.
             by (Union[List[str], Tuple[str]], optional): Shot table columns to match by. 
@@ -1695,6 +1696,9 @@ class Dataset:
         #TODO Figure out a good way to handle predictions
         
         by = list(by)
+        
+        if isinstance(ds_from, str):
+            ds_from = Dataset.from_files(ds_from, chunking=-1, persist_meta=True)
         
         merge_cols = ds_from.shots.columns.difference(list(self.shots.columns) + 
                                                     ['_Event', '_file', 'file_event_hash']) \

@@ -19,6 +19,7 @@ class PreProcOpts:
         self.pxmask: str = 'Ref12_pxmask.tif'        #: Name of pixelmask TIF image
         self.correct_saturation: bool = True          #: Correct for detector saturation using paralyzable model
         self.dead_time: float = 1.9e-3                 #: Dead time (in ms) for paralyzable detector model
+        self.dead_time_gap_factor: float = 2           #: Factor for dead time in gap-pixels 
         self.shutter_time: float = 2                   #: Shutter time (in ms) for paralyzable detector model
         self.mask_gaps: bool = True                     #: Always mask detector gaps (regardless of dead pixel mask)
         self.interpolate_dead: bool = False             #: Interpolate dead pixels instead of masking

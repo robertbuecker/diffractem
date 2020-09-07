@@ -10,12 +10,15 @@ def version():
         return 'Could not determine diffractem version'
 
 
-def gap_pixels():
+def gap_pixels(detector='Lambda750k'):
     """Returns the gap pixels of the Lambda detector as binary mask"""
-    gaps = np.zeros((516, 1556), dtype=np.bool)
-    for k in range(255, 1296, 260):
-        gaps[:, k:k+6] = True
-    gaps[255:261] = True
+    if detector == 'Lambda750k':
+        gaps = np.zeros((516, 1556), dtype=np.bool)
+        for k in range(255, 1296, 260):
+            gaps[:, k:k+6] = True
+        gaps[255:261] = True
+    else:
+        raise ValueError(f'Unknown detector: {detector}')
     return gaps
 
 
