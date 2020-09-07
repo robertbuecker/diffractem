@@ -230,6 +230,66 @@ def call_partialator(input, symmetry, output='im_out.stream', model='unity', ite
     return make_command(exc, None, params, opts=opts)
 
 
+def call_indexamajig_slurm(input, geometry, name='idx', cell: Optional[str] = None,
+                     im_params: Optional[dict] = None,
+                     procs: Optional[int] = None, exc='indexamajig', copy_fields: list = (), 
+                     shots_per_run: int = 50, partition: str = 'medium', time: str = '01:59:00', 
+                     folder='partitions', tar_file: Optional[str] = None, threads: int = 1,
+                     local_bin_dir: Optional[str] = None, **kwargs):
+    
+    script_name = f'im_run_{name}.sh'
+    tar_file = f'{name}.tar.gz'
+
+    cf_call = []
+    os.makedirs(folder, exist_ok=True)
+    [os.remove(folder+'/'+fn) for fn in os.listdir(folder)]
+
+    from subprocess import run
+    local_bin_dir == '' if local_bin_dir is None else local_bin_dir
+    run(f'{os.path.join(local_bin_dir,"list_events")} -i {input} -g virtual.geom -o {input}-shots.lst'.split(' '))
+    shots = pd.read_csv(f'{input}-shots.lst', delim_whitespace=True, names=['file', 'Event'])
+    os.remove(f'{input}-shots.lst')
+
+    if threads > 1:
+        # add thread parameters here if needed (e.g. for other indexers)
+        im_params['pinkIndexer-thread-count'] = threads
+
+    for ii, grp in shots.groupby(shots.index // shots_per_run):
+        jobname = f'{name}_{ii:03d}'
+        basename = f'{folder}/' + jobname
+        grp[['file', 'Event']].to_csv(basename + '.lst', header=False, index=False, sep=' ')
+        callstr = call_indexamajig(basename + '.lst', geometry, basename + '.stream', 
+                                cell=cell, im_params=im_params, 
+                                procs=procs, exc=exc,
+                                no_refls_in_stream=False, serial_start=grp.index[0]+1,
+                                copy_fields=copy_fields)
+        
+        slurmstr = make_command('sbatch', partition=partition, job_name=jobname, 
+                                    time=time, nodes=1, ntasks=procs*threads,
+                                    output=basename + '.out', error=basename + '.err',
+                                    wrap=f"'{callstr}'")
+        
+        cf_call.append(slurmstr)
+        
+    with open(script_name, 'w') as fh:
+        fh.write('\n'.join(cf_call))
+    os.chmod(script_name, os.stat(script_name).st_mode | 0o111)
+
+    if tar_file is not None:
+        import tarfile
+        with tarfile.open(tar_file, 'w:gz' if tar_file.endswith('.gz') else 'w') as tar:
+            tar.add(folder)
+            tar.add(geometry)
+            tar.add(cell)
+            tar.add(script_name)
+            for fn in shots['file'].unique():
+                tar.add(fn)
+        print(f'Wrote self-contained tar file {tar_file}. ' 
+              f'Upload to your favorite cluster and extract with: tar -xf {tar_file}.')
+        
+    print(f'Run indexing by calling ./{script_name}')
+    
+    
 def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str] = None,
                      im_params: Optional[dict] = None, index_params: Optional[dict] = None,
                      procs: Optional[int] = None, exc='indexamajig', copy_fields: list = (), **kwargs):
@@ -268,17 +328,16 @@ def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str
 
 
 def dict2file(file_name, file_dic, header=None):
-    fid = open(file_name, 'w')  # Open file
+    
+    with open(file_name, 'w') as fid:  # Open file
 
-    if header is not None:
-        fid.write(header)  # Header
-        fid.write("\n\n")
+        if header is not None:
+            fid.write(header)  # Header
+            fid.write("\n\n")
 
-    for k, v in file_dic.items():
-        fid.write("{} = {}".format(k, v))
-        fid.write("\n")
-
-    fid.close()  # Close file
+        for k, v in file_dic.items():
+            fid.write("{} = {}".format(k, v))
+            fid.write("\n")
 
 
 def make_geometry(opts: PreProcOpts, file_name=None, image_name='corrected',
