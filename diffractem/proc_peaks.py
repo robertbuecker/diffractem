@@ -2,11 +2,11 @@
 from scipy.optimize import least_squares
 import numpy as np
 import pandas as pd
-from concurrent.futures import ProcessPoolExecutor, wait, ALL_COMPLETED
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED
 from multiprocessing import current_process
 from typing import Optional
 from .pre_proc_opts import PreProcOpts
-from . import tools
+from . import tools, proc2d
 from warnings import warn
 
 
@@ -104,6 +104,104 @@ def center_friedel(peaks: pd.DataFrame, shots: Optional[pd.DataFrame] = None,
     return cpos
 
 
+def get_acf(npk, x, y, I=None, roi_length=512, output_radius=256, 
+            oversample=4, radial=True, px_ang=None, execution='processes'):
+    """Gets the autocorrelation/pair correlation function of Bragg peak positions, 
+    optionally with intensity weighting.
+    
+    It is important to set the computation region properly (i.e., the
+    maximum peak positions from the center to take into account), as this affects
+    computation speed and impact of non-paraxiality at larger angles. It can
+    be defined using the `roi_length` argument.
+    
+    Peaks must be given in CXI format.
+    
+    Args:
+        npk (np.ndarray, int): number of peaks
+        x (np.ndarray): x-coordinates of peaks, *relative to pattern center*
+        y (np.ndarray): y-coordinates of peaks, *relative to pattern center*
+        I ([type], optional): peak intensities. Set to 1 if None. Defaults to None.
+        roi_length (int, optional): edge length of the region around the image
+            center that is used for the computation. Defaults to 512.
+        output_radius (int, optional): maximum included radius of the output ACF. 
+            The size of the 2D output will be 2*output_radius*oversample, 
+            the size of the radial average will be output_radius*oversample. Defaults to 600.
+        oversample (int, optional): oversampling, that is, by how much smaller the bin
+            sizes of the output are than that of the input (usually the pixels). Defaults to 4.
+        radial (bool, optional): compute the radial average of the ACF. Defaults to True.
+        px_ang (double, optional): diffraction angle corresponding to a distance of 1 pixel
+            from the center, given in rad (practically: detector pixel size/cam length). If
+            given, non-paraxiality of the geometry is corrected (not tested well yet).
+            Defaults to None.
+        execution (str, optional): way of parallelism if a stack of pattern peak data
+            is supplied. Can be 'single-threaded', 'threads', 'processes'.
+
+    Returns:
+        np.ndarray: 2D autocorrelation function. 
+            Length will be 2 * oversample * output_range
+        np.ndarray: 1D radial sum (None for radial=False). 
+            Length will be oversample * output_ramge
+    """
+    
+    from numpy import fft
+    from itertools import repeat
+    
+    # if a stack of pattern data is supplied, call recursively on single shots
+    if isinstance(npk, np.ndarray) and len(npk) > 1:
+        _all_args = zip(npk, x, y, repeat(None) if I is None else I)
+        _kwargs = {'roi_length': roi_length, 
+                   'output_radius': output_radius,
+                   'oversample': oversample,
+                   'radial': radial,
+                   'px_ang': px_ang}
+        if execution == 'single-threaded':
+            res = [get_acf(*_args, **_kwargs) for _args in _all_args]
+        else:
+            with (ProcessPoolExecutor() if execution=='processes' 
+              else ThreadPoolExecutor()) as exc:
+                ftrs = [exc.submit(get_acf, *_args, **_kwargs) for _args in _all_args]
+                wait(ftrs, return_when='FIRST_EXCEPTION');
+                # for ftr in ftrs:
+                #     if ftr.exception() is not None:
+                #         raise ftr.exception()
+                res = [f.result() for f in ftrs]
+        return (np.stack(stk) for stk in zip(*res))  
+    
+    
+    sz = roi_length * oversample
+    rng = output_radius * oversample
+    
+    pkx = (oversample * x[:npk]).round().astype(int) + sz//2
+    pky = (oversample * y[:npk]).round().astype(int) + sz//2
+    pkI = None if I is None else I[:npk]
+    
+    if px_ang is not None:
+        t_par = (pkx**2 + pky**2)**.5 * px_ang
+        acorr = 2*np.sin(np.arctan(t_par)/2) / t_par
+    else:
+        acorr = 1
+        
+    valid = (pkx >= 0) & (pkx < sz) & (pky >= 0) & (pky < sz)
+    pkx, pky, pkI = acorr*pkx[valid], acorr*pky[valid], 1 if I is None else pkI[valid]
+    dense = np.zeros((sz, sz), dtype=np.float if I is None else np.uint8)
+    dense[pkx, pky] = pkI if I is not None else 1
+    acf = fft.ifft2(np.abs(fft.fft2(dense))**2)
+    acf = fft.ifftshift(acf).real
+    if I is None:
+        # if no intensities were given, the result is (should be) 
+        # integer, up to numerical noise
+        acf = acf.round().astype(np.uint8)
+        if acf[sz//2, sz//2] != sum(valid):
+            warn(f'Autocorrelation center pixel ({acf[sz//2, sz//2]}) does not equal the peak number ({sum(valid)})!')
+    acf[sz//2, sz//2] = 0 # remove self-correlation (which will be equal to the peak number)
+    if radial:
+        rad = proc2d.radial_proj(acf, min_size=rng, max_size=rng, 
+                             my_func=np.sum, x0=sz//2, y0=sz//2)
+    else:
+        rad = None
+    return acf[sz//2-rng:sz//2+rng, sz//2-rng:sz//2+rng], rad
+
+
 def get_pk_data(n_pk: np.ndarray, pk_x: np.ndarray, pk_y: np.ndarray, 
                 ctr_x: np.ndarray, ctr_y: np.ndarray, pk_I: Optional[np.ndarray] = None,
                 opts: Optional[PreProcOpts] = None,
@@ -155,8 +253,9 @@ def get_pk_data(n_pk: np.ndarray, pk_x: np.ndarray, pk_y: np.ndarray,
     
 class Cell(object):
     """
-    Mostly stolen from the PyFAI package, with some simplifications 
-    and speed enhancements for d-spacing calculation.
+    Partially stolen from the PyFAI package, with some simplifications 
+    and speed enhancements for d-spacing calculation, as well as a 
+    new refinement function.
     
     Calculates d-spacings and cell volume as described in:
     http://geoweb3.princeton.edu/research/MineralPhy/xtalgeometry.pdf
