@@ -533,43 +533,58 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
     return sd, overall, so
 
 
-def selection_widget(ds_disp):
+def viewing_widget(ds_disp):
     from ipywidgets import interact, interactive, fixed, interact_manual
     import ipywidgets as widgets
     from IPython.display import display
     import matplotlib.pyplot as plt
 
-    fh, ax = plt.subplots(1,1)
-    ih = ax.imshow(ds_disp.corrected[0,...].compute(), vmin=0, vmax=30, cmap='gray_r')
-    sc = ax.scatter(ds_disp.peakXPosRaw[0,:ds_disp.shots.loc[0,'num_peaks']].compute(), 
-                    ds_disp.peakYPosRaw[0,:ds_disp.shots.loc[0,'num_peaks']].compute(), c='g', alpha=0.1)
+    output = widgets.Output()
+    with output:
+        fh, ax = plt.subplots(1,1, constrained_layout=True)
+        
+    have_peaks = 'nPeaks' in ds_disp.stacks
+    
+    img_stack = ds_disp.stacks[ds_disp.diff_stack_label]
+    
+    fh.canvas.toolbar_position='bottom'    
+    fh.canvas.header_visible=False    
+    ih = ax.imshow(img_stack[0,...].compute(), vmin=0, vmax=30, cmap='gray_r')
+    if have_peaks:
+        sc = ax.scatter([], [], c='g', alpha=0.1)
     ax.axis('off')
+    
+    # symmetrize figure
 
-    w_shot = widgets.IntSlider(min=0, max=ds_disp.corrected.shape[0], step=1, value=0)
-    w_selected = widgets.Checkbox(False, description='selected')
-    w_indicator = widgets.Text(f'{ds_disp.shots.selected.sum()} shots selected.')
+    w_shot = widgets.IntSlider(min=0, max=img_stack.shape[0], step=1, value=0)
+    w_selected = widgets.ToggleButton(False, description='selected')
+    w_indicator = widgets.Label(f'{ds_disp.shots.selected.sum()} shots selected.')
     w_vmax = widgets.FloatText(30, description='Imax')
+    w_info = widgets.Textarea(layout=widgets.Layout(height='100%'))
+    # w_info_parent = widgets.Accordion(children=[w_info])
     
     def update(shot=0, vmax=30):
         shdat = ds_disp.shots.loc[shot]
         w_selected.value = bool(shdat.selected)
+        w_info.value = '\n'.join([f'{k}: {v}' for k, v in shdat.items()])
         
-        ih.set_data(ds_disp.corrected[shot,...].compute())
+        ih.set_data(img_stack[shot,...].compute(scheduler='single-threaded'))
         ih.set_clim(0, vmax)
-        sc.set_offsets(np.stack((ds_disp.peakXPosRaw[shot,:ds_disp.shots.loc[shot,'num_peaks']].compute(), 
-                    ds_disp.peakYPosRaw[shot,:ds_disp.shots.loc[shot,'num_peaks']].compute())).T)    
-        ax.set_title(f'{shdat.file}: {shdat.Event}\n {shdat.num_peaks} peaks')
+        if have_peaks:
+            sc.set_offsets(np.stack((ds_disp.peakXPosRaw[shot,:ds_disp.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'), 
+                    ds_disp.peakYPosRaw[shot,:ds_disp.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'))).T)    
+        # ax.set_title(f'{shdat.file}: {shdat.Event}\n {shdat.num_peaks} peaks')
         fh.canvas.draw()
         
     def set_selected(val):
         ds_disp.shots.loc[w_shot.value, 'selected'] = val['new']
         w_indicator.value =  f'{ds_disp.shots.selected.sum()} shots selected.'
-        
+    
+    update()
+    
+    interactive(update, shot=w_shot, vmax=w_vmax)
     w_selected.observe(set_selected, 'value')
 
-    widgets.Box()
+    ui = widgets.HBox([widgets.VBox([w_info, w_shot, widgets.HBox([w_selected, w_indicator]), w_vmax]), output])
 
-    ui = widgets.VBox([widgets.HBox([w_shot, w_selected]), widgets.HBox([w_vmax, w_indicator])])
-
-    panel = interactive(update, shot=w_shot, vmax=w_vmax)
     display(ui)
