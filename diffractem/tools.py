@@ -544,6 +544,7 @@ def viewing_widget(ds_disp):
         fh, ax = plt.subplots(1,1, constrained_layout=True)
         
     have_peaks = 'nPeaks' in ds_disp.stacks
+    have_center = 'center_x' in ds_disp.shots
     
     img_stack = ds_disp.stacks[ds_disp.diff_stack_label]
     
@@ -552,39 +553,57 @@ def viewing_widget(ds_disp):
     ih = ax.imshow(img_stack[0,...].compute(), vmin=0, vmax=30, cmap='gray_r')
     if have_peaks:
         sc = ax.scatter([], [], c='g', alpha=0.1)
+    if have_center:
+        cx, cy = (plt.axvline(ds_disp.shots.loc[0,'center_x'], c='b', alpha=0.2), 
+                  plt.axhline(ds_disp.shots.loc[0,'center_y'], c='b', alpha=0.2))
     ax.axis('off')
     
     # symmetrize figure
 
     w_shot = widgets.IntSlider(min=0, max=img_stack.shape[0], step=1, value=0)
     w_selected = widgets.ToggleButton(False, description='selected')
-    w_indicator = widgets.Label(f'{ds_disp.shots.selected.sum()} shots selected.')
-    w_vmax = widgets.FloatText(30, description='Imax')
+    w_indicator = widgets.Label(f'{ds_disp.shots.selected.sum()} of {len(ds_disp.shots)} shots selected.')
     w_info = widgets.Textarea(layout=widgets.Layout(height='100%'))
+    w_vmax = widgets.FloatText(30, description='Imax')
+    w_log = widgets.Checkbox(False, description='log')
     # w_info_parent = widgets.Accordion(children=[w_info])
     
-    def update(shot=0, vmax=30):
+    def update(shot=0, vmax=30, log=False):
         shdat = ds_disp.shots.loc[shot]
         w_selected.value = bool(shdat.selected)
         w_info.value = '\n'.join([f'{k}: {v}' for k, v in shdat.items()])
-        
-        ih.set_data(img_stack[shot,...].compute(scheduler='single-threaded'))
-        ih.set_clim(0, vmax)
+        if log:
+            ih.set_data(np.log10(img_stack[shot,...].compute(scheduler='single-threaded')))
+            ih.set_clim(0.1, np.log10(vmax))            
+        else:           
+            ih.set_data(img_stack[shot,...].compute(scheduler='single-threaded'))
+            ih.set_clim(0, vmax)
         if have_peaks:
             sc.set_offsets(np.stack((ds_disp.peakXPosRaw[shot,:ds_disp.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'), 
                     ds_disp.peakYPosRaw[shot,:ds_disp.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'))).T)    
+        if have_center:
+            cx.set_xdata(ds_disp.shots.loc[shot,'center_x'])
+            cy.set_ydata(ds_disp.shots.loc[shot,'center_y'])
+            
         # ax.set_title(f'{shdat.file}: {shdat.Event}\n {shdat.num_peaks} peaks')
         fh.canvas.draw()
         
     def set_selected(val):
         ds_disp.shots.loc[w_shot.value, 'selected'] = val['new']
-        w_indicator.value =  f'{ds_disp.shots.selected.sum()} shots selected.'
+        w_indicator.value =  f'{ds_disp.shots.selected.sum()} of {len(ds_disp.shots)} shots selected.'
     
     update()
     
-    interactive(update, shot=w_shot, vmax=w_vmax)
+    interactive(update, shot=w_shot, vmax=w_vmax, log=w_log)
     w_selected.observe(set_selected, 'value')
 
-    ui = widgets.HBox([widgets.VBox([w_info, w_shot, widgets.HBox([w_selected, w_indicator]), w_vmax]), output])
+    ui = widgets.VBox([widgets.HBox([widgets.VBox([w_info, 
+                                     w_shot]), 
+                                     output]), 
+                       widgets.HBox([w_selected, 
+                                     w_indicator, 
+                                     w_vmax, 
+                                     w_log])]
+                      )
 
     display(ui)
