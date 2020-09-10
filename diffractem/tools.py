@@ -349,9 +349,30 @@ def dict2file(file_name, file_dic, header=None):
             fid.write("\n")
 
 
-def make_geometry(opts: PreProcOpts, file_name=None, image_name='corrected',
+def make_geometry(opts: PreProcOpts, file_name: Optional[str] = None, image_name: str = 'corrected',
                   xsize: Optional[int] = None, ysize: Optional[int] = None,
-                  mask: Optional[bool] = True, **kwargs):
+                  mask: bool = True, write_mask: bool = False, **kwargs):
+    """Generates a CrystFEL geometry file from a PreProcOpts object
+
+    Args:
+        opts (PreProcOpts): options object holding the required information, which are
+            the ellipticity parameters and camera length, pixel size, wave length, and 
+            image dimensions
+        file_name (str, optional): filename of a geometry file to be written. If None,
+            returs the file contents as a dict instead. Defaults to None.
+        image_name (str, optional): label of the diffraction data stack in the HDF5 files. 
+            Defaults to 'corrected'.
+        xsize (int, optional): x image size. If None, use that in opts. Defaults to None.
+        ysize (int, optional): y image size. If None, use that in opts. Defaults to None.
+        mask (bool, optional): Include reference to a pixel mask. Defaults to True.
+        write_mask (bool, optional): Create a file `pxmask.h5` containing the pixel mask
+            as defined in the options object (required as CrystFEL needs the masks as HDF5).
+            Defaults to False.
+        **kwargs: further lines to be included into the geometry file (or overwritten)
+
+    Returns:
+        Optional[dict]: if file_name=None, a dict with the geometry file rows is returned
+    """
     
     xsz = opts.xsize if xsize is None else xsize
     ysz = opts.ysize if ysize is None else ysize
@@ -385,6 +406,10 @@ def make_geometry(opts: PreProcOpts, file_name=None, image_name='corrected',
             'mask_file': 'pxmask.h5',
             'mask_good': '0x01',
             'mask_bad': '0x00'})
+        
+    if write_mask:
+        with h5py.File('pxmask.h5', 'w') as fh:
+            fh['/mask'] = 1-imread(opts.pxmask)
 
     par.update(kwargs)
     
@@ -432,6 +457,7 @@ def chop_stream(streamfile: str, shots: pd.DataFrame, query='frame == 1', postfi
                     lstop = stop.pop()
                 else:
                     fh_out.write(l)
+
 
 def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'CCstar', 'Rsplit'), 
                 nshells: int = 10, lowres: float = 35, highres: float = 1.5,
@@ -534,6 +560,13 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
 
 
 def viewing_widget(ds_disp, Imax=30, log=False):
+    """Interactive viewing widget for use in Jupyter notbeooks.
+
+    Args:
+        ds_disp ([type]): [description]
+        Imax (int, optional): [description]. Defaults to 30.
+        log (bool, optional): [description]. Defaults to False.
+    """
     from ipywidgets import interact, interactive, fixed, interact_manual
     import ipywidgets as widgets
     from IPython.display import display
@@ -546,7 +579,11 @@ def viewing_widget(ds_disp, Imax=30, log=False):
     have_peaks = 'nPeaks' in ds_disp.stacks
     have_center = 'center_x' in ds_disp.shots
     
-    img_stack = ds_disp.stacks[ds_disp.diff_stack_label]
+    img_stack = ds_disp.diff_data
+    
+    if max(ds_disp.diff_data.chunks[0]) > 10:
+        warn(f'Diffraction data chunks are large (up to {max(ds_disp.diff_data.chunks[0])} shots). If their '
+             'computation is heavy or your disk is slow, consider rechunking the dataset in a smart way for display.')
     
     fh.canvas.toolbar_position='bottom'    
     fh.canvas.header_visible=False    

@@ -158,6 +158,9 @@ class Dataset:
         else:
             raise AttributeError(f'{attr} is neither a dataset attribute, nor a stack name.')
 
+    def __len__(self):
+        return self.shots.shape[0]
+
     @property
     def _files_open(self) -> bool:
         """True if HDF5 files are open"""
@@ -1674,11 +1677,16 @@ class Dataset:
 
     def rechunk_stacks(self, chunk_height: int):
         c = chunk_height
-        ss_chunk = self.shots.groupby(['file', 'subset']).size().apply(lambda l: ((l // c) * [c]) + [l % c])
+        ss_chunk = self.shots.groupby(['file', 'subset']).size().apply(
+            lambda l: ((l // c) * [c]) + ([l % c] if l % c > 0 else []))
         zchunks = np.concatenate([np.array(v) for v in ss_chunk])
+        # print(zchunks)
         assert zchunks.sum() == self.shots.shape[0]
         for sn, s in self.stacks.items():
-            self.add_stack(sn, s.rechunk({0: tuple(zchunks)}), overwrite=True)
+            # print(sn)
+            # print(tuple(zchunks))
+            self._stacks[sn] = s.rechunk({0: tuple(zchunks)})
+            # self.add_stack(sn, s.rechunk({0: tuple(zchunks)}), overwrite=True)
 
     def stacks_to_shots(self, stack_labels: Union[str, list], shot_labels: Optional[Union[str, list]] = None):
         if isinstance(stack_labels, str):
@@ -1737,13 +1745,14 @@ class Dataset:
 
         self.shots = sel_shots.drop('_merge', axis=1)
 
-        peakdata = {k: v for k, v in ds_from._stacks.items() if (k.startswith('peak') or (k=='nPeaks'))}
+        peakdata = ds_from.peak_data
 
         if not all(self.shots.ii_from.diff().fillna(1) == 1):
             peakdata = {k: v[self.shots.ii_from.values,...] for k, v in peakdata.items()}
 
-        for k, v in peakdata.items():
-            self.add_stack(k, v, overwrite=True)
+        self.peak_data = peakdata
+        # for k, v in peakdata.items():
+        #     self.add_stack(k, v, overwrite=True)
         
         if persist: 
             self.persist_stacks(list(peakdata))
@@ -1814,3 +1823,8 @@ class Dataset:
         ds_ctr.store_tables(shots=True, features=False, peaks=False, predict=False)
         ds_ctr.write_list(f'{filename}.lst')
         print(f'Virtual file {filename}.h5 and list file {filename}.lst successfully exported.')
+        
+    def view(self, **kwargs):
+        """Calls `tools.viewing_widget` on the dataset. Keyword arguments are passed through.
+        """
+        tools.viewing_widget(self, **kwargs)
