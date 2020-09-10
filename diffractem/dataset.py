@@ -248,7 +248,7 @@ class Dataset:
         self._peaks_changed = True
             
     @property
-    def peakdata(self) -> Dict[str, da.Array]:
+    def peak_data(self) -> Dict[str, da.Array]:
         """Stored Bragg reflection data in CXI format, if present. Otherwise raises error."""
         if all([sn in self.stacks for sn in ['nPeaks', 'peakXPosRaw', 'peakYPosRaw']]):
             pkdat = {k: v for k, v in self.stacks.items() if k in ['nPeaks', 'peakXPosRaw', 'peakYPosRaw']}
@@ -258,8 +258,8 @@ class Dataset:
         else:
             raise ValueError('No peak data found in dataset.')
         
-    @peakdata.setter
-    def peakdata(self, v: Dict[str, Union[da.Array, np.ndarray]]):
+    @peak_data.setter
+    def peak_data(self, v: Dict[str, Union[da.Array, np.ndarray]]):
         if all([sn in v for sn in ['nPeaks', 'peakXPosRaw', 'peakYPosRaw']]):
             for k, v in v.items():
                 self.add_stack(k, v, overwrite=True)
@@ -291,7 +291,7 @@ class Dataset:
             ValueError(f'{value} is not a stack.')
         
     @property
-    def diffdata(self) -> da.Array:
+    def diff_data(self) -> da.Array:
         """Returns diffraction data stack (as identified by the diff_stack_label property"""
         return self.stacks[self.diff_stack_label]
     

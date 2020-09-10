@@ -400,4 +400,5 @@ def copy_h5(fn_from, fn_to, exclude=('%/detector/data', '/%/data/%', '/%/results
     except Exception as err:
         if os.path.exists(fn_to):
             os.remove(fn_to)
+        print(f'Error occurred while attempting to copy data from {fn_from} to {fn_to}.')
         raise err
