@@ -6,7 +6,7 @@ import dask.array.gufunc
 from dask import array as da
 from dask.diagnostics import ProgressBar
 from dask.distributed import Client
-from . import io, nexus
+from . import io, nexus, tools
 from .stream_parser import StreamParser
 # from .map_image import MapImage
 import h5py
@@ -1740,23 +1740,54 @@ class Dataset:
         with open(listfile, 'a' if append else 'w') as fh:
             fh.write('\n'.join(self.files) + '\n')
 
-    def generate_virtual_file(self, filename: str, diff_stack_label: str,
-                              kind: str = 'fake', virtual_size: int = 1024):
-        """NOT IMPLEMENTED YET (but soon will)
-        
+    def write_virtual_file(self, filename: str = 'virtual', diff_stack_label: str = 'zero_image',
+                              virtual_size: int = 1024):
+        """
         Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
-        diffraction. Instead of the diffraction stack, either a dummy stack containing a constant only,
-        or a virtual dataset with external links to the actual data files is created. While the former
-        is useful for indexing using CrystFEL, the latter can serve to generate a file for quick preview.
+        diffraction. Instead of the diffraction stack, a dummy stack containing only ones is written
+        into the file, which due to its compression becomes very small.
+        
+        The peak positions in the virtual file are changed, such that they refer to a "virtual" geometry,
+        corresponding to a square detector with a size given by `virtual_size`. On this detector, the pattern
+        is centered.
+        
+        This file can then be used as input to CrystFEL's *indexamajig*, with a simple centered geometry.
 
         Args:
             filename (str): [description]
             diff_stack_label (str): [description]
-            kind (str, optional): [description]. Defaults to 'fake'.
             virtual_size (int, optional): [description]. Defaults to 1024.
 
-        Raises:
-            NotImplementedError: [description]
         """
-        #TODO maybe rather split the preview file functionality off. It's too different.
-        raise NotImplementedError('Fix this')
+        self._shot_id_cols
+        ds_ctr = self.get_selection('True', file_suffix='_virtual.h5', new_folder='')
+        # ds_ctr.shots['file_event_hash'] = tools.dataframe_hash(self.shots[['file', 'Event']])
+        # ds_ctr.shots['feature_hash'] = tools.dataframe_hash(self.shots[['sample', 'region', 'run', 'crystal_id']])
+        ds_ctr.shots[['_file', '_Event']] = self.shots[['file', 'Event']]
+        ds_ctr.shots['file'] = f'{filename}.h5'
+        ds_ctr.shots['subset'] = 'entry'
+        ds_ctr.shots['shot_in_subset'] = range(len(ds_ctr.shots))
+        ds_ctr.shots['Event'] = ds_ctr.shots.subset + '//' + ds_ctr.shots.shot_in_subset.astype(str)
+
+        fake_img = da.ones(dtype=np.int8, shape=(ds_ctr.shots.shape[0], virtual_size, virtual_size), 
+                            chunks=(1, -1, -1))
+
+        ds_ctr.add_stack('zero_image', fake_img, overwrite=True, set_diff_stack=True)
+        ds_ctr.add_stack('peakXPosRaw', (ds_ctr.peakXPosRaw - self.shots.center_x.values.reshape(-1,1) 
+                                        + virtual_size/2 - 0.5) 
+                        * (ds_ctr.peakXPosRaw != 0), overwrite=True)
+        ds_ctr.add_stack('peakYPosRaw', (ds_ctr.peakYPosRaw - self.shots.center_y.values.reshape(-1,1) 
+                                        + virtual_size/2 - 0.5) 
+                        * (ds_ctr.peakYPosRaw != 0), overwrite=True)
+
+        print('Writing fake all-ones data (yes, it takes that long).')
+        with h5py.File(ds_ctr.files[0], 'w') as fh:
+            fh.require_group('/entry/data')
+        ds_ctr.open_stacks(readonly=False)
+        ds_ctr.store_stacks(['zero_image', 'nPeaks', 'peakXPosRaw', 'peakYPosRaw', 
+                            'peakTotalIntensity'],
+                            compression='gzip', overwrite=True)
+        ds_ctr.close_stacks()
+        ds_ctr.store_tables(shots=True, features=False, peaks=False, predict=False)
+        ds_ctr.write_list(f'{filename}.lst')
+        print(f'Virtual file {filename}.h5 and list file {filename}.lst successfully exported.')
