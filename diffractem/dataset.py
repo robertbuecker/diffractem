@@ -1,5 +1,4 @@
-# dedicated to Thea and The Penguin
-
+# dedicated to the penguin
 import pandas as pd
 import numpy as np
 import dask.array.gufunc
@@ -249,6 +248,25 @@ class Dataset:
         self._peaks_changed = True
             
     @property
+    def peakdata(self) -> Dict[str, da.Array]:
+        """Stored Bragg reflection data in CXI format, if present. Otherwise raises error."""
+        if all([sn in self.stacks for sn in ['nPeaks', 'peakXPosRaw', 'peakYPosRaw']]):
+            pkdat = {k: v for k, v in self.stacks.items() if k in ['nPeaks', 'peakXPosRaw', 'peakYPosRaw']}
+            if 'peakTotalIntensity' in self.stacks:
+                pkdat['peakTotalIntensity'] = self.stacks['peakTotalIntensity']
+            return pkdat
+        else:
+            raise ValueError('No peak data found in dataset.')
+        
+    @peakdata.setter
+    def peakdata(self, v: Dict[str, Union[da.Array, np.ndarray]]):
+        if all([sn in v for sn in ['nPeaks', 'peakXPosRaw', 'peakYPosRaw']]):
+            for k, v in v.items():
+                self.add_stack(k, v, overwrite=True)
+        else:
+            raise ValueError('Supplied peak data is incomplete.')
+            
+    @property
     def zchunks(self) -> tuple:
         """Chunks of dask arrays holding the stacks along their first (that is, stacked) axis."""
         # z chunks of dataset stacks
@@ -271,7 +289,12 @@ class Dataset:
             self._diff_stack_label = value
         else: 
             ValueError(f'{value} is not a stack.')
-
+        
+    @property
+    def diffdata(self) -> da.Array:
+        """Returns diffraction data stack (as identified by the diff_stack_label property"""
+        return self.stacks[self.diff_stack_label]
+    
     @classmethod
     def from_files(cls, files: Union[list, str, tuple], open_stacks: bool = True, chunking: Union[int, str] = 'hdf5', 
                    persist_meta: bool = True, init_stacks: bool = False, load_tables: bool = True, 
