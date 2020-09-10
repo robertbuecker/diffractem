@@ -533,7 +533,7 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
     return sd, overall, so
 
 
-def viewing_widget(ds_disp):
+def viewing_widget(ds_disp, Imax=30, log=False):
     from ipywidgets import interact, interactive, fixed, interact_manual
     import ipywidgets as widgets
     from IPython.display import display
@@ -550,7 +550,7 @@ def viewing_widget(ds_disp):
     
     fh.canvas.toolbar_position='bottom'    
     fh.canvas.header_visible=False    
-    ih = ax.imshow(img_stack[0,...].compute(), vmin=0, vmax=30, cmap='gray_r')
+    ih = ax.imshow(img_stack[0,...].compute(), vmin=0, vmax=Imax, cmap='gray_r')
     if have_peaks:
         sc = ax.scatter([], [], c='g', alpha=0.1)
     if have_center:
@@ -564,11 +564,11 @@ def viewing_widget(ds_disp):
     w_selected = widgets.ToggleButton(False, description='selected')
     w_indicator = widgets.Label(f'{ds_disp.shots.selected.sum()} of {len(ds_disp.shots)} shots selected.')
     w_info = widgets.Textarea(layout=widgets.Layout(height='100%'))
-    w_vmax = widgets.FloatText(30, description='Imax')
-    w_log = widgets.Checkbox(False, description='log')
+    w_vmax = widgets.FloatText(Imax, description='Imax')
+    w_log = widgets.Checkbox(log, description='log')
     # w_info_parent = widgets.Accordion(children=[w_info])
     
-    def update(shot=0, vmax=30, log=False):
+    def update(shot=0, vmax=Imax, log=log):
         shdat = ds_disp.shots.loc[shot]
         w_selected.value = bool(shdat.selected)
         w_info.value = '\n'.join([f'{k}: {v}' for k, v in shdat.items()])
