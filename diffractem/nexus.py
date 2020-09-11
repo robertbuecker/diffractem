@@ -9,9 +9,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from warnings import warn
-
-from tornado.gen import KeyReuseError
-from diffractem.io import expand_files, dict_to_h5
+from .io import expand_files, dict_to_h5
 
 
 def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
