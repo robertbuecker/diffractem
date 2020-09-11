@@ -160,10 +160,12 @@
 <span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">least_squares</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ProcessPoolExecutor</span><span class="p">,</span> <span class="n">wait</span><span class="p">,</span> <span class="n">ALL_COMPLETED</span>
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">ProcessPoolExecutor</span><span class="p">,</span> <span class="n">wait</span><span class="p">,</span> <span class="n">ALL_COMPLETED</span>
 <span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="kn">import</span> <span class="n">current_process</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
 <span class="kn">from</span> <span class="nn">.pre_proc_opts</span> <span class="kn">import</span> <span class="n">PreProcOpts</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">tools</span><span class="p">,</span> <span class="n">proc2d</span>
+<span class="kn">from</span> <span class="nn">warnings</span> <span class="kn">import</span> <span class="n">warn</span>
 
 
 <span class="k">def</span> <span class="nf">_ctr_from_pks</span><span class="p">(</span><span class="n">pkl</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">p0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
@@ -259,6 +261,105 @@
 
     <span class="k">return</span> <span class="n">cpos</span></div>
 
+
+<div class="viewcode-block" id="get_acf"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.get_acf">[docs]</a><span class="k">def</span> <span class="nf">get_acf</span><span class="p">(</span><span class="n">npk</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">I</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">roi_length</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">output_radius</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> 
+            <span class="n">oversample</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">radial</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">px_ang</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">execution</span><span class="o">=</span><span class="s1">&#39;processes&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Gets the autocorrelation/pair correlation function of Bragg peak positions, </span>
+<span class="sd">    optionally with intensity weighting.</span>
+<span class="sd">    </span>
+<span class="sd">    It is important to set the computation region properly (i.e., the</span>
+<span class="sd">    maximum peak positions from the center to take into account), as this affects</span>
+<span class="sd">    computation speed and impact of non-paraxiality at larger angles. It can</span>
+<span class="sd">    be defined using the `roi_length` argument.</span>
+<span class="sd">    </span>
+<span class="sd">    Peaks must be given in CXI format.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        npk (np.ndarray, int): number of peaks</span>
+<span class="sd">        x (np.ndarray): x-coordinates of peaks, *relative to pattern center*</span>
+<span class="sd">        y (np.ndarray): y-coordinates of peaks, *relative to pattern center*</span>
+<span class="sd">        I ([type], optional): peak intensities. Set to 1 if None. Defaults to None.</span>
+<span class="sd">        roi_length (int, optional): edge length of the region around the image</span>
+<span class="sd">            center that is used for the computation. Defaults to 512.</span>
+<span class="sd">        output_radius (int, optional): maximum included radius of the output ACF. </span>
+<span class="sd">            The size of the 2D output will be 2*output_radius*oversample, </span>
+<span class="sd">            the size of the radial average will be output_radius*oversample. Defaults to 600.</span>
+<span class="sd">        oversample (int, optional): oversampling, that is, by how much smaller the bin</span>
+<span class="sd">            sizes of the output are than that of the input (usually the pixels). Defaults to 4.</span>
+<span class="sd">        radial (bool, optional): compute the radial average of the ACF. Defaults to True.</span>
+<span class="sd">        px_ang (double, optional): diffraction angle corresponding to a distance of 1 pixel</span>
+<span class="sd">            from the center, given in rad (practically: detector pixel size/cam length). If</span>
+<span class="sd">            given, non-paraxiality of the geometry is corrected (not tested well yet).</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">        execution (str, optional): way of parallelism if a stack of pattern peak data</span>
+<span class="sd">            is supplied. Can be &#39;single-threaded&#39;, &#39;threads&#39;, &#39;processes&#39;.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: 2D autocorrelation function. </span>
+<span class="sd">            Length will be 2 * oversample * output_range</span>
+<span class="sd">        np.ndarray: 1D radial sum (None for radial=False). </span>
+<span class="sd">            Length will be oversample * output_ramge</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">fft</span>
+    <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">repeat</span>
+    
+    <span class="c1"># if a stack of pattern data is supplied, call recursively on single shots</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">npk</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">npk</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">_all_args</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">npk</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">repeat</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">I</span><span class="p">)</span>
+        <span class="n">_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;roi_length&#39;</span><span class="p">:</span> <span class="n">roi_length</span><span class="p">,</span> 
+                   <span class="s1">&#39;output_radius&#39;</span><span class="p">:</span> <span class="n">output_radius</span><span class="p">,</span>
+                   <span class="s1">&#39;oversample&#39;</span><span class="p">:</span> <span class="n">oversample</span><span class="p">,</span>
+                   <span class="s1">&#39;radial&#39;</span><span class="p">:</span> <span class="n">radial</span><span class="p">,</span>
+                   <span class="s1">&#39;px_ang&#39;</span><span class="p">:</span> <span class="n">px_ang</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">execution</span> <span class="o">==</span> <span class="s1">&#39;single-threaded&#39;</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_acf</span><span class="p">(</span><span class="o">*</span><span class="n">_args</span><span class="p">,</span> <span class="o">**</span><span class="n">_kwargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">_args</span> <span class="ow">in</span> <span class="n">_all_args</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="p">(</span><span class="n">ProcessPoolExecutor</span><span class="p">()</span> <span class="k">if</span> <span class="n">execution</span><span class="o">==</span><span class="s1">&#39;processes&#39;</span> 
+              <span class="k">else</span> <span class="n">ThreadPoolExecutor</span><span class="p">())</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="n">ftrs</span> <span class="o">=</span> <span class="p">[</span><span class="n">exc</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">get_acf</span><span class="p">,</span> <span class="o">*</span><span class="n">_args</span><span class="p">,</span> <span class="o">**</span><span class="n">_kwargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">_args</span> <span class="ow">in</span> <span class="n">_all_args</span><span class="p">]</span>
+                <span class="n">wait</span><span class="p">(</span><span class="n">ftrs</span><span class="p">,</span> <span class="n">return_when</span><span class="o">=</span><span class="s1">&#39;FIRST_EXCEPTION&#39;</span><span class="p">);</span>
+                <span class="c1"># for ftr in ftrs:</span>
+                <span class="c1">#     if ftr.exception() is not None:</span>
+                <span class="c1">#         raise ftr.exception()</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">result</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">ftrs</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">stk</span><span class="p">)</span> <span class="k">for</span> <span class="n">stk</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">res</span><span class="p">))</span>  
+    
+    
+    <span class="n">sz</span> <span class="o">=</span> <span class="n">roi_length</span> <span class="o">*</span> <span class="n">oversample</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">output_radius</span> <span class="o">*</span> <span class="n">oversample</span>
+    
+    <span class="n">pkx</span> <span class="o">=</span> <span class="p">(</span><span class="n">oversample</span> <span class="o">*</span> <span class="n">x</span><span class="p">[:</span><span class="n">npk</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">+</span> <span class="n">sz</span><span class="o">//</span><span class="mi">2</span>
+    <span class="n">pky</span> <span class="o">=</span> <span class="p">(</span><span class="n">oversample</span> <span class="o">*</span> <span class="n">y</span><span class="p">[:</span><span class="n">npk</span><span class="p">])</span><span class="o">.</span><span class="n">round</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">+</span> <span class="n">sz</span><span class="o">//</span><span class="mi">2</span>
+    <span class="n">pkI</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">I</span><span class="p">[:</span><span class="n">npk</span><span class="p">]</span>
+    
+    <span class="k">if</span> <span class="n">px_ang</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">t_par</span> <span class="o">=</span> <span class="p">(</span><span class="n">pkx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">pky</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">**.</span><span class="mi">5</span> <span class="o">*</span> <span class="n">px_ang</span>
+        <span class="n">acorr</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="n">t_par</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">t_par</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">acorr</span> <span class="o">=</span> <span class="mi">1</span>
+        
+    <span class="n">valid</span> <span class="o">=</span> <span class="p">(</span><span class="n">pkx</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pkx</span> <span class="o">&lt;</span> <span class="n">sz</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pky</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pky</span> <span class="o">&lt;</span> <span class="n">sz</span><span class="p">)</span>
+    <span class="n">pkx</span><span class="p">,</span> <span class="n">pky</span><span class="p">,</span> <span class="n">pkI</span> <span class="o">=</span> <span class="n">acorr</span><span class="o">*</span><span class="n">pkx</span><span class="p">[</span><span class="n">valid</span><span class="p">],</span> <span class="n">acorr</span><span class="o">*</span><span class="n">pky</span><span class="p">[</span><span class="n">valid</span><span class="p">],</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">pkI</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
+    <span class="n">dense</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">sz</span><span class="p">,</span> <span class="n">sz</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float</span> <span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="n">dense</span><span class="p">[</span><span class="n">pkx</span><span class="p">,</span> <span class="n">pky</span><span class="p">]</span> <span class="o">=</span> <span class="n">pkI</span> <span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="n">acf</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">ifft2</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">fft</span><span class="o">.</span><span class="n">fft2</span><span class="p">(</span><span class="n">dense</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">acf</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span><span class="n">acf</span><span class="p">)</span><span class="o">.</span><span class="n">real</span>
+    <span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># if no intensities were given, the result is (should be) </span>
+        <span class="c1"># integer, up to numerical noise</span>
+        <span class="n">acf</span> <span class="o">=</span> <span class="n">acf</span><span class="o">.</span><span class="n">round</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">acf</span><span class="p">[</span><span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">valid</span><span class="p">):</span>
+            <span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Autocorrelation center pixel (</span><span class="si">{</span><span class="n">acf</span><span class="p">[</span><span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="p">]</span><span class="si">}</span><span class="s1">) does not equal the peak number (</span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="n">valid</span><span class="p">)</span><span class="si">}</span><span class="s1">)!&#39;</span><span class="p">)</span>
+    <span class="n">acf</span><span class="p">[</span><span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># remove self-correlation (which will be equal to the peak number)</span>
+    <span class="k">if</span> <span class="n">radial</span><span class="p">:</span>
+        <span class="n">rad</span> <span class="o">=</span> <span class="n">proc2d</span><span class="o">.</span><span class="n">radial_proj</span><span class="p">(</span><span class="n">acf</span><span class="p">,</span> <span class="n">min_size</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span> <span class="n">max_size</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span> 
+                             <span class="n">my_func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span> <span class="n">x0</span><span class="o">=</span><span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="n">y0</span><span class="o">=</span><span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rad</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">acf</span><span class="p">[</span><span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="n">rng</span><span class="p">:</span><span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="n">rng</span><span class="p">,</span> <span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="n">rng</span><span class="p">:</span><span class="n">sz</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="n">rng</span><span class="p">],</span> <span class="n">rad</span></div>
+
+
 <div class="viewcode-block" id="get_pk_data"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.get_pk_data">[docs]</a><span class="k">def</span> <span class="nf">get_pk_data</span><span class="p">(</span><span class="n">n_pk</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">pk_x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">pk_y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> 
                 <span class="n">ctr_x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">ctr_y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">pk_I</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                 <span class="n">opts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PreProcOpts</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -308,6 +409,404 @@
     
     <span class="k">return</span> <span class="n">res</span></div>
     
+<div class="viewcode-block" id="Cell"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell">[docs]</a><span class="k">class</span> <span class="nc">Cell</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Partially stolen from the PyFAI package, with some simplifications </span>
+<span class="sd">    and speed enhancements for d-spacing calculation, as well as a </span>
+<span class="sd">    new refinement function.</span>
+<span class="sd">    </span>
+<span class="sd">    Calculates d-spacings and cell volume as described in:</span>
+<span class="sd">    http://geoweb3.princeton.edu/research/MineralPhy/xtalgeometry.pdf</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lattices</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;cubic&quot;</span><span class="p">,</span> <span class="s2">&quot;tetragonal&quot;</span><span class="p">,</span> <span class="s2">&quot;hexagonal&quot;</span><span class="p">,</span> <span class="s2">&quot;rhombohedral&quot;</span><span class="p">,</span> 
+                <span class="s2">&quot;orthorhombic&quot;</span><span class="p">,</span> <span class="s2">&quot;monoclinic&quot;</span><span class="p">,</span> <span class="s2">&quot;triclinic&quot;</span><span class="p">]</span>
+    <span class="n">ctr_types</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;P&quot;</span><span class="p">:</span> <span class="s2">&quot;Primitive&quot;</span><span class="p">,</span>
+             <span class="s2">&quot;I&quot;</span><span class="p">:</span> <span class="s2">&quot;Body centered&quot;</span><span class="p">,</span>
+             <span class="s2">&quot;F&quot;</span><span class="p">:</span> <span class="s2">&quot;Face centered&quot;</span><span class="p">,</span>
+             <span class="s2">&quot;C&quot;</span><span class="p">:</span> <span class="s2">&quot;Side centered&quot;</span><span class="p">,</span>
+             <span class="s2">&quot;R&quot;</span><span class="p">:</span> <span class="s2">&quot;Rhombohedral&quot;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> 
+                 <span class="n">lattice_type</span><span class="o">=</span><span class="s2">&quot;triclinic&quot;</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> 
+                 <span class="n">unique_axis</span><span class="o">=</span><span class="s2">&quot;c&quot;</span><span class="p">,</span> <span class="n">d_min</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor of the Cell class:</span>
+
+<span class="sd">        Crystallographic units are Angstrom for distances and degrees for angles</span>
+
+<span class="sd">        :param a,b,c: unit cell length in Angstrom</span>
+<span class="sd">        :param alpha, beta, gamma: unit cell angle in degrees</span>
+<span class="sd">        :param lattice: &quot;cubic&quot;, &quot;tetragonal&quot;, &quot;hexagonal&quot;, &quot;rhombohedral&quot;, &quot;orthorhombic&quot;, &quot;monoclinic&quot;, &quot;triclinic&quot;</span>
+<span class="sd">        :param lattice_type: P, I, F, C or R</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="o">=</span> <span class="n">a</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">b</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="n">c</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">=</span> <span class="n">beta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">=</span> <span class="n">gamma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="o">=</span> <span class="n">lattice_type</span> <span class="k">if</span> <span class="n">lattice_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattices</span> <span class="k">else</span> <span class="s2">&quot;triclinic&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_centering</span> <span class="o">=</span> <span class="n">centering</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unique_axis</span> <span class="o">=</span> <span class="n">unique_axis</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_volume</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selection_rules</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="s2">&quot;contains a list of functions returning True(allowed)/False(forbidden)/None(unknown)&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">centering</span> <span class="o">=</span> <span class="s2">&quot;P&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hkl</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_d_min</span> <span class="o">=</span> <span class="n">d_min</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_hkl</span><span class="p">(</span><span class="n">d_min</span><span class="p">)</span>
+ 
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> cell (unique </span><span class="si">%s</span><span class="s2">) a=</span><span class="si">%.4f</span><span class="s2"> b=</span><span class="si">%.4f</span><span class="s2"> c=</span><span class="si">%.4f</span><span class="s2"> alpha=</span><span class="si">%.3f</span><span class="s2"> beta=</span><span class="si">%.3f</span><span class="s2"> gamma=</span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> \
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ctr_types</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">centering</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_axis</span><span class="p">,</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Cell.cubic"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.cubic">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">cubic</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="s2">&quot;P&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Factory for cubic lattice_types</span>
+
+<span class="sd">        :param a: unit cell length</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span>
+                   <span class="n">lattice_type</span><span class="o">=</span><span class="s2">&quot;cubic&quot;</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="n">centering</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="Cell.tetragonal"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.tetragonal">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tetragonal</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="s2">&quot;P&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Factory for tetragonal lattice_types</span>
+
+<span class="sd">        :param a: unit cell length</span>
+<span class="sd">        :param c: unit cell length</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span>
+                   <span class="n">lattice_type</span><span class="o">=</span><span class="s2">&quot;tetragonal&quot;</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="n">centering</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="Cell.orthorhombic"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.orthorhombic">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">orthorhombic</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="s2">&quot;P&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Factory for orthorhombic lattice_types</span>
+
+<span class="sd">        :param a: unit cell length</span>
+<span class="sd">        :param b: unit cell length</span>
+<span class="sd">        :param c: unit cell length</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">b</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span>
+                   <span class="n">lattice_type</span><span class="o">=</span><span class="s2">&quot;orthorhombic&quot;</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="n">centering</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="Cell.hexagonal"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.hexagonal">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">hexagonal</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="s2">&quot;P&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Factory for hexagonal lattice_types</span>
+
+<span class="sd">        :param a: unit cell length</span>
+<span class="sd">        :param c: unit cell length</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span>
+                   <span class="n">lattice_type</span><span class="o">=</span><span class="s2">&quot;hexagonal&quot;</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="n">centering</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="Cell.monoclinic"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.monoclinic">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">monoclinic</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="s2">&quot;P&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Factory for hexagonal lattice_types</span>
+
+<span class="sd">        :param a: unit cell length</span>
+<span class="sd">        :param b: unit cell length</span>
+<span class="sd">        :param c: unit cell length</span>
+<span class="sd">        :param beta: unit cell angle</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">b</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="mi">90</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">beta</span><span class="p">),</span> <span class="mi">90</span><span class="p">,</span>
+                   <span class="n">centering</span><span class="o">=</span><span class="n">centering</span><span class="p">,</span> <span class="n">lattice_type</span><span class="o">=</span><span class="s2">&quot;monoclinic&quot;</span><span class="p">,</span> 
+                   <span class="n">unique_axis</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="Cell.rhombohedral"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.rhombohedral">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">rhombohedral</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="s2">&quot;P&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Factory for hexagonal lattice_types</span>
+
+<span class="sd">        :param a: unit cell length</span>
+<span class="sd">        :param alpha: unit cell angle</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span>
+                   <span class="n">lattice_type</span><span class="o">=</span><span class="s2">&quot;rhombohedral&quot;</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="n">centering</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="Cell.diamond"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.diamond">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">diamond</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">a</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Factory for Diamond type FCC like Si and Ge</span>
+
+<span class="sd">        :param a: unit cell length</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">centering</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selection_rules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="k">lambda</span> <span class="n">h</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">:</span> <span class="ow">not</span><span class="p">((</span><span class="n">h</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">k</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">l</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">((</span><span class="n">h</span> <span class="o">+</span> <span class="n">k</span> <span class="o">+</span> <span class="n">l</span><span class="p">)</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+       
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">volume</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_volume</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_volume</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;cubic&quot;</span><span class="p">,</span> <span class="s2">&quot;tetragonal&quot;</span><span class="p">,</span> <span class="s2">&quot;orthorhombic&quot;</span><span class="p">]:</span>
+                <span class="n">cosa</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">180.</span><span class="p">)</span>
+                <span class="n">cosb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">180.</span><span class="p">)</span>
+                <span class="n">cosg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">180.</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_volume</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">cosa</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">cosb</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">cosg</span> <span class="o">**</span> <span class="mi">2</span> 
+                                        <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">cosa</span> <span class="o">*</span> <span class="n">cosb</span> <span class="o">*</span> <span class="n">cosg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_volume</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">centering</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centering</span>
+
+    <span class="nd">@centering</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">centering</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">centering</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_centering</span> <span class="o">=</span> <span class="n">centering</span> <span class="k">if</span> <span class="n">centering</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ctr_types</span> <span class="k">else</span> <span class="s2">&quot;P&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selection_rules</span> <span class="o">=</span> <span class="p">[</span><span class="k">lambda</span> <span class="n">h</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">:</span> <span class="o">~</span><span class="p">((</span><span class="n">h</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">k</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">l</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centering</span> <span class="o">==</span> <span class="s2">&quot;I&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">selection_rules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="k">lambda</span> <span class="n">h</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">:</span> <span class="p">(</span><span class="n">h</span> <span class="o">+</span> <span class="n">k</span> <span class="o">+</span> <span class="n">l</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centering</span> <span class="o">==</span> <span class="s2">&quot;F&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">selection_rules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="k">lambda</span> <span class="n">h</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">h</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">k</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">l</span> <span class="o">%</span> <span class="mi">2</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centering</span> <span class="o">==</span> <span class="s2">&quot;R&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">selection_rules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="k">lambda</span> <span class="n">h</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span><span class="p">:</span> <span class="p">((</span><span class="n">h</span> <span class="o">-</span> <span class="n">k</span> <span class="o">+</span> <span class="n">l</span><span class="p">)</span> <span class="o">%</span> <span class="mi">3</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))</span>
+        
+<div class="viewcode-block" id="Cell.init_hkl"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.init_hkl">[docs]</a>    <span class="k">def</span> <span class="nf">init_hkl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets up a grid with valid Miller indices for this lattice.</span>
+<span class="sd">        Useful to pre-compute the indices before running any optimization,</span>
+<span class="sd">        which speeds up the computation.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            d_min (float, optional): Minimum d-spacing, in A. Defaults to 5.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hmax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="o">/</span> <span class="n">d_min</span><span class="p">))</span>
+        <span class="n">kmax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">/</span> <span class="n">d_min</span><span class="p">))</span>
+        <span class="n">lmax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">/</span> <span class="n">d_min</span><span class="p">))</span>
+        <span class="n">hkl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mgrid</span><span class="p">[</span><span class="o">-</span><span class="n">hmax</span><span class="p">:</span><span class="n">hmax</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="n">kmax</span><span class="p">:</span><span class="n">kmax</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="n">lmax</span><span class="p">:</span><span class="n">lmax</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">r</span><span class="p">(</span><span class="o">*</span><span class="n">hkl</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">selection_rules</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hkl</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">H</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="k">for</span> <span class="n">H</span> <span class="ow">in</span> <span class="n">hkl</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="p">(</span><span class="n">d_min</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hkl</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">H</span><span class="p">[</span><span class="n">d</span> <span class="o">&gt;=</span> <span class="n">d_min</span><span class="p">]</span> <span class="k">for</span> <span class="n">H</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hkl</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_d_min</span> <span class="o">=</span> <span class="n">d_min</span></div>
+        
+<div class="viewcode-block" id="Cell.d"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.d">[docs]</a>    <span class="k">def</span> <span class="nf">d</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d_min</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+          <span class="n">alpha</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates d-spacings for the cell. Cell parameters can</span>
+<span class="sd">        transiently be changed, which does *not* affect the values</span>
+<span class="sd">        stored with the cell object. This is useful in the context</span>
+<span class="sd">        of optimization.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            d_min (float, optional): Minimum d-spacing. If None, uses</span>
+<span class="sd">                the stored value of the object which can be set using </span>
+<span class="sd">                init_hkl. Leaving it at None significantly speeds</span>
+<span class="sd">                up the computation, which is recommended for</span>
+<span class="sd">                refinements. Defaults to None.</span>
+<span class="sd">            unique (bool, optional): if True, only unique d-spacings</span>
+<span class="sd">                are returned. Otherwise, all spacings are returned which</span>
+<span class="sd">                are ordered the same way as in the object&#39;s hkl attribute. </span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            a (float, optional): Temporary cell length. Defaults to None.</span>
+<span class="sd">            b (float, optional): Temporary cell length. Defaults to None.</span>
+<span class="sd">            c (float, optional): Temporary cell length. Defaults to None.</span>
+<span class="sd">            alpha (float, optional): Temporary cell angle. Defaults to None.</span>
+<span class="sd">            beta  (float, optional): Temporary cell angle. Defaults to None.</span>
+<span class="sd">            gamma (float, optional): Temporary cell angle. Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Array of d-spacings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        
+        <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">a</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="k">if</span> <span class="n">b</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">b</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">c</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="k">if</span> <span class="n">alpha</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">alpha</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="k">if</span> <span class="n">beta</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">beta</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="k">if</span> <span class="n">gamma</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">gamma</span>
+        
+        <span class="k">if</span> <span class="p">(</span><span class="n">d_min</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">d_min</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_d_min</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_hkl</span><span class="p">(</span><span class="n">d_min</span><span class="p">)</span>
+        
+        <span class="n">h</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hkl</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;cubic&quot;</span><span class="p">,</span> <span class="s2">&quot;tetragonal&quot;</span><span class="p">,</span> <span class="s2">&quot;orthorhombic&quot;</span><span class="p">]:</span>
+            <span class="n">invd2</span> <span class="o">=</span> <span class="p">(</span><span class="n">h</span> <span class="o">/</span> <span class="n">a</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">k</span> <span class="o">/</span> <span class="n">b</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">l</span> <span class="o">/</span> <span class="n">c</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cosa</span><span class="p">,</span> <span class="n">sina</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">)</span>
+            <span class="n">cosb</span><span class="p">,</span> <span class="n">sinb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">beta</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">beta</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">)</span>
+            <span class="n">cosg</span><span class="p">,</span> <span class="n">sing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">)</span>
+            <span class="n">S11</span> <span class="o">=</span> <span class="p">(</span><span class="n">b</span> <span class="o">*</span> <span class="n">c</span> <span class="o">*</span> <span class="n">sina</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">S22</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">c</span> <span class="o">*</span> <span class="n">sinb</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">S33</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">*</span> <span class="n">sing</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">S12</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">*</span> <span class="n">c</span> <span class="o">*</span> <span class="n">c</span> <span class="o">*</span> <span class="p">(</span><span class="n">cosa</span> <span class="o">*</span> <span class="n">cosb</span> <span class="o">-</span> <span class="n">cosg</span><span class="p">)</span>
+            <span class="n">S23</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">*</span> <span class="n">c</span> <span class="o">*</span> <span class="p">(</span><span class="n">cosb</span> <span class="o">*</span> <span class="n">cosg</span> <span class="o">-</span> <span class="n">cosa</span><span class="p">)</span>
+            <span class="n">S13</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">*</span> <span class="n">b</span> <span class="o">*</span> <span class="n">c</span> <span class="o">*</span> <span class="p">(</span><span class="n">cosg</span> <span class="o">*</span> <span class="n">cosa</span> <span class="o">-</span> <span class="n">cosb</span><span class="p">)</span>
+
+            <span class="n">invd2</span> <span class="o">=</span> <span class="p">(</span><span class="n">S11</span> <span class="o">*</span> <span class="n">h</span> <span class="o">*</span> <span class="n">h</span> <span class="o">+</span>
+                     <span class="n">S22</span> <span class="o">*</span> <span class="n">k</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span>
+                     <span class="n">S33</span> <span class="o">*</span> <span class="n">l</span> <span class="o">*</span> <span class="n">l</span> <span class="o">+</span>
+                     <span class="mi">2</span> <span class="o">*</span> <span class="n">S12</span> <span class="o">*</span> <span class="n">h</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span>
+                     <span class="mi">2</span> <span class="o">*</span> <span class="n">S23</span> <span class="o">*</span> <span class="n">k</span> <span class="o">*</span> <span class="n">l</span> <span class="o">+</span>
+                     <span class="mi">2</span> <span class="o">*</span> <span class="n">S13</span> <span class="o">*</span> <span class="n">h</span> <span class="o">*</span> <span class="n">l</span><span class="p">)</span>
+            <span class="n">invd2</span> <span class="o">/=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">volume</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+            
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">invd2</span><span class="p">)</span> <span class="k">if</span> <span class="n">unique</span> <span class="k">else</span> <span class="n">invd2</span><span class="p">))</span> </div>
+    
+    <span class="n">d_spacing</span> <span class="o">=</span> <span class="n">d</span>  
+    
+<div class="viewcode-block" id="Cell.export"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.export">[docs]</a>    <span class="k">def</span> <span class="nf">export</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;refined.cell&#39;</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">textwrap</span> <span class="kn">import</span> <span class="n">dedent</span>
+        <span class="sd">&quot;&quot;&quot;Exports the cell to a CrystFEL cell file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (str, optional): Cell file name. Defaults to &#39;refined.cell&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="n">cellfile</span> <span class="o">=</span> <span class="n">dedent</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">        CrystFEL unit cell file version 1.0   </span>
+<span class="s1">             </span>
+<span class="s1">        lattice_type = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span><span class="si">}</span><span class="s1"></span>
+<span class="s1">        centering = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">centering</span><span class="si">}</span><span class="s1"></span>
+<span class="s1">        unique_axis = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">unique_axis</span><span class="si">}</span><span class="s1"></span>
+<span class="s1">        </span>
+<span class="s1">        a = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">a</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> A</span>
+<span class="s1">        b = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> A</span>
+<span class="s1">        c = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> A</span>
+<span class="s1">        </span>
+<span class="s1">        al = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1"> deg</span>
+<span class="s1">        be = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1"> deg</span>
+<span class="s1">        ga = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1"> deg</span>
+<span class="s1">        &#39;&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cellfile</span><span class="p">)</span></div>
+            
+<div class="viewcode-block" id="Cell.refine_powder"><a class="viewcode-back" href="../../diffractem.proc_peaks.html#diffractem.proc_peaks.Cell.refine_powder">[docs]</a>    <span class="k">def</span> <span class="nf">refine_powder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">svec</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;distance&#39;</span><span class="p">,</span>
+                  <span class="n">fill</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">min_prom</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">min_height</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> 
+                  <span class="n">weights</span><span class="o">=</span><span class="s1">&#39;prom&#39;</span><span class="p">,</span> <span class="n">length_bound</span><span class="o">=</span><span class="mf">2.</span><span class="p">,</span> <span class="n">angle_bound</span><span class="o">=</span><span class="mf">3.</span><span class="p">,</span>
+                  <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Refine unit cell parameters against a powder pattern.</span>
+<span class="sd">        The refinement is done using a least-squares fit, where you can</span>
+<span class="sd">        pick three different cost functions:</span>
+<span class="sd">        </span>
+<span class="sd">        * &#39;distance&#39;: the positions of the peaks in the powder pattern</span>
+<span class="sd">            are detected. For each peak, the distance to the closest</span>
+<span class="sd">            d-spacing is computed.</span>
+<span class="sd">        * &#39;xcorr&#39;: the inverse values of the powder pattern at the</span>
+<span class="sd">            d-spacings are computed.</span>
+<span class="sd">        * &#39;derivative&#39;: the derivative of the powder pattern at the</span>
+<span class="sd">            d-spacings are computed</span>
+<span class="sd">            </span>
+<span class="sd">        Depending on the chosen method, further parameters can be set.</span>
+<span class="sd">        The function returns a new Cell object with refined parameters, and</span>
+<span class="sd">        a structure with some useful information.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            svec (np.ndarray): scattering vector (x-axis) of the powder pattern,</span>
+<span class="sd">                expressed in inverse nanometer (not angstrom - following</span>
+<span class="sd">                CrystFEL convention).</span>
+<span class="sd">            pattern (np.ndarray): powder pattern at values svec (y-axis)</span>
+<span class="sd">            method (str, optional): Cost function. See description. </span>
+<span class="sd">                Defaults to &#39;distance&#39;.</span>
+<span class="sd">            fill (float, optional): Fill value for out-of-range or zero-count</span>
+<span class="sd">                s-vectors if method is &#39;derivative&#39; or &#39;xcorr&#39;. Defaults to 0.1.</span>
+<span class="sd">            min_prom (float, optional): Minimum prominence of peaks (that is,</span>
+<span class="sd">                height relative to its vicinity) if method is &#39;distance&#39;. Increase</span>
+<span class="sd">                if too many small peaks are spuriously detected. Usually it is</span>
+<span class="sd">                a good idea. Defaults to 0.</span>
+<span class="sd">            min_height (float, optional): Minimum peak height to be detected. </span>
+<span class="sd">                Usually min_prom is the better parameter. Defaults to 0.</span>
+<span class="sd">            weights (str, optional): Weights of the peaks for the least-squares</span>
+<span class="sd">                optimization if method is &#39;derivative&#39;. Can be &#39;prom&#39; or &#39;height&#39;.</span>
+<span class="sd">                Defaults to &#39;prom&#39;.</span>
+<span class="sd">            length_bound (float, optional): Bound range for cell lengths, in A. </span>
+<span class="sd">                Defaults to 2.</span>
+<span class="sd">            angle_bound (float, optional): Bound range for cell angles. Defaults to 3.</span>
+<span class="sd">            **kwargs: Further arguments will be passed on to scipy.least_sqaures</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            tuple: 2-Tuple of a new Cell object with the refined parameters, and</span>
+<span class="sd">                a structure with useful information from the optimization, including</span>
+<span class="sd">                the peak positions and heights if method was &#39;distance&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">interp1d</span>
+        <span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">least_squares</span>
+        
+        <span class="c1"># find out which parameters should be optimized</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="o">==</span> <span class="s1">&#39;triclinic&#39;</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">,</span> <span class="s1">&#39;beta&#39;</span><span class="p">,</span> <span class="s1">&#39;gamma&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="o">==</span> <span class="s1">&#39;monolinic&#39;</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="s1">&#39;beta&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="o">==</span> <span class="s1">&#39;orthorhombic&#39;</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="o">==</span> <span class="s1">&#39;tetragonal&#39;</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="o">==</span> <span class="s1">&#39;cubic&#39;</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="o">==</span> <span class="s1">&#39;hexagonal&#39;</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span> <span class="o">==</span> <span class="s1">&#39;rhombohedral&#39;</span><span class="p">:</span>
+            <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;This should not happen. Yell at Robert.&#39;</span><span class="p">)</span>
+        
+        <span class="n">_</span><span class="p">,</span> <span class="n">unique_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="p">(),</span> <span class="n">return_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1"># unique d-spacings</span>
+        <span class="n">p0</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cpar</span><span class="p">)</span> <span class="k">for</span> <span class="n">cpar</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">]</span>
+        <span class="n">dsp</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">cpar</span><span class="p">:</span> <span class="n">p</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">cpar</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">parameters</span><span class="p">)})[</span><span class="n">unique_pos</span><span class="p">]</span>
+        <span class="n">bounds</span> <span class="o">=</span> <span class="p">([</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cpar</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">length_bound</span> <span class="k">if</span> <span class="n">cpar</span> <span class="ow">in</span> <span class="s1">&#39;abc&#39;</span> <span class="k">else</span> <span class="n">angle_bound</span><span class="p">)</span> 
+                  <span class="k">for</span> <span class="n">cpar</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">],</span>
+                  <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cpar</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">length_bound</span> <span class="k">if</span> <span class="n">cpar</span> <span class="ow">in</span> <span class="s1">&#39;abc&#39;</span> <span class="k">else</span> <span class="n">angle_bound</span><span class="p">)</span> 
+                  <span class="k">for</span> <span class="n">cpar</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;xcorr&#39;</span><span class="p">:</span>
+            <span class="n">cost_profile</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">svec</span><span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">pattern</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">fill</span><span class="p">),</span> 
+                                    <span class="n">bounds_error</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill</span><span class="p">)</span>
+            <span class="n">cost</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">cost_profile</span><span class="p">(</span><span class="mi">10</span><span class="o">/</span><span class="n">dsp</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+            <span class="n">pk_pos</span> <span class="o">=</span> <span class="n">pk_height</span> <span class="o">=</span> <span class="n">pk_prom</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;derivative&#39;</span><span class="p">:</span>
+            <span class="n">cost_profile</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">svec</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">/</span><span class="mi">2</span><span class="o">+</span><span class="n">svec</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">pattern</span><span class="p">),</span>
+                                    <span class="n">bounds_error</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">cost</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">cost_profile</span><span class="p">(</span><span class="mi">10</span><span class="o">/</span><span class="n">dsp</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+            <span class="n">pk_pos</span> <span class="o">=</span> <span class="n">pk_height</span> <span class="o">=</span> <span class="n">pk_prom</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;distance&#39;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">find_peaks</span>        
+            <span class="n">lim</span> <span class="o">=</span> <span class="mf">0.95</span> <span class="o">*</span> <span class="mi">10</span><span class="o">/</span><span class="n">dsp</span><span class="p">(</span><span class="n">p0</span><span class="p">)</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+            <span class="n">pkdat</span> <span class="o">=</span> <span class="n">find_peaks</span><span class="p">(</span><span class="n">pattern</span><span class="p">[</span><span class="n">svec</span> <span class="o">&lt;</span> <span class="n">lim</span><span class="p">],</span> <span class="n">height</span><span class="o">=</span><span class="n">min_height</span><span class="p">,</span> <span class="n">prominence</span><span class="o">=</span><span class="n">min_prom</span><span class="p">)</span>
+            <span class="n">pk_pos</span> <span class="o">=</span> <span class="n">svec</span><span class="p">[</span><span class="n">pkdat</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="n">pk_height</span> <span class="o">=</span> <span class="n">pkdat</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;peak_heights&#39;</span><span class="p">]</span>
+            <span class="n">pk_prom</span> <span class="o">=</span> <span class="n">pkdat</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;prominences&#39;</span><span class="p">]</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">pk_prom</span> <span class="k">if</span> <span class="n">weights</span> <span class="o">==</span> <span class="s1">&#39;prom&#39;</span> <span class="k">else</span> <span class="mi">1</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">pk_height</span> <span class="k">if</span> <span class="n">weights</span> <span class="o">==</span> <span class="s1">&#39;height&#39;</span> <span class="k">else</span> <span class="mi">1</span>
+            <span class="n">cost</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="mi">100</span><span class="o">*</span><span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mi">10</span><span class="o">/</span><span class="n">dsp</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> 
+                                             <span class="o">-</span> <span class="n">pk_pos</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)))</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unknown refinement method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="n">cost_init</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">cost</span><span class="p">(</span><span class="n">p0</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">lsq</span> <span class="o">=</span> <span class="n">least_squares</span><span class="p">(</span><span class="n">cost</span><span class="p">,</span> <span class="n">p0</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        
+        <span class="c1"># return a new cell with the optimized parameters</span>
+        <span class="n">C_ref</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_type</span><span class="p">)(</span><span class="n">centering</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_centering</span><span class="p">,</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">cpar</span><span class="p">:</span> <span class="n">lsq</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">cpar</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">parameters</span><span class="p">)})</span>
+        <span class="n">C_ref</span><span class="o">.</span><span class="n">selection_rulse</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">selection_rules</span>
+        <span class="n">C_ref</span><span class="o">.</span><span class="n">init_hkl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_d_min</span><span class="p">)</span>
+        
+        <span class="n">info</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;lsq_result&#39;</span><span class="p">:</span> <span class="n">lsq</span><span class="p">,</span>
+                <span class="s1">&#39;initial_cost&#39;</span><span class="p">:</span> <span class="n">cost_init</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;distance&#39;</span><span class="p">:</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;peak_position&#39;</span><span class="p">:</span> <span class="n">pk_pos</span><span class="p">,</span>
+                         <span class="s1">&#39;peak_height&#39;</span><span class="p">:</span> <span class="n">pk_height</span><span class="p">,</span>
+                         <span class="s1">&#39;peak_prominence&#39;</span><span class="p">:</span> <span class="n">pk_prom</span><span class="p">})</span>
+            
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">lsq</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Powder refinement did not converge!&#39;</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">C_ref</span><span class="p">,</span> <span class="n">info</span></div></div>
 </pre></div>
 
            </div>
