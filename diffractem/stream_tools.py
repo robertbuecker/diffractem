@@ -123,6 +123,7 @@ def parse_stream(stream, sol=None, return_meta=True, file_label='Image filename'
                 curr_chunk = Chunk(ln)
                 
             elif (curr_chunk is not None) and (curr_cryst is None):
+                # parsing chunks (= events = shots) _outside_ crystals
                 
                 if l.startswith(END_CHUNK):
                     if not curr_chunk.initialized:
@@ -144,6 +145,7 @@ def parse_stream(stream, sol=None, return_meta=True, file_label='Image filename'
                     curr_cryst = Crystal(ln)
                 
             elif curr_cryst is not None:
+                # parsing a (single) crystal
                 
                 if l.startswith(END_CRYSTAL):
                     curr_chunk.add_crystal(curr_cryst)
