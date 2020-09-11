@@ -1,8 +1,5 @@
 # Miscellaneous supporting tool functions
-
-from build.lib.diffractem.pre_process import PreProcOpts
 from astropy.convolution import Gaussian2DKernel, convolve
-
 from . import gap_pixels
 from .stream_parser import StreamParser
 # from .dataset import Dataset
@@ -11,7 +8,6 @@ from .pre_proc_opts import PreProcOpts
 from .proc2d import correct_dead_pixels
 from typing import Iterable, Tuple, Union, Optional
 import os
-import shutil
 from tifffile import imread, imsave
 import hashlib
 import pandas as pd
@@ -587,7 +583,7 @@ def viewing_widget(ds_disp, Imax=30, log=False):
     
     fh.canvas.toolbar_position='bottom'    
     fh.canvas.header_visible=False    
-    ih = ax.imshow(img_stack[0,...].compute(), vmin=0, vmax=Imax, cmap='gray_r')
+    ih = ax.imshow(img_stack[0,...].compute(scheduler='single-threaded'), vmin=0, vmax=Imax, cmap='gray_r')
     if have_peaks:
         sc = ax.scatter([], [], c='g', alpha=0.1)
     if have_center:
