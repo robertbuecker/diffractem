@@ -506,8 +506,8 @@ class Cell(object):
         """
         
         cellfile = dedent(f'''
-        CrystFEL unit cell file version 1.0   
-             
+        CrystFEL unit cell file version 1.0
+        
         lattice_type = {self.lattice_type}
         centering = {self.centering}
         unique_axis = {self.unique_axis}
