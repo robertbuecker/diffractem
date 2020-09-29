@@ -24,6 +24,7 @@ class PreProcOpts:
         self.mask_gaps: bool = True                     #: Always mask detector gaps (regardless of dead pixel mask)
         self.interpolate_dead: bool = False             #: Interpolate dead pixels instead of masking
         self.float: bool = False                        #: Process images as floating-point
+        self.find_peaks: bool = True                #: apply peakfinder during image analysis
         self.compression: Union[int, str] = 32004       #: standard HDF5 compression. Suggested values: gzip, none, 32004 (lz4)
         self.cam_length: float = 2                     #: Average camera length (in m).
         self.y_scale: float = 0.98                     #: Scaling of camera length along y. DEPRECATED!

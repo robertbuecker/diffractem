@@ -210,9 +210,14 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
     # Get peaks using peakfinder8. Note that pf8 parameters are taken straight from the options file,
     # with automatic underscore/hyphen replacement.
     # Note that peak positions are CXI convention, i.e. refer to pixel _center_
-    peak_data = get_peaks(img, x0, y0, pxmask=pxmask, max_peaks=opts.max_peaks,
+    if opts.find_peaks:
+        peak_data = get_peaks(img, x0, y0, pxmask=pxmask, max_peaks=opts.max_peaks,
                                 **{k.replace('-','_'): v for k, v in opts.peak_search_params.items()},
                                 as_dict=True)
+    else:
+        peak_data = {'nPeaks': 0, 'peakXPosRaw': np.zeros((opts.max_peaks,)), 
+                     'peakYPosRaw': np.zeros((opts.max_peaks,)),
+                     'peakTotalIntensity': np.zeros((opts.max_peaks,))}
     
     if opts.friedel_refine and (peak_data['nPeaks'] >= opts.min_peaks):  
         
@@ -415,11 +420,12 @@ def _get_corr_img(img: np.ndarray,
     if opts.correct_saturation:
         img = apply_saturation_correction(img, opts.shutter_time, opts.dead_time, opts.dead_time_gap_factor)
     img = apply_flatfield(img, reference=reference)
-    
+
     # here, _always_ choose strategy='replace'. Interpolation will only be done on the final step
-    img = correct_dead_pixels(img, pxmask=pxmask, strategy='replace', mask_gaps=opts.mask_gaps)
+    # img = correct_dead_pixels(img, pxmask=pxmask, strategy='replace', mask_gaps=opts.mask_gaps)
+
     img = remove_background(img, x0, y0, nPeaks, peakXPosRaw, peakYPosRaw, pxmask=None)
-    
+    return img
     # has to be re-done after background correction
     img = correct_dead_pixels(img, pxmask, strategy='interpolate' if opts.interpolate_dead else 'replace', mask_gaps=opts.mask_gaps)
     
@@ -1023,7 +1029,7 @@ def cut_peaks(img: np.ndarray, nPeaks: np.ndarray, peakXPosRaw: np.ndarray,
     """
     #print(nPeaks)
     if replaceval is None:
-        replaceval = -1 if isinstance(img, np.integer) else np.nan
+        replaceval = -1 if issubclass(img.dtype.type, np.integer) else np.nan
     nPeaks = nPeaks.squeeze()
     peakXPosRaw = peakXPosRaw.squeeze()
     peakYPosRaw = peakYPosRaw.squeeze()
@@ -1165,12 +1171,13 @@ def remove_background(img: np.ndarray, x0: Optional[float] = None, y0: Optional[
     if (nPeaks is not None) and (nPeaks > 0):
         img_nopk = cut_peaks(img, nPeaks, peakXPosRaw, peakYPosRaw, radius=peak_radius, replaceval=replace_val)
     else:
-        img_nopk = img
-        
+        img_nopk = img.copy()
+    
     # ALWAYS mask gaps for the background determination
     img_nopk = correct_dead_pixels(img_nopk, pxmask, mask_gaps=True, strategy='replace')
-
+    # return img_nopk
     r0 = radial_proj(img_nopk, x0, y0, my_func=rfunc, filter_len=filter_len)
+
     img_nobg = strip_img(img, prof=r0, x0=x0, y0=y0, pxmask=pxmask, truncate=truncate, 
         keep_edge_offset=True, interp=True, dtype=img.dtype)
 
@@ -1265,7 +1272,8 @@ def center_image(imgs: Union[np.ndarray, da.Array], x0: Union[np.ndarray, da.Arr
     """
     
     if padval is None:
-        padval = np.nan if not isinstance(imgs, np.integer) else -1
+        padval = np.nan if not issubclass(imgs.dtype.type, np.integer) else -1
+        print('Padding with value ', padval)
     
     if isinstance(imgs, da.Array):
         # Preprocess arguments and call function again, using map_blocks along the stack direction
@@ -1278,7 +1286,7 @@ def center_image(imgs: Union[np.ndarray, da.Array], x0: Union[np.ndarray, da.Arr
 
         return imgs.map_blocks(center_image, x0, y0, xsize, ysize, padval,
                                chunks=(imgs.chunks[0], ysize, xsize),
-                               dtype=imgs.dtype)
+                               dtype=imgs.dtype, parallel=False)
 
     # condition the input arguments a bit...
     x0 = x0.reshape(-1)
@@ -1293,6 +1301,7 @@ def center_image(imgs: Union[np.ndarray, da.Array], x0: Union[np.ndarray, da.Arr
         it = range(imgs.shape[0])
 
     for ii in it:
+        # print(x0[ii], y0[ii])
         simg = _center_sgl_image(imgs[ii, :, :], x0[ii], y0[ii], xsize, ysize, padval)
         simgs[ii, :, :] = simg
 
@@ -1369,7 +1378,7 @@ def apply_flatfield(img: np.ndarray, reference: Union[np.ndarray, str], keep_typ
         return img/reference
 
 
-def correct_dead_pixels(img: [np.ndarray, da.Array], pxmask: Union[np.ndarray, str], 
+def correct_dead_pixels(img: Union[np.ndarray, da.Array], pxmask: Union[np.ndarray, str], 
                         strategy: str = 'interpolate', 
                         interp_range: int = 1, replace_val: Union[float, int] = None, 
                         mask_gaps: bool = False, edge_mask_x: int = 70, 

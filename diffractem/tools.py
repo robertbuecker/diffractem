@@ -555,7 +555,7 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
     return sd, overall, so
 
 
-def viewing_widget(ds_disp, Imax=30, log=False):
+def viewing_widget(ds_disp, shot=0, Imax=30, log=False):
     """Interactive viewing widget for use in Jupyter notbeooks.
 
     Args:
@@ -583,7 +583,7 @@ def viewing_widget(ds_disp, Imax=30, log=False):
     
     fh.canvas.toolbar_position='bottom'    
     fh.canvas.header_visible=False    
-    ih = ax.imshow(img_stack[0,...].compute(scheduler='single-threaded'), vmin=0, vmax=Imax, cmap='gray_r')
+    ih = ax.imshow(img_stack[shot,...].compute(scheduler='single-threaded'), vmin=0, vmax=Imax, cmap='gray_r')
     if have_peaks:
         sc = ax.scatter([], [], c='g', alpha=0.1)
     if have_center:
@@ -593,7 +593,7 @@ def viewing_widget(ds_disp, Imax=30, log=False):
     
     # symmetrize figure
 
-    w_shot = widgets.IntSlider(min=0, max=img_stack.shape[0], step=1, value=0)
+    w_shot = widgets.IntSlider(min=0, max=img_stack.shape[0], step=1, value=shot)
     w_selected = widgets.ToggleButton(False, description='selected')
     w_indicator = widgets.Label(f'{ds_disp.shots.selected.sum()} of {len(ds_disp.shots)} shots selected.')
     w_info = widgets.Textarea(layout=widgets.Layout(height='100%'))
@@ -601,7 +601,7 @@ def viewing_widget(ds_disp, Imax=30, log=False):
     w_log = widgets.Checkbox(log, description='log')
     # w_info_parent = widgets.Accordion(children=[w_info])
     
-    def update(shot=0, vmax=Imax, log=log):
+    def update(shot=shot, vmax=Imax, log=log):
         shdat = ds_disp.shots.loc[shot]
         w_selected.value = bool(shdat.selected)
         w_info.value = '\n'.join([f'{k}: {v}' for k, v in shdat.items()])
