@@ -23,6 +23,58 @@ REFLECTION_COLUMNS = ['h', 'k', 'l', 'I', 'Sigma(I)', 'Peak', 'Background', 'fs/
 ID_FIELDS = ['file', 'Event', 'serial']
 
 
+def make_substream(stream: 'StreamParser', Ncryst: int, seed: Optional[int] = None, 
+                   filename: Optional[str] = None, query: Optional[str] = None):
+    """Write a stream file containing a sub-set of events to a new stream file.
+
+    Args:
+        stream (StreamParser): StreamParser object holding the original stream
+        Ncryst (int): Number of events to sample
+        seed (Optional[int], optional): Seed of the random generator. Defaults to None.
+        filename (Optional[str], optional): Output stream filename. Defaults to filename of original stream,
+            with '-N_{Ncryst}' appended, where {Ncryst} is the number of sampled crystals.
+        query (str, optional): query to pre-select events. A sensible choice might be to
+            only pick indexed events by setting query='indexed_by != "none"'. Defaults to None.
+
+    Returns:
+        [type]: [description]
+    """
+    
+    fn2 = 'subsets/' + stream.filename.rsplit('.',1)[0] + f'-N_{Ncryst}.stream' \
+        if filename is None else filename
+    
+    sel = stream.shots if query is None else stream.shots.query(query)
+    sel = sel.sample(n=Ncryst, random_state=seed)
+    sel.sort_values(by='first_line', ascending=False, inplace=True)
+
+    first = list(sel.first_line)
+    last = list(sel.last_line)
+    first.append(0)
+    last.append(stream.shots.first_line.min() - 1)
+
+    copying = False
+    section = (first.pop(), last.pop())
+    
+    with open(stream.filename,'r') as fh_from, open(fn2,'w') as fh_to:
+        for ln, l in enumerate(fh_from):
+            if not copying:
+                if ln == section[0]:
+                    copying = True
+                    #print(section[0], ln)
+            if copying:
+                fh_to.write(l)
+                if ln == section[1]:
+                    copying = False
+                    try:
+                        section = (first.pop(), last.pop())
+                    except IndexError:
+                        break
+                    
+    print('Wrote subset with', len(sel), 'events to', fn2)
+
+    return fn2
+
+
 def augment_stream(streamname: str, outfile:str, new_fields: Union[pd.DataFrame, dict], where: str = 'chunk'):
     """Add new fields to chunk headers in the stream file, which can then be used for chopping or filtering.
     Somewhat similar to indexamajig's "include-hdf5-field" option, just *after* the fact.
