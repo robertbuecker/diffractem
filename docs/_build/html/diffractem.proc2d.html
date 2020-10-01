@@ -25,11 +25,7 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
-        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -38,7 +34,6 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
 </head>
@@ -86,7 +81,6 @@
             
               <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
@@ -255,7 +249,7 @@ average value is exactly 1. Defaults to False.</p></li>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.apply_saturation_correction">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">apply_saturation_correction</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">exp_time</span></em>, <em class="sig-param"><span class="n">dead_time</span><span class="o">=</span><span class="default_value">0.0019</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#apply_saturation_correction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.apply_saturation_correction" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">apply_saturation_correction</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">exp_time</span></em>, <em class="sig-param"><span class="n">dead_time</span><span class="o">=</span><span class="default_value">0.0019</span></em>, <em class="sig-param"><span class="n">gap_factor</span><span class="o">=</span><span class="default_value">2</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#apply_saturation_correction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.apply_saturation_correction" title="Permalink to this definition">¶</a></dt>
 <dd><p>Apply detector correction function to image. Should ideally be done even before flatfield.
 Uses a 5th order polynomial approximation to the Lambert function, which is appropriate
 for a paralyzable detector, up to the point where its signal starts inverting (which is where
@@ -267,6 +261,7 @@ nothing can be done anymore)</p>
 <li><p><strong>img</strong> (<em>np.ndarray</em>) – Input image or image stack</p></li>
 <li><p><strong>exp</strong> (<em>float</em>) – Exposure time in ms</p></li>
 <li><p><strong>dead_time</strong> (<em>float</em><em>, </em><em>optional</em>) – Dead time of detector in ms. Defaults to 1.9e-3.</p></li>
+<li><p><strong>gap_factor</strong> (<em>float</em><em>, </em><em>optional</em>) – Factor to scale dead time for gap pixels. Defaults to 2.4.</p></li>
 </ul>
 </dd>
 </dl>
@@ -424,7 +419,7 @@ background subtraction, optionally including exclusion of diffraction peaks for 
 background (recommended).</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>This function essentially wraps <cite>proc2d._get_corr_image</cite> with smart functions to take care
+<p>This function essentially wraps <cite>proc2d._get_corr_image</cite> with smart features to take care
 of dask input arrays. If you want to change the
 correction pipeline, that is the function to modify.</p>
 </div>
@@ -506,7 +501,7 @@ distribution in Two Dimensions(x,y):</p>
 
 <dl class="py function">
 <dt id="diffractem.proc2d.get_pattern_info">
-<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">get_pattern_info</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">opts</span></em>, <em class="sig-param"><span class="n">client</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">reference</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">centers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">lorentz_fit</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">lazy</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">sync</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">errors</span><span class="o">=</span><span class="default_value">'raise'</span></em>, <em class="sig-param"><span class="n">via_array</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#get_pattern_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.get_pattern_info" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">diffractem.proc2d.</code><code class="sig-name descname">get_pattern_info</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">opts</span></em>, <em class="sig-param"><span class="n">client</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">reference</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pxmask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">centers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">lorentz_fit</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">lazy</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">sync</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">errors</span><span class="o">=</span><span class="default_value">'raise'</span></em>, <em class="sig-param"><span class="n">via_array</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">output_file</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">shots</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc2d.html#get_pattern_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc2d.get_pattern_info" title="Permalink to this definition">¶</a></dt>
 <dd><p>‘Macro’ function for getting information about diffraction patterns.</p>
 <p><cite>get_pattern_info</cite> finds diffraction peaks and computes information such as pattern center on a given diffraction
 pattern or stack thereof. By default (<cite>lazy=False</cite> and <cite>sync=True</cite>) it will return a pandas DataFrame containing
@@ -546,6 +541,10 @@ shots, which needs to be handled downstream to avoid making a mess. Defaults to 
 <li><p><strong>via_array</strong> (<em>bool</em><em>, </em><em>optional</em>) – Modify calculation such that it avoids <cite>dask.delayed</cite> objects.
 This drastically improves the scheduling behavior for large datasets. It is also required if you
 supply the pattern centers to the function. However, precludes the use of lazy and sync. Defaults to False.</p></li>
+<li><p><strong>output_file</strong> (<em>str</em><em>, </em><em>optional</em>) – Filename to store calculation results into. The file will be a valid diffractem-type
+data file that can be loaded using Dataset objects.</p></li>
+<li><p><strong>shots</strong> (<em>pd.DataFrame</em><em>, </em><em>optional</em>) – Dataframe of shot data of same height as the image array. If not None,
+its columns will be joined to those of the shot data for storing the results into the output file.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>

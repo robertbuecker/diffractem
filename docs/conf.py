@@ -34,7 +34,9 @@ master_doc = 'index'
 # ones.
 extensions = ['recommonmark', 'sphinx.ext.autodoc', 
               'sphinx.ext.napoleon', 'sphinx.ext.viewcode',
-              'jupyter_sphinx.execute', 'nbsphinx', 'sphinx.ext.mathjax',
+            #   'jupyter_sphinx.execute', 
+            #   'nbsphinx', 
+              'sphinx.ext.mathjax',
               'nbsphinx_link', 'sphinx_autodoc_typehints'
 ]
 

@@ -25,11 +25,7 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
-        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -38,7 +34,6 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
 </head>
@@ -86,7 +81,6 @@
             
               <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
@@ -183,6 +177,295 @@
 </style>
 <div class="section" id="module-diffractem.proc_peaks">
 <span id="diffractem-proc-peaks-module"></span><h1>diffractem.proc_peaks module<a class="headerlink" href="#module-diffractem.proc_peaks" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="diffractem.proc_peaks.Cell">
+<em class="property">class </em><code class="sig-prename descclassname">diffractem.proc_peaks.</code><code class="sig-name descname">Cell</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">a</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">b</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="o">=</span><span class="default_value">90</span></em>, <em class="sig-param"><span class="n">beta</span><span class="o">=</span><span class="default_value">90</span></em>, <em class="sig-param"><span class="n">gamma</span><span class="o">=</span><span class="default_value">90</span></em>, <em class="sig-param"><span class="n">lattice_type</span><span class="o">=</span><span class="default_value">'triclinic'</span></em>, <em class="sig-param"><span class="n">centering</span><span class="o">=</span><span class="default_value">'P'</span></em>, <em class="sig-param"><span class="n">unique_axis</span><span class="o">=</span><span class="default_value">'c'</span></em>, <em class="sig-param"><span class="n">d_min</span><span class="o">=</span><span class="default_value">2</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Partially stolen from the PyFAI package, with some simplifications
+and speed enhancements for d-spacing calculation, as well as a
+new refinement function.</p>
+<p>Calculates d-spacings and cell volume as described in:
+<a class="reference external" href="http://geoweb3.princeton.edu/research/MineralPhy/xtalgeometry.pdf">http://geoweb3.princeton.edu/research/MineralPhy/xtalgeometry.pdf</a></p>
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.centering">
+<em class="property">property </em><code class="sig-name descname">centering</code><a class="headerlink" href="#diffractem.proc_peaks.Cell.centering" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.proc_peaks.Cell.ctr_types">
+<code class="sig-name descname">ctr_types</code><em class="property"> = {'C': 'Side centered', 'F': 'Face centered', 'I': 'Body centered', 'P': 'Primitive', 'R': 'Rhombohedral'}</em><a class="headerlink" href="#diffractem.proc_peaks.Cell.ctr_types" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.cubic">
+<em class="property">classmethod </em><code class="sig-name descname">cubic</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">a</span></em>, <em class="sig-param"><span class="n">centering</span><span class="o">=</span><span class="default_value">'P'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.cubic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.cubic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Factory for cubic lattice_types</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>a</strong> – unit cell length</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.d">
+<code class="sig-name descname">d</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d_min</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">unique</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">a</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">b</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">beta</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">gamma</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates d-spacings for the cell. Cell parameters can
+transiently be changed, which does <em>not</em> affect the values
+stored with the cell object. This is useful in the context
+of optimization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>d_min</strong> (<em>float</em><em>, </em><em>optional</em>) – Minimum d-spacing. If None, uses
+the stored value of the object which can be set using
+init_hkl. Leaving it at None significantly speeds
+up the computation, which is recommended for
+refinements. Defaults to None.</p></li>
+<li><p><strong>unique</strong> (<em>bool</em><em>, </em><em>optional</em>) – if True, only unique d-spacings
+are returned. Otherwise, all spacings are returned which
+are ordered the same way as in the object’s hkl attribute.
+Defaults to False.</p></li>
+<li><p><strong>a</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell length. Defaults to None.</p></li>
+<li><p><strong>b</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell length. Defaults to None.</p></li>
+<li><p><strong>c</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell length. Defaults to None.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell angle. Defaults to None.</p></li>
+<li><p><strong>beta</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell angle. Defaults to None.</p></li>
+<li><p><strong>gamma</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell angle. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Array of d-spacings</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.d_spacing">
+<code class="sig-name descname">d_spacing</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d_min</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">unique</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">a</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">b</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">beta</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">gamma</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#diffractem.proc_peaks.Cell.d_spacing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates d-spacings for the cell. Cell parameters can
+transiently be changed, which does <em>not</em> affect the values
+stored with the cell object. This is useful in the context
+of optimization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>d_min</strong> (<em>float</em><em>, </em><em>optional</em>) – Minimum d-spacing. If None, uses
+the stored value of the object which can be set using
+init_hkl. Leaving it at None significantly speeds
+up the computation, which is recommended for
+refinements. Defaults to None.</p></li>
+<li><p><strong>unique</strong> (<em>bool</em><em>, </em><em>optional</em>) – if True, only unique d-spacings
+are returned. Otherwise, all spacings are returned which
+are ordered the same way as in the object’s hkl attribute.
+Defaults to False.</p></li>
+<li><p><strong>a</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell length. Defaults to None.</p></li>
+<li><p><strong>b</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell length. Defaults to None.</p></li>
+<li><p><strong>c</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell length. Defaults to None.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell angle. Defaults to None.</p></li>
+<li><p><strong>beta</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell angle. Defaults to None.</p></li>
+<li><p><strong>gamma</strong> (<em>float</em><em>, </em><em>optional</em>) – Temporary cell angle. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Array of d-spacings</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.diamond">
+<em class="property">classmethod </em><code class="sig-name descname">diamond</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">a</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.diamond"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.diamond" title="Permalink to this definition">¶</a></dt>
+<dd><p>Factory for Diamond type FCC like Si and Ge</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>a</strong> – unit cell length</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.export">
+<code class="sig-name descname">export</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span><span class="o">=</span><span class="default_value">'refined.cell'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.export"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.export" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.hexagonal">
+<em class="property">classmethod </em><code class="sig-name descname">hexagonal</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">a</span></em>, <em class="sig-param"><span class="n">c</span></em>, <em class="sig-param"><span class="n">centering</span><span class="o">=</span><span class="default_value">'P'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.hexagonal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.hexagonal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Factory for hexagonal lattice_types</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>a</strong> – unit cell length</p></li>
+<li><p><strong>c</strong> – unit cell length</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.init_hkl">
+<code class="sig-name descname">init_hkl</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d_min</span><span class="o">=</span><span class="default_value">5.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.init_hkl"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.init_hkl" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets up a grid with valid Miller indices for this lattice.
+Useful to pre-compute the indices before running any optimization,
+which speeds up the computation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>d_min</strong> (<em>float</em><em>, </em><em>optional</em>) – Minimum d-spacing, in A. Defaults to 5.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.proc_peaks.Cell.lattices">
+<code class="sig-name descname">lattices</code><em class="property"> = ['cubic', 'tetragonal', 'hexagonal', 'rhombohedral', 'orthorhombic', 'monoclinic', 'triclinic']</em><a class="headerlink" href="#diffractem.proc_peaks.Cell.lattices" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.monoclinic">
+<em class="property">classmethod </em><code class="sig-name descname">monoclinic</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">a</span></em>, <em class="sig-param"><span class="n">b</span></em>, <em class="sig-param"><span class="n">c</span></em>, <em class="sig-param"><span class="n">beta</span></em>, <em class="sig-param"><span class="n">centering</span><span class="o">=</span><span class="default_value">'P'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.monoclinic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.monoclinic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Factory for hexagonal lattice_types</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>a</strong> – unit cell length</p></li>
+<li><p><strong>b</strong> – unit cell length</p></li>
+<li><p><strong>c</strong> – unit cell length</p></li>
+<li><p><strong>beta</strong> – unit cell angle</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.orthorhombic">
+<em class="property">classmethod </em><code class="sig-name descname">orthorhombic</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">a</span></em>, <em class="sig-param"><span class="n">b</span></em>, <em class="sig-param"><span class="n">c</span></em>, <em class="sig-param"><span class="n">centering</span><span class="o">=</span><span class="default_value">'P'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.orthorhombic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.orthorhombic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Factory for orthorhombic lattice_types</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>a</strong> – unit cell length</p></li>
+<li><p><strong>b</strong> – unit cell length</p></li>
+<li><p><strong>c</strong> – unit cell length</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.refine_powder">
+<code class="sig-name descname">refine_powder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">svec</span></em>, <em class="sig-param"><span class="n">pattern</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'distance'</span></em>, <em class="sig-param"><span class="n">fill</span><span class="o">=</span><span class="default_value">0.1</span></em>, <em class="sig-param"><span class="n">min_prom</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">min_height</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">weights</span><span class="o">=</span><span class="default_value">'prom'</span></em>, <em class="sig-param"><span class="n">length_bound</span><span class="o">=</span><span class="default_value">2.0</span></em>, <em class="sig-param"><span class="n">angle_bound</span><span class="o">=</span><span class="default_value">3.0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.refine_powder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.refine_powder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Refine unit cell parameters against a powder pattern.
+The refinement is done using a least-squares fit, where you can
+pick three different cost functions:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>‘distance’: the positions of the peaks in the powder pattern</dt><dd><p>are detected. For each peak, the distance to the closest
+d-spacing is computed.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>‘xcorr’: the inverse values of the powder pattern at the</dt><dd><p>d-spacings are computed.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>‘derivative’: the derivative of the powder pattern at the</dt><dd><p>d-spacings are computed</p>
+</dd>
+</dl>
+</li>
+</ul>
+<p>Depending on the chosen method, further parameters can be set.
+The function returns a new Cell object with refined parameters, and
+a structure with some useful information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>svec</strong> (<em>np.ndarray</em>) – scattering vector (x-axis) of the powder pattern,
+expressed in inverse nanometer (not angstrom - following
+CrystFEL convention).</p></li>
+<li><p><strong>pattern</strong> (<em>np.ndarray</em>) – powder pattern at values svec (y-axis)</p></li>
+<li><p><strong>method</strong> (<em>str</em><em>, </em><em>optional</em>) – Cost function. See description.
+Defaults to ‘distance’.</p></li>
+<li><p><strong>fill</strong> (<em>float</em><em>, </em><em>optional</em>) – Fill value for out-of-range or zero-count
+s-vectors if method is ‘derivative’ or ‘xcorr’. Defaults to 0.1.</p></li>
+<li><p><strong>min_prom</strong> (<em>float</em><em>, </em><em>optional</em>) – Minimum prominence of peaks (that is,
+height relative to its vicinity) if method is ‘distance’. Increase
+if too many small peaks are spuriously detected. Usually it is
+a good idea. Defaults to 0.</p></li>
+<li><p><strong>min_height</strong> (<em>float</em><em>, </em><em>optional</em>) – Minimum peak height to be detected.
+Usually min_prom is the better parameter. Defaults to 0.</p></li>
+<li><p><strong>weights</strong> (<em>str</em><em>, </em><em>optional</em>) – Weights of the peaks for the least-squares
+optimization if method is ‘derivative’. Can be ‘prom’ or ‘height’.
+Defaults to ‘prom’.</p></li>
+<li><p><strong>length_bound</strong> (<em>float</em><em>, </em><em>optional</em>) – Bound range for cell lengths, in A.
+Defaults to 2.</p></li>
+<li><p><strong>angle_bound</strong> (<em>float</em><em>, </em><em>optional</em>) – Bound range for cell angles. Defaults to 3.</p></li>
+<li><p><strong>**kwargs</strong> – Further arguments will be passed on to scipy.least_sqaures</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>2-Tuple of a new Cell object with the refined parameters, and</dt><dd><p>a structure with useful information from the optimization, including
+the peak positions and heights if method was ‘distance’.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.rhombohedral">
+<em class="property">classmethod </em><code class="sig-name descname">rhombohedral</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">a</span></em>, <em class="sig-param"><span class="n">alpha</span></em>, <em class="sig-param"><span class="n">centering</span><span class="o">=</span><span class="default_value">'P'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.rhombohedral"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.rhombohedral" title="Permalink to this definition">¶</a></dt>
+<dd><p>Factory for hexagonal lattice_types</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>a</strong> – unit cell length</p></li>
+<li><p><strong>alpha</strong> – unit cell angle</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="diffractem.proc_peaks.Cell.selection_rules">
+<code class="sig-name descname">selection_rules</code><em class="property"> = None</em><a class="headerlink" href="#diffractem.proc_peaks.Cell.selection_rules" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains a list of functions returning True(allowed)/False(forbidden)/None(unknown)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.tetragonal">
+<em class="property">classmethod </em><code class="sig-name descname">tetragonal</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">a</span></em>, <em class="sig-param"><span class="n">c</span></em>, <em class="sig-param"><span class="n">centering</span><span class="o">=</span><span class="default_value">'P'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#Cell.tetragonal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.Cell.tetragonal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Factory for tetragonal lattice_types</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>a</strong> – unit cell length</p></li>
+<li><p><strong>c</strong> – unit cell length</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.proc_peaks.Cell.volume">
+<em class="property">property </em><code class="sig-name descname">volume</code><a class="headerlink" href="#diffractem.proc_peaks.Cell.volume" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 <dl class="py function">
 <dt id="diffractem.proc_peaks.center_friedel">
 <code class="sig-prename descclassname">diffractem.proc_peaks.</code><code class="sig-name descname">center_friedel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">peaks</span></em>, <em class="sig-param"><span class="n">shots</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">p0</span><span class="o">=</span><span class="default_value">778, 308</span></em>, <em class="sig-param"><span class="n">colnames</span><span class="o">=</span><span class="default_value">'fs/px', 'ss/px'</span></em>, <em class="sig-param"><span class="n">sigma</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">minpeaks</span><span class="o">=</span><span class="default_value">4</span></em>, <em class="sig-param"><span class="n">maxres</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#center_friedel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.center_friedel" title="Permalink to this definition">¶</a></dt>
@@ -203,6 +486,54 @@
 <li><p><strong>{int} --</strong><strong> [</strong><strong>minimum peak number to try matching</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>minpeaks</em>) – {4})</p></li>
 <li><p><strong>{int} --</strong><strong> [</strong><strong>maximum radius of peaks to still be considered</strong><strong>] </strong><strong>(</strong><strong>default</strong> (<em>maxres</em>) – {None})</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="diffractem.proc_peaks.get_acf">
+<code class="sig-prename descclassname">diffractem.proc_peaks.</code><code class="sig-name descname">get_acf</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">npk</span></em>, <em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em>, <em class="sig-param"><span class="n">I</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">roi_length</span><span class="o">=</span><span class="default_value">512</span></em>, <em class="sig-param"><span class="n">output_radius</span><span class="o">=</span><span class="default_value">256</span></em>, <em class="sig-param"><span class="n">oversample</span><span class="o">=</span><span class="default_value">4</span></em>, <em class="sig-param"><span class="n">radial</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">px_ang</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">execution</span><span class="o">=</span><span class="default_value">'processes'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/proc_peaks.html#get_acf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.proc_peaks.get_acf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the autocorrelation/pair correlation function of Bragg peak positions,
+optionally with intensity weighting.</p>
+<p>It is important to set the computation region properly (i.e., the
+maximum peak positions from the center to take into account), as this affects
+computation speed and impact of non-paraxiality at larger angles. It can
+be defined using the <cite>roi_length</cite> argument.</p>
+<p>Peaks must be given in CXI format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>npk</strong> (<em>np.ndarray</em><em>, </em><em>int</em>) – number of peaks</p></li>
+<li><p><strong>x</strong> (<em>np.ndarray</em>) – x-coordinates of peaks, <em>relative to pattern center</em></p></li>
+<li><p><strong>y</strong> (<em>np.ndarray</em>) – y-coordinates of peaks, <em>relative to pattern center</em></p></li>
+<li><p><strong>I</strong> (<em>[</em><em>type</em><em>]</em><em>, </em><em>optional</em>) – peak intensities. Set to 1 if None. Defaults to None.</p></li>
+<li><p><strong>roi_length</strong> (<em>int</em><em>, </em><em>optional</em>) – edge length of the region around the image
+center that is used for the computation. Defaults to 512.</p></li>
+<li><p><strong>output_radius</strong> (<em>int</em><em>, </em><em>optional</em>) – maximum included radius of the output ACF.
+The size of the 2D output will be 2*output_radius*oversample,
+the size of the radial average will be output_radius*oversample. Defaults to 600.</p></li>
+<li><p><strong>oversample</strong> (<em>int</em><em>, </em><em>optional</em>) – oversampling, that is, by how much smaller the bin
+sizes of the output are than that of the input (usually the pixels). Defaults to 4.</p></li>
+<li><p><strong>radial</strong> (<em>bool</em><em>, </em><em>optional</em>) – compute the radial average of the ACF. Defaults to True.</p></li>
+<li><p><strong>px_ang</strong> (<em>double</em><em>, </em><em>optional</em>) – diffraction angle corresponding to a distance of 1 pixel
+from the center, given in rad (practically: detector pixel size/cam length). If
+given, non-paraxiality of the geometry is corrected (not tested well yet).
+Defaults to None.</p></li>
+<li><p><strong>execution</strong> (<em>str</em><em>, </em><em>optional</em>) – way of parallelism if a stack of pattern peak data
+is supplied. Can be ‘single-threaded’, ‘threads’, ‘processes’.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>2D autocorrelation function.</dt><dd><p>Length will be 2 * oversample * output_range</p>
+</dd>
+<dt>np.ndarray: 1D radial sum (None for radial=False).</dt><dd><p>Length will be oversample * output_ramge</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>

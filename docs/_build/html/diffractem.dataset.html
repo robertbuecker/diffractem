@@ -25,11 +25,7 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
-        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -38,7 +34,6 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
 </head>
@@ -86,7 +81,6 @@
             
               <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Tutorial notebooks</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Preprocessing</a></li>
@@ -396,6 +390,17 @@ or 32004, which is the lz4 filter often used for diffraction data. Defaults to 3
 </dd></dl>
 
 <dl class="py method">
+<dt id="diffractem.dataset.Dataset.diff_data">
+<em class="property">property </em><code class="sig-name descname">diff_data</code><a class="headerlink" href="#diffractem.dataset.Dataset.diff_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns diffraction data stack (as identified by the diff_stack_label property</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Array</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="diffractem.dataset.Dataset.diff_stack_label">
 <em class="property">property </em><code class="sig-name descname">diff_stack_label</code><a class="headerlink" href="#diffractem.dataset.Dataset.diff_stack_label" title="Permalink to this definition">¶</a></dt>
 <dd><p>Label of stack which holds the diffraction data.</p>
@@ -523,29 +528,6 @@ before attempting to open them. Defaults to False.</p></li>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset">Dataset</a></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt id="diffractem.dataset.Dataset.generate_virtual_file">
-<code class="sig-name descname">generate_virtual_file</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">diff_stack_label</span></em>, <em class="sig-param"><span class="n">kind</span><span class="o">=</span><span class="default_value">'fake'</span></em>, <em class="sig-param"><span class="n">virtual_size</span><span class="o">=</span><span class="default_value">1024</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.generate_virtual_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.generate_virtual_file" title="Permalink to this definition">¶</a></dt>
-<dd><p>NOT IMPLEMENTED YET (but soon will)</p>
-<p>Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
-diffraction. Instead of the diffraction stack, either a dummy stack containing a constant only,
-or a virtual dataset with external links to the actual data files is created. While the former
-is useful for indexing using CrystFEL, the latter can serve to generate a file for quick preview.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>filename</strong> (<em>str</em>) – [description]</p></li>
-<li><p><strong>diff_stack_label</strong> (<em>str</em>) – [description]</p></li>
-<li><p><strong>kind</strong> (<em>str</em><em>, </em><em>optional</em>) – [description]. Defaults to ‘fake’.</p></li>
-<li><p><strong>virtual_size</strong> (<em>int</em><em>, </em><em>optional</em>) – [description]. Defaults to 1024.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Raises</dt>
-<dd class="field-even"><p><strong>NotImplementedError</strong> – [description]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -705,7 +687,8 @@ aggregated data set to get the information from.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>ds_from</strong> (<a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset"><em>Dataset</em></a>) – Diffractem Dataset to take information from</p></li>
+<li><p><strong>ds_from</strong> (<em>Uniton</em><em>[</em><a class="reference internal" href="#diffractem.dataset.Dataset" title="diffractem.dataset.Dataset"><em>Dataset</em></a><em>, </em><em>str</em><em>]</em>) – Diffractem Dataset to take information from, or filename of h5 or list file.
+Esepcially friendly for h5 files written by get_image_info.</p></li>
 <li><p><strong>merge_cols</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Shot table columns to take over from other data set. If None,
 all columns are taken over which are not present in the shot table currently. Defaults to None.</p></li>
 <li><p><strong>by</strong> (<em>Union</em><em>[</em><em>List</em><em>[</em><em>str</em><em>]</em><em>, </em><em>Tuple</em><em>[</em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Shot table columns to match by.
@@ -773,6 +756,17 @@ Should usually be the same as ‘dataset’, but still works if your stacks have
 <dd><p>Toggles if parallel I/O is attempted for datasets spanning many files. Note that this is independent
 from <cite>dask.distributed</cite>-based parallelization as in <cite>store_stack_fast</cite>. Default True, which is overriden
 if the Dataset comprises a single file only.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.peak_data">
+<em class="property">property </em><code class="sig-name descname">peak_data</code><a class="headerlink" href="#diffractem.dataset.Dataset.peak_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stored Bragg reflection data in CXI format, if present. Otherwise raises error.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Array</span></code>]</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -1047,12 +1041,39 @@ Defaults to <cite>(‘sample’, ‘region’, ‘run’, ‘crystal_id’)</cit
 </dd></dl>
 
 <dl class="py method">
+<dt id="diffractem.dataset.Dataset.view">
+<code class="sig-name descname">view</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.view"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.view" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls <cite>tools.viewing_widget</cite> on the dataset. Keyword arguments are passed through.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="diffractem.dataset.Dataset.write_list">
 <code class="sig-name descname">write_list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">listfile</span></em>, <em class="sig-param"><span class="n">append</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.write_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.write_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>Writes the files in the dataset into a list file, containing each file on a line.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>listfile</strong> (<em>str</em>) – list file name</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="diffractem.dataset.Dataset.write_virtual_file">
+<code class="sig-name descname">write_virtual_file</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span><span class="o">=</span><span class="default_value">'virtual'</span></em>, <em class="sig-param"><span class="n">diff_stack_label</span><span class="o">=</span><span class="default_value">'zero_image'</span></em>, <em class="sig-param"><span class="n">virtual_size</span><span class="o">=</span><span class="default_value">1024</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/diffractem/dataset.html#Dataset.write_virtual_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#diffractem.dataset.Dataset.write_virtual_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
+diffraction. Instead of the diffraction stack, a dummy stack containing only ones is written
+into the file, which due to its compression becomes very small.</p>
+<p>The peak positions in the virtual file are changed, such that they refer to a “virtual” geometry,
+corresponding to a square detector with a size given by <cite>virtual_size</cite>. On this detector, the pattern
+is centered.</p>
+<p>This file can then be used as input to CrystFEL’s <em>indexamajig</em>, with a simple centered geometry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<em>str</em>) – [description]</p></li>
+<li><p><strong>diff_stack_label</strong> (<em>str</em>) – [description]</p></li>
+<li><p><strong>virtual_size</strong> (<em>int</em><em>, </em><em>optional</em>) – [description]. Defaults to 1024.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>

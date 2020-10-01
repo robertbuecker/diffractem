@@ -25,11 +25,7 @@
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
         <script src="../../_static/language_data.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
-        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
@@ -38,7 +34,6 @@
   
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/jupyter-sphinx.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -86,7 +81,6 @@
             
               <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../notebooks.html">Tutorial notebooks</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../dataset.html">The Dataset object</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../file_format.html">Diffractem NeXus files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../pre_processing.html">Preprocessing</a></li>
@@ -156,15 +150,14 @@
            <div itemprop="articleBody">
             
   <h1>Source code for diffractem.dataset</h1><div class="highlight"><pre>
-<span></span><span class="c1"># dedicated to Thea and The Penguin</span>
-
+<span></span><span class="c1"># dedicated to the penguin</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">dask.array.gufunc</span>
 <span class="kn">from</span> <span class="nn">dask</span> <span class="kn">import</span> <span class="n">array</span> <span class="k">as</span> <span class="n">da</span>
 <span class="kn">from</span> <span class="nn">dask.diagnostics</span> <span class="kn">import</span> <span class="n">ProgressBar</span>
 <span class="kn">from</span> <span class="nn">dask.distributed</span> <span class="kn">import</span> <span class="n">Client</span>
-<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">io</span><span class="p">,</span> <span class="n">nexus</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">io</span><span class="p">,</span> <span class="n">nexus</span><span class="p">,</span> <span class="n">tools</span>
 <span class="kn">from</span> <span class="nn">.stream_parser</span> <span class="kn">import</span> <span class="n">StreamParser</span>
 <span class="c1"># from .map_image import MapImage</span>
 <span class="kn">import</span> <span class="nn">h5py</span>
@@ -317,6 +310,9 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">attr</span><span class="si">}</span><span class="s1"> is neither a dataset attribute, nor a stack name.&#39;</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_files_open</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;True if HDF5 files are open&quot;&quot;&quot;</span>
@@ -407,6 +403,25 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_peaks_changed</span> <span class="o">=</span> <span class="kc">True</span>
             
     <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">peak_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">da</span><span class="o">.</span><span class="n">Array</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Stored Bragg reflection data in CXI format, if present. Otherwise raises error.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">sn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stacks</span> <span class="k">for</span> <span class="n">sn</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;nPeaks&#39;</span><span class="p">,</span> <span class="s1">&#39;peakXPosRaw&#39;</span><span class="p">,</span> <span class="s1">&#39;peakYPosRaw&#39;</span><span class="p">]]):</span>
+            <span class="n">pkdat</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stacks</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;nPeaks&#39;</span><span class="p">,</span> <span class="s1">&#39;peakXPosRaw&#39;</span><span class="p">,</span> <span class="s1">&#39;peakYPosRaw&#39;</span><span class="p">]}</span>
+            <span class="k">if</span> <span class="s1">&#39;peakTotalIntensity&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stacks</span><span class="p">:</span>
+                <span class="n">pkdat</span><span class="p">[</span><span class="s1">&#39;peakTotalIntensity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stacks</span><span class="p">[</span><span class="s1">&#39;peakTotalIntensity&#39;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">pkdat</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;No peak data found in dataset.&#39;</span><span class="p">)</span>
+        
+    <span class="nd">@peak_data</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">peak_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">da</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]):</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">sn</span> <span class="ow">in</span> <span class="n">v</span> <span class="k">for</span> <span class="n">sn</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;nPeaks&#39;</span><span class="p">,</span> <span class="s1">&#39;peakXPosRaw&#39;</span><span class="p">,</span> <span class="s1">&#39;peakYPosRaw&#39;</span><span class="p">]]):</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_stack</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Supplied peak data is incomplete.&#39;</span><span class="p">)</span>
+            
+    <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">zchunks</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Chunks of dask arrays holding the stacks along their first (that is, stacked) axis.&quot;&quot;&quot;</span>
         <span class="c1"># z chunks of dataset stacks</span>
@@ -429,7 +444,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_diff_stack_label</span> <span class="o">=</span> <span class="n">value</span>
         <span class="k">else</span><span class="p">:</span> 
             <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1"> is not a stack.&#39;</span><span class="p">)</span>
-
+        
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">diff_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">da</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Returns diffraction data stack (as identified by the diff_stack_label property&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">stacks</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">diff_stack_label</span><span class="p">]</span>
+    
 <div class="viewcode-block" id="Dataset.from_files"><a class="viewcode-back" href="../../diffractem.dataset.html#diffractem.dataset.Dataset.from_files">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_files</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">files</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">],</span> <span class="n">open_stacks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">chunking</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;hdf5&#39;</span><span class="p">,</span> 
                    <span class="n">persist_meta</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">init_stacks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">load_tables</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> 
@@ -586,8 +606,16 @@
         <span class="k">if</span> <span class="n">features</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_features</span> <span class="o">=</span> <span class="n">nexus</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_pattern</span> <span class="o">+</span> <span class="s1">&#39;/features&#39;</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parallel_io</span><span class="p">)</span>
+                <span class="c1"># print(len(self._features))</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_features_changed</span> <span class="o">=</span> <span class="kc">False</span>
+                
+            <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="n">warn</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+                <span class="n">warn</span><span class="p">(</span><span class="s1">&#39;No features found at &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_pattern</span> <span class="o">+</span> <span class="s1">&#39;/features&#39;</span><span class="p">)</span>
+                <span class="c1"># raise err</span>
 
+            <span class="k">try</span><span class="p">:</span>
+                
                 <span class="k">if</span> <span class="s1">&#39;sample&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
                     <span class="n">sdat</span> <span class="o">=</span> <span class="n">nexus</span><span class="o">.</span><span class="n">get_meta_fields</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">unique</span><span class="p">()),</span>
                                                  <span class="p">[</span><span class="s1">&#39;/%/sample/name&#39;</span><span class="p">,</span> <span class="s1">&#39;/%/sample/region_id&#39;</span><span class="p">,</span> <span class="s1">&#39;/%/sample/run_id&#39;</span><span class="p">])</span><span class="o">.</span> \
@@ -595,10 +623,11 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">sdat</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">])</span>
 
                 <span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_feature_id_cols</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1"># for multi files with identical features</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="o">.</span><span class="n">columns</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No features found at &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_pattern</span> <span class="o">+</span> <span class="s1">&#39;/features&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error processing &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_pattern</span> <span class="o">+</span> <span class="s1">&#39;/features&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">err</span>
 
         <span class="k">if</span> <span class="n">peaks</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
@@ -1800,11 +1829,16 @@
 
 <div class="viewcode-block" id="Dataset.rechunk_stacks"><a class="viewcode-back" href="../../diffractem.dataset.html#diffractem.dataset.Dataset.rechunk_stacks">[docs]</a>    <span class="k">def</span> <span class="nf">rechunk_stacks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_height</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
         <span class="n">c</span> <span class="o">=</span> <span class="n">chunk_height</span>
-        <span class="n">ss_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">:</span> <span class="p">((</span><span class="n">l</span> <span class="o">//</span> <span class="n">c</span><span class="p">)</span> <span class="o">*</span> <span class="p">[</span><span class="n">c</span><span class="p">])</span> <span class="o">+</span> <span class="p">[</span><span class="n">l</span> <span class="o">%</span> <span class="n">c</span><span class="p">])</span>
+        <span class="n">ss_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;subset&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">l</span><span class="p">:</span> <span class="p">((</span><span class="n">l</span> <span class="o">//</span> <span class="n">c</span><span class="p">)</span> <span class="o">*</span> <span class="p">[</span><span class="n">c</span><span class="p">])</span> <span class="o">+</span> <span class="p">([</span><span class="n">l</span> <span class="o">%</span> <span class="n">c</span><span class="p">]</span> <span class="k">if</span> <span class="n">l</span> <span class="o">%</span> <span class="n">c</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">[]))</span>
         <span class="n">zchunks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ss_chunk</span><span class="p">])</span>
+        <span class="c1"># print(zchunks)</span>
         <span class="k">assert</span> <span class="n">zchunks</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">sn</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_stack</span><span class="p">(</span><span class="n">sn</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">rechunk</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">zchunks</span><span class="p">)}),</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+            <span class="c1"># print(sn)</span>
+            <span class="c1"># print(tuple(zchunks))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stacks</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">rechunk</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">zchunks</span><span class="p">)})</span></div>
+            <span class="c1"># self.add_stack(sn, s.rechunk({0: tuple(zchunks)}), overwrite=True)</span>
 
 <div class="viewcode-block" id="Dataset.stacks_to_shots"><a class="viewcode-back" href="../../diffractem.dataset.html#diffractem.dataset.Dataset.stacks_to_shots">[docs]</a>    <span class="k">def</span> <span class="nf">stacks_to_shots</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stack_labels</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">],</span> <span class="n">shot_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stack_labels</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -1819,7 +1853,7 @@
                     <span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">lbl_from</span><span class="si">}</span><span class="s1"> not in stacks, skipping.&#39;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="p">[</span><span class="n">lbl_to</span><span class="p">]</span> <span class="o">=</span> <span class="n">stk</span><span class="p">[</span><span class="n">lbl_from</span><span class="p">]</span></div>
             
-<div class="viewcode-block" id="Dataset.merge_pattern_info"><a class="viewcode-back" href="../../diffractem.dataset.html#diffractem.dataset.Dataset.merge_pattern_info">[docs]</a>    <span class="k">def</span> <span class="nf">merge_pattern_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ds_from</span><span class="p">:</span> <span class="s1">&#39;Dataset&#39;</span><span class="p">,</span> <span class="n">merge_cols</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
+<div class="viewcode-block" id="Dataset.merge_pattern_info"><a class="viewcode-back" href="../../diffractem.dataset.html#diffractem.dataset.Dataset.merge_pattern_info">[docs]</a>    <span class="k">def</span> <span class="nf">merge_pattern_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ds_from</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s1">&#39;Dataset&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">merge_cols</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> 
                            <span class="n">by</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;sample&#39;</span><span class="p">,</span> <span class="s1">&#39;region&#39;</span><span class="p">,</span> <span class="s1">&#39;run&#39;</span><span class="p">,</span> <span class="s1">&#39;crystal_id&#39;</span><span class="p">),</span> 
                            <span class="n">persist</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Merge shot-table and CXI peak data from another data set into this one, based</span>
@@ -1834,7 +1868,8 @@
 <span class="sd">        aggregated data set to get the information from.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            ds_from (Dataset): Diffractem Dataset to take information from</span>
+<span class="sd">            ds_from (Uniton[Dataset, str]): Diffractem Dataset to take information from, or filename of h5 or list file.</span>
+<span class="sd">                Esepcially friendly for h5 files written by get_image_info.</span>
 <span class="sd">            merge_cols (Optional[List[str]], optional): Shot table columns to take over from other data set. If None,</span>
 <span class="sd">                all columns are taken over which are not present in the shot table currently. Defaults to None.</span>
 <span class="sd">            by (Union[List[str], Tuple[str]], optional): Shot table columns to match by. </span>
@@ -1844,6 +1879,9 @@
         <span class="c1">#TODO Figure out a good way to handle predictions</span>
         
         <span class="n">by</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">by</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ds_from</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">ds_from</span> <span class="o">=</span> <span class="n">Dataset</span><span class="o">.</span><span class="n">from_files</span><span class="p">(</span><span class="n">ds_from</span><span class="p">,</span> <span class="n">chunking</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">persist_meta</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         
         <span class="n">merge_cols</span> <span class="o">=</span> <span class="n">ds_from</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span> <span class="o">+</span> 
                                                     <span class="p">[</span><span class="s1">&#39;_Event&#39;</span><span class="p">,</span> <span class="s1">&#39;_file&#39;</span><span class="p">,</span> <span class="s1">&#39;file_event_hash&#39;</span><span class="p">])</span> \
@@ -1859,13 +1897,14 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">shots</span> <span class="o">=</span> <span class="n">sel_shots</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;_merge&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
-        <span class="n">peakdata</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ds_from</span><span class="o">.</span><span class="n">_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;peak&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">k</span><span class="o">==</span><span class="s1">&#39;nPeaks&#39;</span><span class="p">))}</span>
+        <span class="n">peakdata</span> <span class="o">=</span> <span class="n">ds_from</span><span class="o">.</span><span class="n">peak_data</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">ii_from</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">):</span>
             <span class="n">peakdata</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">ii_from</span><span class="o">.</span><span class="n">values</span><span class="p">,</span><span class="o">...</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">peakdata</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">peakdata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_stack</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peak_data</span> <span class="o">=</span> <span class="n">peakdata</span>
+        <span class="c1"># for k, v in peakdata.items():</span>
+        <span class="c1">#     self.add_stack(k, v, overwrite=True)</span>
         
         <span class="k">if</span> <span class="n">persist</span><span class="p">:</span> 
             <span class="bp">self</span><span class="o">.</span><span class="n">persist_stacks</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">peakdata</span><span class="p">))</span></div>
@@ -1885,26 +1924,62 @@
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">listfile</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span> <span class="k">if</span> <span class="n">append</span> <span class="k">else</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
             <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Dataset.generate_virtual_file"><a class="viewcode-back" href="../../diffractem.dataset.html#diffractem.dataset.Dataset.generate_virtual_file">[docs]</a>    <span class="k">def</span> <span class="nf">generate_virtual_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">diff_stack_label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                              <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;fake&#39;</span><span class="p">,</span> <span class="n">virtual_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;NOT IMPLEMENTED YET (but soon will)</span>
-<span class="sd">        </span>
+<div class="viewcode-block" id="Dataset.write_virtual_file"><a class="viewcode-back" href="../../diffractem.dataset.html#diffractem.dataset.Dataset.write_virtual_file">[docs]</a>    <span class="k">def</span> <span class="nf">write_virtual_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;virtual&#39;</span><span class="p">,</span> <span class="n">diff_stack_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;zero_image&#39;</span><span class="p">,</span>
+                              <span class="n">virtual_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual</span>
-<span class="sd">        diffraction. Instead of the diffraction stack, either a dummy stack containing a constant only,</span>
-<span class="sd">        or a virtual dataset with external links to the actual data files is created. While the former</span>
-<span class="sd">        is useful for indexing using CrystFEL, the latter can serve to generate a file for quick preview.</span>
+<span class="sd">        diffraction. Instead of the diffraction stack, a dummy stack containing only ones is written</span>
+<span class="sd">        into the file, which due to its compression becomes very small.</span>
+<span class="sd">        </span>
+<span class="sd">        The peak positions in the virtual file are changed, such that they refer to a &quot;virtual&quot; geometry,</span>
+<span class="sd">        corresponding to a square detector with a size given by `virtual_size`. On this detector, the pattern</span>
+<span class="sd">        is centered.</span>
+<span class="sd">        </span>
+<span class="sd">        This file can then be used as input to CrystFEL&#39;s *indexamajig*, with a simple centered geometry.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            filename (str): [description]</span>
 <span class="sd">            diff_stack_label (str): [description]</span>
-<span class="sd">            kind (str, optional): [description]. Defaults to &#39;fake&#39;.</span>
 <span class="sd">            virtual_size (int, optional): [description]. Defaults to 1024.</span>
 
-<span class="sd">        Raises:</span>
-<span class="sd">            NotImplementedError: [description]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1">#TODO maybe rather split the preview file functionality off. It&#39;s too different.</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Fix this&#39;</span><span class="p">)</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shot_id_cols</span>
+        <span class="n">ds_ctr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_selection</span><span class="p">(</span><span class="s1">&#39;True&#39;</span><span class="p">,</span> <span class="n">file_suffix</span><span class="o">=</span><span class="s1">&#39;_virtual.h5&#39;</span><span class="p">,</span> <span class="n">new_folder</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="c1"># ds_ctr.shots[&#39;file_event_hash&#39;] = tools.dataframe_hash(self.shots[[&#39;file&#39;, &#39;Event&#39;]])</span>
+        <span class="c1"># ds_ctr.shots[&#39;feature_hash&#39;] = tools.dataframe_hash(self.shots[[&#39;sample&#39;, &#39;region&#39;, &#39;run&#39;, &#39;crystal_id&#39;]])</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="p">[[</span><span class="s1">&#39;_file&#39;</span><span class="p">,</span> <span class="s1">&#39;_Event&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="p">[[</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;Event&#39;</span><span class="p">]]</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">.h5&#39;</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="p">[</span><span class="s1">&#39;subset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;entry&#39;</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="p">[</span><span class="s1">&#39;shot_in_subset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="p">))</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="p">[</span><span class="s1">&#39;Event&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">subset</span> <span class="o">+</span> <span class="s1">&#39;//&#39;</span> <span class="o">+</span> <span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">shot_in_subset</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+
+        <span class="n">fake_img</span> <span class="o">=</span> <span class="n">da</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">ds_ctr</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">virtual_size</span><span class="p">,</span> <span class="n">virtual_size</span><span class="p">),</span> 
+                            <span class="n">chunks</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">add_stack</span><span class="p">(</span><span class="s1">&#39;zero_image&#39;</span><span class="p">,</span> <span class="n">fake_img</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">set_diff_stack</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">add_stack</span><span class="p">(</span><span class="s1">&#39;peakXPosRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">ds_ctr</span><span class="o">.</span><span class="n">peakXPosRaw</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">center_x</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span> 
+                                        <span class="o">+</span> <span class="n">virtual_size</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> 
+                        <span class="o">*</span> <span class="p">(</span><span class="n">ds_ctr</span><span class="o">.</span><span class="n">peakXPosRaw</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">),</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">add_stack</span><span class="p">(</span><span class="s1">&#39;peakYPosRaw&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">ds_ctr</span><span class="o">.</span><span class="n">peakYPosRaw</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">shots</span><span class="o">.</span><span class="n">center_y</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span> 
+                                        <span class="o">+</span> <span class="n">virtual_size</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> 
+                        <span class="o">*</span> <span class="p">(</span><span class="n">ds_ctr</span><span class="o">.</span><span class="n">peakYPosRaw</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">),</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Writing fake all-ones data (yes, it takes that long).&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">ds_ctr</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">require_group</span><span class="p">(</span><span class="s1">&#39;/entry/data&#39;</span><span class="p">)</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">open_stacks</span><span class="p">(</span><span class="n">readonly</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">store_stacks</span><span class="p">([</span><span class="s1">&#39;zero_image&#39;</span><span class="p">,</span> <span class="s1">&#39;nPeaks&#39;</span><span class="p">,</span> <span class="s1">&#39;peakXPosRaw&#39;</span><span class="p">,</span> <span class="s1">&#39;peakYPosRaw&#39;</span><span class="p">,</span> 
+                            <span class="s1">&#39;peakTotalIntensity&#39;</span><span class="p">],</span>
+                            <span class="n">compression</span><span class="o">=</span><span class="s1">&#39;gzip&#39;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">close_stacks</span><span class="p">()</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">store_tables</span><span class="p">(</span><span class="n">shots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">features</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">peaks</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">predict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ds_ctr</span><span class="o">.</span><span class="n">write_list</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">.lst&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Virtual file </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">.h5 and list file </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">.lst successfully exported.&#39;</span><span class="p">)</span></div>
+        
+<div class="viewcode-block" id="Dataset.view"><a class="viewcode-back" href="../../diffractem.dataset.html#diffractem.dataset.Dataset.view">[docs]</a>    <span class="k">def</span> <span class="nf">view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calls `tools.viewing_widget` on the dataset. Keyword arguments are passed through.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tools</span><span class="o">.</span><span class="n">viewing_widget</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>
