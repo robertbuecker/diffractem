@@ -93,30 +93,30 @@ def augment_stream(streamname: str, outfile:str, new_fields: Union[pd.DataFrame,
         for ln, l in enumerate(fh_in):
         
             if not chunk_init and l.startswith(BEGIN_CHUNK):
+                # print('new chunk')
                 chunk_init = True
                 file_init = False
                 event_init = False
-                value = None
-                found_fn = ''
                 found_event = ''
                 cols = list(new_fields.keys())
 
             elif chunk_init and l.startswith('Image filename:'):
                 found_fn = l.split(': ')[-1].strip()
-                #print(found_fn)
+                # print(found_fn)
                 file_init = True
                 
             elif chunk_init and l.startswith('Event:'):
                 found_event = l.split(': ')[-1].strip()
-                #print(found_event)
+                # print(found_event)
                 event_init = True
 
             elif chunk_init and event_init and file_init and \
-                l.startswith(BEGIN_REFLECTIONS if where=='crystal' else BEGIN_CHUNK):
+                l.startswith(BEGIN_REFLECTIONS if where=='crystal' else BEGIN_PEAKS):
                 # now is the time to insert the new stuff
                 # print(found_fn, found_event)
-               
+                # print(chunk_init, event_init)
                 for k, v in new_fields.loc[(found_fn, found_event),:].iteritems():
+                    # print(v)
                     fh.write(f'{k} = {v}\n')
 
             elif chunk_init and l.startswith(END_CHUNK):

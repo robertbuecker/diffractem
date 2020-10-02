@@ -251,19 +251,21 @@ def call_partialator(input: Union[list,str], options: dict, script_name: Optiona
     
     full_call = ''
     
-    for _, s in settings.iterrows():
+    for idx, s in settings.iterrows():
         the_par = options.copy()
         the_par.update(dict(s))
         if 'input' in s:
             s['input'] = os.path.basename(the_par['input']).rsplit('.', 1)[0]
         partialator_out = '__'.join([str(v) for k, v in s.items()])
-        the_par['output'] = os.path.join(out_dir, partialator_out) + '.hkl'
-        the_par['input'] = os.path.join(out_dir, os.path.basename(the_par['input'])) if cache_streams \
+        the_par['output'] = os.path.join('..', partialator_out) + '.hkl'
+        the_par['input'] = os.path.join('..', os.path.basename(the_par['input'])) if cache_streams \
                         else os.path.join(os.getcwd(), the_par['input'])   
         partstr = make_command(exc, params={k: v for k, v in the_par.items() if len(k)==1}, 
                 opts={k: v for k, v in the_par.items() if len(k)>1})
 
         hkldir = os.path.join(out_dir, partialator_out)
+        
+        settings.loc[idx,'hklfile'] = os.path.join(out_dir, os.path.basename(the_par['output']))
 
         callstr = f'(mkdir -p {hkldir}/pr-logs; cd {hkldir}; rm -rf pr-logs; {partstr}'
 
@@ -273,25 +275,54 @@ def call_partialator(input: Union[list,str], options: dict, script_name: Optiona
             callstr = make_command('sbatch', params={k: v for k, v in slurm_opts.items() if len(k)==1}, 
                                         opts={k: v for k, v in slurm_opts.items() if len(k)>1},
                                     ntasks=the_par['j'], wrap=f'"{callstr}"', 
-                                        output=partialator_out + '.out',
-                                        error=partialator_out + '.err') + ' \n'
+                                        output='partialator.out',
+                                        error='partialator.err') + ' \n'
         else:
-            callstr += (f'> {partialator_out}.out 2> {partialator_out}.err ' 
-                        + (') \n' if ((ii + 1) % par_runs) == 0 else ') &\n'))
+            # callstr += (f'> {partialator_out}.out 2> {partialator_out}.err ' 
+            #             + (') \n' if ((ii + 1) % par_runs) == 0 else ') &\n'))
+            callstr += (f' 2> partialator.err > partialator.out ' 
+                        + (') \n' if ((ii + 1) % par_runs) == 0 else ') & \n'))
 
         # print(callstr)
         ii += 1
         
         full_call += callstr
     
+    settings.columns = [cn.replace('-', '_') for cn in settings.columns]
+    
     if script_name is not None:
         with open(script_name, 'w') as fh:
             fh.write('#!/bin/sh\n')
             fh.write(full_call)
+        print('Please run', script_name, 'to start merging.')
+        return settings
     else:
-        full_call
-
-
+        return settings, full_call
+    
+    
+def get_hkl_settings(filenames: Union[list, str], unique_only=False):
+    import re
+    settings = []
+    hklfiles = glob(filenames) if isinstance(filenames, str) else filenames
+    for fn in hklfiles:
+        with open(fn, 'r') as fh:
+            for ln in fh:
+                if 'partialator' in ln:
+                    s = {'hklfile': fn}
+                    for opt in re.split(' --| -', ln)[1:]:                
+                        p = re.split(' |=', opt)
+                        if p[0] in ['o', 'output']:
+                            continue
+                        if p[0] in ['i', 'input']:
+                            p[1] = p[1].strip(os.getcwd())
+                        s[p[0].replace('-', '_')] = p[1].strip() if len(p) > 1 else True
+                    settings.append(s)
+    settings = pd.DataFrame(settings).apply(pd.to_numeric, errors='ignore')
+    if unique_only:
+        nunique = settings.apply(pd.Series.nunique)
+        settings.drop(nunique[nunique == 1].index, axis=1, inplace=True)
+    return settings
+    
 
 def call_indexamajig_slurm(input, geometry, name='idx', cell: Optional[str] = None,
                      im_params: Optional[dict] = None,

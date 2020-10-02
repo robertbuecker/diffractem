@@ -98,6 +98,7 @@ def main():
     parser.add_argument('-d', '--data-path-old', type=str, help='Raw data field in HDF5 file(s)', default='/%/data/raw_counts')
     parser.add_argument('-n', '--data-path-new', type=str, help='Raw data field in HDF5 file(s)', default='/%/data/corrected')
     parser.add_argument('--no-bgcorr', help='Skip background correction', action='store_true')
+    parser.add_argument('--no-validate', help='Do not validate files before attempting to process', action='store_true')
     # parser.add_argument('ppopt', nargs=argparse.REMAINDER, help='Preprocessing options to be overriden')
 
     args, extra = parser.parse_known_args()
@@ -148,7 +149,7 @@ def main():
             fns = [fn for fn in fns if fn not in seen_raw_files]
             # validation...
             try:
-                fns = io.expand_files(fns, validate=True)
+                fns = io.expand_files(fns, validate=not args.no_validate)
             except (OSError, IOError, RuntimeError) as err:
                 print(f'Could not open file(s) {" ".join(fns)} because of', err)
                 print('Possibly, it is still being written to. Waiting a bit...')
@@ -170,7 +171,7 @@ def main():
                     continue
         
         else:
-            fns = io.expand_files(args.filename, validate=True)
+            fns = io.expand_files(args.filename, validate=not args.no_validate)
             ds_raw = Dataset.from_files(fns, chunking=args.chunksize)
             
         seen_raw_files.extend(ds_raw.files)

@@ -24,6 +24,7 @@ ID_FIELDS = ['file', 'Event', 'serial']
 CRYSTAL_DATA_FIELS = ['astar', 'bstar', 'cstar', 'predict_refine/det_shift', 
                       'profile_radius', 'diffraction_resolution_limit']
 
+args = None
 
 class Crystal:
     
@@ -51,7 +52,8 @@ class Crystal:
             cs = ' '.join(['{0[0]} {0[1]} {0[2]}'.format(vec) 
                             for vec in [self.astar, self.bstar, self.cstar]])
             cs += ' {0[0]} {0[1]}'.format(self.det_shift)
-            cs += ' {0} {1}'.format(self.profile_radius, self.resolution)
+            if args.include_pars: # this is a bit dirty but will become obsolete one day
+                cs += ' {0} {1}'.format(self.profile_radius, self.resolution)
             return cs
 
 class Chunk:
@@ -61,6 +63,8 @@ class Chunk:
         self.Event = None
         self.crystals = []
         self.start_line = line
+        self.x_shift = 0
+        self.y_shift = 0
         
     @property
     def n_cryst(self):
@@ -81,11 +85,16 @@ class Chunk:
             warn('Trying to get string from non-initialized chunk from line {}.'.format(self.start_line))
             return None
         else:
-            return '\n'.join([' '.join([self.file, self.Event, str(ii), str(cryst)])
+            # return '\n'.join([' '.join([self.file, *self.Event.split('//'), str(cryst)])
+            #             for ii, cryst in enumerate(self.crystals)])
+            # new-style (not working yet)
+            return '\n'.join([' '.join([self.file, self.Event, str(cryst)])
                         for ii, cryst in enumerate(self.crystals)])
 
 
-def parse_stream(stream, sol=None, return_meta=True, file_label='Image filename', event_label='Event'):
+def parse_stream(stream, sol=None, return_meta=True, 
+                 file_label='Image filename', event_label='Event',
+                 x_shift_label=None, y_shift_label=None, shift_factor=1):
 
     curr_chunk = None
     curr_cryst = None
@@ -139,6 +148,12 @@ def parse_stream(stream, sol=None, return_meta=True, file_label='Image filename'
                 elif l.startswith(event_label):
                     curr_chunk.Event = l.split(' ')[-1].strip()
 
+                elif x_shift_label and l.startswith(x_shift_label):
+                    curr_chunk.x_shift = float(l.split(' ')[-1].strip())
+
+                elif y_shift_label and l.startswith(y_shift_label):
+                    curr_chunk.y_shift = float(l.split(' ')[-1].strip())
+
                 elif l.startswith(BEGIN_CRYSTAL):
                     if not curr_chunk.initialized:
                         raise RuntimeError('Crystal for incomplete chunk in ' + str(ln))                
@@ -165,6 +180,8 @@ def parse_stream(stream, sol=None, return_meta=True, file_label='Image filename'
                     
                 elif l.startswith('predict_refine/det_shift'):
                     curr_cryst.det_shift = parse_vec(l)
+                    curr_cryst.det_shift = (curr_cryst.det_shift[0] + curr_chunk.x_shift,
+                                            curr_cryst.det_shift[1] + curr_chunk.y_shift)
                     
                 elif l.startswith('diffraction_resolution_limit'):
                     curr_cryst.resolution = parse_vec(l)[0]
@@ -211,6 +228,8 @@ def parse_stream(stream, sol=None, return_meta=True, file_label='Image filename'
                 return command, geom, cell
 
 def main():
+    global args
+    
     from argparse import ArgumentParser
     parser = ArgumentParser(description='Conversion tool from stream to solution file(s) for re-integration/-refinement.')
     
@@ -219,11 +238,18 @@ def main():
     parser.add_argument('-g', '--geometry-out', type=str, help='Output geometry file (optional)')
     parser.add_argument('-p', '--cell-out', type=str, help='Output cell file (optional)')
     parser.add_argument('--file-field', type=str, help='Field in chunks for image filename', default='Image filename')
-    parser.add_argument('--event-field', type=str, help='Field in chunks for event identifier', default='Event')
+    parser.add_argument('--event-field', type=str, help='Field in chunk for event identifier', default='Event')
+    parser.add_argument('--x-shift-field', type=str, help='Field in chunk for x-shift identifier', default='')
+    parser.add_argument('--y-shift-field', type=str, help='Field in chunk for y-shift identifier', default='')
+    parser.add_argument('--shift-factor', type=float, 
+                        help='Pre-factor for shifts, typically the pixel size in mm if the shifts are in pixel', default=1)
+    parser.add_argument('--include-pars', help='Include profile radius and resolution estimate into sol file', action='store_true')
 
     args = parser.parse_args()
     
-    meta = parse_stream(args.input, args.output, return_meta=True, file_label=args.file_field, event_label=args.event_field)
+    meta = parse_stream(args.input, args.output, return_meta=True, 
+                        file_label=args.file_field, event_label=args.event_field,
+                        x_shift_label=args.x_shift_field, y_shift_label=args.y_shift_field)
     print('Original indexamajig call was: \n' + meta[0])
     if args.geometry_out:
         with open(args.geometry_out, 'w') as fh:
