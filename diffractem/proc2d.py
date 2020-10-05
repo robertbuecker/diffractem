@@ -251,6 +251,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
                     'center_refine_score': cost,
                     'adf1': adf1,
                     'adf2': adf2,
+                    'shift_x_mm': -1e3 * opts.pixel_size * ctr_refined[0],
+                    'shift_y_mm': -1e3 * opts.pixel_size * ctr_refined[1],
                     'num_peaks': peak_data['nPeaks'],
                     'peak_data': peak_data}
         

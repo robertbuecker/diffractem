@@ -1804,7 +1804,7 @@ class Dataset:
         fake_img = da.ones(dtype=np.int8, shape=(ds_ctr.shots.shape[0], virtual_size, virtual_size), 
                             chunks=(1, -1, -1))
 
-        ds_ctr.add_stack('zero_image', fake_img, overwrite=True, set_diff_stack=True)
+        ds_ctr.add_stack(diff_stack_label, fake_img, overwrite=True, set_diff_stack=True)
         ds_ctr.add_stack('peakXPosRaw', (ds_ctr.peakXPosRaw - self.shots.center_x.values.reshape(-1,1) 
                                         + virtual_size/2 - 0.5) 
                         * (ds_ctr.peakXPosRaw != 0), overwrite=True)
@@ -1816,7 +1816,7 @@ class Dataset:
         with h5py.File(ds_ctr.files[0], 'w') as fh:
             fh.require_group('/entry/data')
         ds_ctr.open_stacks(readonly=False)
-        ds_ctr.store_stacks(['zero_image', 'nPeaks', 'peakXPosRaw', 'peakYPosRaw', 
+        ds_ctr.store_stacks([diff_stack_label, 'nPeaks', 'peakXPosRaw', 'peakYPosRaw', 
                             'peakTotalIntensity'],
                             compression='gzip', overwrite=True)
         ds_ctr.close_stacks()
