@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 import dask.array.gufunc
-from dask import array as da
+import dask.array as da
 from dask.diagnostics import ProgressBar
 from dask.distributed import Client
 from . import io, nexus, tools
@@ -17,7 +17,6 @@ from tables import NaturalNameWarning
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
 from contextlib import contextmanager
 import os
-from numba import jit
 
 # top-level helper functions for chunking operations
 # ...to be refactored into tools or compute later...
@@ -458,8 +457,8 @@ class Dataset:
                 self._features_changed = False
                 
             except KeyError as err:
-                warn(str(err))
-                warn('No features found at ' + self.map_pattern + '/features')
+                # warn(str(err))
+                print('No feature list found in data set. That\'s if it\'s a virtual or info file.')
                 # raise err
 
             try:
@@ -1700,6 +1699,38 @@ class Dataset:
                 if lbl_from not in stk:
                     warn(f'{lbl_from} not in stacks, skipping.')
                 self.shots[lbl_to] = stk[lbl_from]
+            
+    def get_indexing_solution(self, stream: Union[str, StreamParser], sol_file: Optional[str] = None, 
+                              beam_center: Optional[Union[List, Tuple]] = ('center_x', 'center_y'), 
+                              pixel_size: Optional[float] = 0.055, img_size: Union[Tuple, List] = (1556, 516)):
+        
+        from itertools import product
+        
+        if isinstance(stream, str):
+            stream = StreamParser(stream)
+        
+        idcol = ['crystal_id', 'region', 'sample', 'run']
+        idcol_s = [f'hdf5{self.shots_pattern}/{c}' for c in idcol]
+        
+        beam_center = list(beam_center) if beam_center is not None else []
+
+        data_col = [''.join(p) for p in 
+                        product(('astar_', 'bstar_', 'cstar_'), ('x', 'y', 'z'))] + ['xshift', 'yshift']
+                        
+        shots = self.shots[['file', 'Event'] + idcol + beam_center]
+                        
+        sol = shots.merge(stream.shots[idcol_s + data_col], 
+            left_on=idcol, right_on=idcol_s, how='left')[['file', 'Event'] + data_col + beam_center].dropna()
+        
+        if beam_center:
+            sol['xshift'] = sol['xshift'] - pixel_size*(sol[beam_center[0]] - img_size[0]//2 + 0.5)
+            sol['yshift'] = sol['yshift'] - pixel_size*(sol[beam_center[1]] - img_size[1]//2 + 0.5)
+            sol.drop(columns=beam_center, inplace=True)  
+        
+        if sol_file is not None:
+            sol.to_csv(sol_file, header=False, index=False, sep=' ')
+        
+        return sol
             
     def merge_pattern_info(self, ds_from: Union['Dataset', str], merge_cols: Optional[List[str]] = None, 
                            by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id'), 

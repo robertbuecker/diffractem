@@ -85,7 +85,7 @@ def dict_to_h5(grp, data, exclude=()):
         if k in exclude:
             continue
         elif isinstance(v, dict):
-            dict_to_h5(grp.require_group(nk), v)
+            dict_to_h5(grp.require_group(nk), v, exclude=exclude)
         else:
             if nk in grp.keys():
                 grp[nk][...] = v
@@ -106,9 +106,10 @@ def h5_to_dict(grp, exclude=('data', 'image'), max_len=100):
         if k in exclude:
             continue
         if isinstance(v, h5py.Group):
-            d[k] = h5_to_dict(v)
+            d[k] = h5_to_dict(v, exclude=exclude, max_len=max_len)
         elif isinstance(v, h5py.Dataset):
             if (len(v.shape) > 0) and (len(v) > max_len):
+                print('Skipping', v.shape, len(v), max_len, v)
                 continue
             d[k] = v.value
     return d

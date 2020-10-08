@@ -250,7 +250,7 @@ def main():
     meta = parse_stream(args.input, args.output, return_meta=True, 
                         file_label=args.file_field, event_label=args.event_field,
                         x_shift_label=args.x_shift_field, y_shift_label=args.y_shift_field)
-    print('Original indexamajig call was: \n' + meta[0])
+    # print('Original indexamajig call was: \n' + meta[0])
     if args.geometry_out:
         with open(args.geometry_out, 'w') as fh:
             fh.write(meta[1])
