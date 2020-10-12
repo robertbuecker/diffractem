@@ -788,7 +788,7 @@ class Dataset:
         
         meta = {}    
         for lbl, _ in self.shots.groupby(['file', 'subset']):
-            with h5py.File(lbl[0]) as fh:
+            with h5py.File(lbl[0], 'r') as fh:
                 meta[tuple(lbl)] = fh[path.replace('%', lbl[1])][...]
                 #print(type(meta[tuple(lbl)]))
                 #print(meta[tuple(lbl)].shape)
@@ -1548,7 +1548,7 @@ class Dataset:
             
         # initialize datasets in files
         for (file, subset), grp in self.shots.groupby(['file', 'subset']):
-            with h5py.File(file) as fh:
+            with h5py.File(file, 'a') as fh:
                 path = self.data_pattern.replace('%', subset)
                 fh.require_dataset(f'{path}/{label}', 
                                         shape=(len(grp),) + stack.shape[1:], 

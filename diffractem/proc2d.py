@@ -429,6 +429,7 @@ def _get_corr_img(img: np.ndarray,
     img = remove_background(img, x0, y0, nPeaks, peakXPosRaw, peakYPosRaw, pxmask=None)
     return img
     # has to be re-done after background correction
+    # TODO THIS IS A TRAIN WRECK. FIX ME
     img = correct_dead_pixels(img, pxmask, strategy='interpolate' if opts.interpolate_dead else 'replace', mask_gaps=opts.mask_gaps)
     
     return img
@@ -1176,6 +1177,7 @@ def remove_background(img: np.ndarray, x0: Optional[float] = None, y0: Optional[
         img_nopk = img.copy()
     
     # ALWAYS mask gaps for the background determination
+    # TODO THIS FAILS FOR IMAGES NOT MATCHING THE MAIN DETECTOR GEOMETRY
     img_nopk = correct_dead_pixels(img_nopk, pxmask, mask_gaps=True, strategy='replace')
     # return img_nopk
     r0 = radial_proj(img_nopk, x0, y0, my_func=rfunc, filter_len=filter_len)
@@ -1335,14 +1337,14 @@ def apply_saturation_correction(img: np.ndarray, exp_time: float, dead_time: flo
     return satcorr(img, dt/exp_time)
 
 
-def apply_flatfield(img: np.ndarray, reference: Union[np.ndarray, str], keep_type: bool = True, 
+def apply_flatfield(img: Union[np.ndarray, da.Array], reference: Union[np.ndarray, str], keep_type: bool = True, 
                     ref_smooth_range: Optional[float] = None,  
-                    normalize_reference: bool = False) -> np.ndarray:
+                    normalize_reference: bool = False) -> Union[np.ndarray, da.Array]:
     """Corrects the detector response by dividing the images in the image (stack) by a reference
     image (gain reference image), which should vary around 1.
     
     Args:
-        img (np.ndarray): Input image
+        img (Union[np.ndarray, da.Array]): Input image
         reference (Union[np.ndarray, str]): array containing the reference image, or filename of
             a TIF file containing the reference image
         keep_type (bool, optional): Keep the image data type, that is, round the pixel values

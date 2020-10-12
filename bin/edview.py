@@ -151,10 +151,11 @@ class EDViewer(QWidget):
                     self.diff_image = f[path][:]
                     
                 self.diff_image[np.isnan(self.diff_image)] = 0
-                self.hist_img.setHistogramRange(-1, np.partition(self.diff_image.flatten(), -100)[-100])
+                self.hist_img.setHistogramRange(np.partition(self.diff_image.flatten(), 100)[100], np.partition(self.diff_image.flatten(), -100)[-100])
 
                 levels = self.hist_img.getLevels()
-                levels = (max(levels[0], -1), levels[1])
+                # levels = (max(levels[0], -1), levels[1])
+                levels = (levels[0], levels[1])
                 if self.geom is not None:
                     self.diff_image = apply_geometry_to_data(self.diff_image, self.geom)
                 self.img.setImage(self.diff_image, autoRange=False)
