@@ -888,34 +888,36 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
     """
     
     from onda.algorithms.crystallography_algorithms import Peakfinder8PeakDetection
+    from .peakfinder8_extension import peakfinder_8
 
     X, Y = np.meshgrid(range(img.shape[1]), range(img.shape[0]))
     R = (((X-x0)**2 + (Y-y0)**2)**.5).astype(np.float32)
+     
+    mask = np.ones_like(img, dtype=np.int8) if pxmask is None else (pxmask == 0).astype(np.int8)
+           
+    pks = peakfinder_8(max_peaks, 
+                             img.astype(np.float32), 
+                             mask, 
+                             R, 
+                             img.shape[1], 
+                             img.shape[0], 
+                             1, 
+                             1, 
+                             threshold, 
+                             min_snr, 
+                             min_pix_count, 
+                             min_res, 
+                             local_bg_radius)
     
-    pf = Peakfinder8PeakDetection(max_num_peaks=max_peaks,
-                              asic_nx=img.shape[1], asic_ny=img.shape[0],
-                              nasics_x=1, nasics_y=1,
-                              adc_threshold=threshold, minimum_snr=min_snr,
-                              min_pixel_count=min_pix_count, max_pixel_count=max_pix_count,
-                              local_bg_radius=local_bg_radius,
-                              min_res=min_res, max_res=max_res,
-                              bad_pixel_map_filename=None,
-                              bad_pixel_map_hdf5_path=None,
-                              radius_pixel_map=R)
-    
-    if pxmask is not None:
-        pf._mask = (pxmask == 0).astype(np.int8)
-
-    pks = pf.find_peaks(img)
-    fill = [0]*(max_peaks-len(pks.fs))
+    fill = [0]*(max_peaks-len(pks[0]))
     
     if as_dict:
-        return {'peakXPosRaw': np.array(pks.fs + fill),
-                'peakYPosRaw': np.array(pks.ss + fill),
-                'peakTotalIntensity': np.array(pks.intensity + fill),
-                'nPeaks': np.array(len(pks.fs))}
+        return {'peakXPosRaw': np.array(pks[0] + fill),
+                'peakYPosRaw': np.array(pks[1] + fill),
+                'peakTotalIntensity': np.array(pks[2] + fill),
+                'nPeaks': np.array(len(pks[0]))}
     else:
-        return np.array(pks.fs + fill + pks.ss + fill + pks.intensity + fill + [len(pks.fs)])
+        return np.array(pks[0] + fill + pks[1] + fill + pks[2] + fill + [len(pks[0])])
 
 
 @loop_over_stack
