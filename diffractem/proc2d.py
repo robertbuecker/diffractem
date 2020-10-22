@@ -379,23 +379,22 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         for col, width, dt in pk_cols:
             peakinfo[col] = alldat[:, ii_col:ii_col+width].squeeze().astype(dt)
             ii_col += width
-
-        return shotdata, peakinfo
             
     elif isinstance(img, np.ndarray):
         alldat = _generate_pattern_info(img, opts=opts, reference=reference, 
                                         pxmask=pxmask, centers=centers, lorentz_fit=lorentz_fit)
         
-    shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
-    peakinfo = alldat['peak_data']
+        shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
+        peakinfo = alldat['peak_data']
     
     if output_file is not None:
-        with h5py.File('image_info.h5', 'w') as fh:
+        with h5py.File(output_file, 'w') as fh:
             for k, v in peakinfo.items():
                 fh.create_dataset('/entry/data/' + k, data=v, compression='gzip', chunks=(1,) + v.shape[1:])
         fh['/entry/data'].attrs['recommended_zchunks'] = -1
         shotdata_id = pd.concat([shots, shotdata], axis=1)
-        nexus.store_table(shotdata_id, file='image_info.h5', subset='entry', path='/%/shots')
+        nexus.store_table(shotdata_id, file=output_file, subset='entry', path='/%/shots')
+        print('Wrote analysis results to file', output_file)
     
     return shotdata, peakinfo    
 
