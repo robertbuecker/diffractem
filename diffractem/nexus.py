@@ -17,44 +17,49 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
     lists = []
     with h5py.File(fn, 'r') as fh:
 
-        if len(identifiers) == 1:
-            subsets = ['']
-        else:
-            subsets = fh[identifiers[0]].keys()
-
-        for subset in subsets:
-            tbl_path = path.replace('%', subset)
-            if tbl_path not in fh:
-                raise KeyError(f'Group {tbl_path} not found in {fn}.')
-                # newlist = None
-                
-            if 'pandas_type' in fh[tbl_path].attrs:
-                # print(f'Found list {tbl_path} in Pandas/PyTables format')
-                newlist = pd.read_hdf(fn, tbl_path)
+        try:
+            if len(identifiers) == 1:
+                subsets = ['']
             else:
-                dt = {}
-                for key, val in fh[tbl_path].items():
-                    if val.ndim != 1:
-                        warn('Data fields in list group must be 1-D, {} is {}-D. Skipping.'.format(key, val.ndim))
-                        continue
-                    dt_field = val.dtype
-                    if 'label' in val.attrs:
-                        k = val.attrs['label']
-                    else:
-                        k = key
-                    if dt_field.type == np.string_:
-                        try:
-                            dt[k] = val[:].astype(np.str)
-                        except UnicodeDecodeError as err:
-                            print(f'Field {key} of type {dt_field} gave decoding trouble:')
-                            raise err
-                    else:
-                        dt[k] = val[:]              
-                newlist = pd.DataFrame().from_dict(dt)
+                subsets = fh[identifiers[0]].keys()
 
-            newlist['subset'] = subset
-            newlist['file'] = fn
-            lists.append(newlist)
+            for subset in subsets:
+                tbl_path = path.replace('%', subset)
+                if tbl_path not in fh:
+                    # warn(f'Group {tbl_path} not found in {fn}.')
+                    raise KeyError(f'Group {tbl_path} not found in {fn}.')
+                    # newlist = None
+                    
+                if 'pandas_type' in fh[tbl_path].attrs:
+                    # print(f'Found list {tbl_path} in Pandas/PyTables format')
+                    newlist = pd.read_hdf(fn, tbl_path)
+                else:
+                    dt = {}
+                    for key, val in fh[tbl_path].items():
+                        if val.ndim != 1:
+                            warn('Data fields in list group must be 1-D, {} is {}-D. Skipping.'.format(key, val.ndim))
+                            continue
+                        dt_field = val.dtype
+                        if 'label' in val.attrs:
+                            k = val.attrs['label']
+                        else:
+                            k = key
+                        if dt_field.type == np.string_:
+                            try:
+                                dt[k] = val[:].astype(np.str)
+                            except UnicodeDecodeError as err:
+                                print(f'Field {key} of type {dt_field} gave decoding trouble:')
+                                raise err
+                        else:
+                            dt[k] = val[:]              
+                    newlist = pd.DataFrame().from_dict(dt)
+
+                newlist['subset'] = subset
+                newlist['file'] = fn
+                lists.append(newlist)
+                
+        except KeyError as kerr:
+            raise KeyError(f'{path} not found in {fn}.')
 
         return pd.concat(lists, axis=0, ignore_index=True)
 
@@ -66,6 +71,11 @@ def get_table(files: Union[list, str], path='/%/shots', parallel=True) -> pd.Dat
     if parallel:
         with ProcessPoolExecutor() as p:
             out = p.map(_get_table_from_single_file, files, repeat(path))
+            # ftrs = []
+            # for fn in files:
+            #     ftrs.append(p.submit(_get_table_from_single_file, fn, path))
+            # TODO make this more robust against errors by changing to submit instead of map and handling single-file errors
+                
     else:
         out = map(_get_table_from_single_file, files, repeat(path))
         

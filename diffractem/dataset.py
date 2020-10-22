@@ -456,9 +456,8 @@ class Dataset:
                 # print(len(self._features))
                 self._features_changed = False
                 
-            except KeyError as err:
-                # warn(str(err))
-                print('No feature list found in data set. That\'s if it\'s a virtual or info file.')
+            except KeyError as kerr:
+                print(f'No feature list in data set ({str(kerr)}). That\'s ok if it\'s a virtual or info file.')
                 # raise err
 
             try:
