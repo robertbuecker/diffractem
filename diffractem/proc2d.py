@@ -214,6 +214,7 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
         peak_data = get_peaks(img, x0, y0, pxmask=pxmask, max_peaks=opts.max_peaks,
                                 **{k.replace('-','_'): v for k, v in opts.peak_search_params.items()},
                                 as_dict=True)
+        # print(peak_data.keys())
     else:
         peak_data = {'nPeaks': 0, 'peakXPosRaw': np.zeros((opts.max_peaks,)), 
                      'peakYPosRaw': np.zeros((opts.max_peaks,)),
@@ -321,6 +322,9 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
     reference = imread(opts.reference) if reference is None else reference
     pxmask = imread(opts.pxmask) if pxmask is None else pxmask
 #     print(type(pxmask))
+
+    if len(img.shape) == 2:
+        img = img[np.newaxis, ...]
     
     if isinstance(img, da.Array) and not via_array:
         if centers is not None:
@@ -386,7 +390,10 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         
         shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
         peakinfo = alldat['peak_data']
-    
+        
+    else:
+        raise ValueError('Input image(s) must be a dask or numpy array.')
+        
     if output_file is not None:
         with h5py.File(output_file, 'w') as fh:
             for k, v in peakinfo.items():
@@ -887,7 +894,6 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
         returned peak positions.
     """
     
-    from onda.algorithms.crystallography_algorithms import Peakfinder8PeakDetection
     from .peakfinder8_extension import peakfinder_8
 
     X, Y = np.meshgrid(range(img.shape[1]), range(img.shape[0]))
@@ -928,8 +934,8 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
         ]
         
     if as_dict:
-        # return dict(result)
-        return result
+        return dict(result)
+        # return result
     else:
         return np.array(pks[0] + fill + pks[1] + fill + pks[2] + fill + [len(pks[0])])
 

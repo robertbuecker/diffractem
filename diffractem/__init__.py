@@ -1,5 +1,4 @@
 import numpy as np
-from .peakfinder8_extension import peakfinder_8
 
 __all__ = ['compute', 'io', 'proc2d', 'tools', 'map_image', 'pre_proc_opts']
 

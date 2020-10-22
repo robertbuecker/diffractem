@@ -1479,6 +1479,7 @@ class Dataset:
                         raise e
                 
                 if label == 'index':
+                    print('Writing recommended_zchunks attribute...')
                     fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
                 #     fh[path.rsplit('/', 1)[0]].attrs['signal'] = self._diff_stack_label
 
@@ -1586,6 +1587,7 @@ class Dataset:
             print('Starting computation...')
             chunk_info = client.compute(dels, sync=True)
             return pd.DataFrame(chunk_info, columns=['file', 'subset', 'path', 'shot_in_subset'])
+        
         
     def compute_and_save(self, diff_stack_label: Optional[str] = None, list_file: Optional[str] = None, client: Optional[Client] = None, 
                          exclude_stacks: Union[str,List[str]] = None, overwrite: bool = False, persist_diff: bool = True, 
