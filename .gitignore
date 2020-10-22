@@ -20,4 +20,4 @@ notebooks/proc_data
 *.so
 *.dll
 *.dylib
-notebooks
+notebooks/
