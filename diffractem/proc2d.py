@@ -398,7 +398,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         with h5py.File(output_file, 'w') as fh:
             for k, v in peakinfo.items():
                 fh.create_dataset('/entry/data/' + k, data=v, compression='gzip', chunks=(1,) + v.shape[1:])
-        fh['/entry/data'].attrs['recommended_zchunks'] = -1
+            fh['/entry/data'].attrs['recommended_zchunks'] = -1
         shotdata_id = pd.concat([shots, shotdata], axis=1)
         nexus.store_table(shotdata_id, file=output_file, subset='entry', path='/%/shots')
         print('Wrote analysis results to file', output_file)

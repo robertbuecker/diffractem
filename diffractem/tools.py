@@ -695,7 +695,7 @@ def viewing_widget(ds_disp, shot=0, Imax=30, log=False):
     
     fh.canvas.toolbar_position='bottom'    
     fh.canvas.header_visible=False    
-    ih = ax.imshow(img_stack[shot,...].compute(scheduler='single-threaded'), vmin=0, vmax=Imax, cmap='gray_r')
+    ih = ax.imshow(img_stack[shot,...].compute(scheduler='threading'), vmin=0, vmax=Imax, cmap='gray_r')
     if have_peaks:
         sc = ax.scatter([], [], c='g', alpha=0.1)
     if have_center:
