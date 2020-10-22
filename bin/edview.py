@@ -13,10 +13,11 @@ from PyQt5.QtWidgets import (QPushButton, QSpinBox, QCheckBox,
 from diffractem.adxv import Adxv
 from warnings import warn
 from typing import Optional, Union
-import os
-from cfelpyutils.crystfel_utils import load_crystfel_geometry
-from cfelpyutils.geometry_utils import apply_geometry_to_data, compute_visualization_pix_maps
 from time import sleep
+
+# non-trivial detector geometries are currently not supported (licensing trouble)
+# from cfelpyutils.crystfel_utils import load_crystfel_geometry
+# from cfelpyutils.geometry_utils import apply_geometry_to_data, compute_visualization_pix_maps
 
 pg.setConfigOptions(imageAxisOrder='row-major')
 
@@ -59,14 +60,16 @@ class EDViewer(QWidget):
         if file_type == 'stream':
             print(f'Parsing stream file {args.filename}...')
             stream = StreamParser(args.filename)
-            with open('tmp.geom', 'w') as fh:
-                fh.write('\n'.join(stream._geometry_string))
-            self.geom = load_crystfel_geometry('tmp.geom')
-            os.remove('tmp.geom')
-            if len(self.geom['panels']) == 1:
-                print('Single-panel geometry, so ignoring transforms for now.')
-                #TODO make this more elegant, e.g. by overwriting image transform func with identity
-                self.geom = None
+            # with open('tmp.geom', 'w') as fh:
+            #     fh.write('\n'.join(stream._geometry_string))
+            # self.geom = load_crystfel_geometry('tmp.geom')
+            # os.remove('tmp.geom')
+            # if len(self.geom['panels']) == 1:
+            #     print('Single-panel geometry, so ignoring transforms for now.')
+            #     #TODO make this more elegant, e.g. by overwriting image transform func with identity
+            #     self.geom = None
+            self.geom = None
+            
             try:
                 self.data_path = stream.geometry['data']
             except KeyError:
@@ -94,7 +97,8 @@ class EDViewer(QWidget):
                 print(f'Reason: {err}')
 
         if args.geometry is not None:
-            self.geom = load_crystfel_geometry(args.geometry)
+            raise ValueError('Geometry files are currently not supported.')
+            # self.geom = load_crystfel_geometry(args.geometry)
 
         if file_type in ['lst', 'h5', 'hdf', 'nxs']:
             self.dataset = Dataset.from_list(args.filename, load_tables=True, init_stacks=False, open_stacks=False)
@@ -157,7 +161,8 @@ class EDViewer(QWidget):
                 # levels = (max(levels[0], -1), levels[1])
                 levels = (levels[0], levels[1])
                 if self.geom is not None:
-                    self.diff_image = apply_geometry_to_data(self.diff_image, self.geom)
+                    raise RuntimeError('This should not happen')
+                    # self.diff_image = apply_geometry_to_data(self.diff_image, self.geom)
                 self.img.setImage(self.diff_image, autoRange=False)
                 
                 self.img.setLevels(levels)
@@ -201,10 +206,11 @@ class EDViewer(QWidget):
                 y = peaks.loc[:,'ss/px']
 
             if self.geom is not None:
-                print('Projecting peaks...')
-                maps = compute_visualization_pix_maps(self.geom)
-                x = maps.x[y.astype(int), x.astype(int)]
-                y = maps.y[y.astype(int), x.astype(int)]
+                raise RuntimeError('Someone set geom to something. This should not happen.')
+                # print('Projecting peaks...')
+                # maps = compute_visualization_pix_maps(self.geom)
+                # x = maps.x[y.astype(int), x.astype(int)]
+                # y = maps.y[y.astype(int), x.astype(int)]
 
             if self.args.internal:
                 ring_pen = pg.mkPen('g', width=0.8)
@@ -223,12 +229,13 @@ class EDViewer(QWidget):
                                            ['fs/px', 'ss/px']] - 0.5
 
             if self.geom is not None:
-                print('Projecting predictions...')
-                maps = compute_visualization_pix_maps(self.geom)
-                x = maps.x[pred.loc[:,'ss/px'].astype(int),
-                    pred.loc[:,'fs/px'].astype(int)]
-                y = maps.y[pred.loc[:,'ss/px'].astype(int),
-                    pred.loc[:,'fs/px'].astype(int)]
+                raise RuntimeError('Someone set geom to not None. This should not happen.')
+                # print('Projecting predictions...')
+                # maps = compute_visualization_pix_maps(self.geom)
+                # x = maps.x[pred.loc[:,'ss/px'].astype(int),
+                #     pred.loc[:,'fs/px'].astype(int)]
+                # y = maps.y[pred.loc[:,'ss/px'].astype(int),
+                #     pred.loc[:,'fs/px'].astype(int)]
             else:
                 x = pred.loc[:,'fs/px']
                 y = pred.loc[:,'ss/px']

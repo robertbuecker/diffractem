@@ -56,8 +56,7 @@ setup(
     install_requires=['h5py', 'numpy', 'pandas', 'tables', 'hdf5plugin',
                       'dask[complete]', 'tifffile', 'scipy', 'astropy', 
                       'matplotlib', 'numba', 'pyqtgraph', 'pyyaml', 'scikit-learn', 
-                      'scikit-image', 'ruamel.yaml', 'opencv-python-headless', 'PyQt5',
-                      'cfelpyutils'],
+                      'scikit-image', 'opencv-python-headless', 'PyQt5'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
