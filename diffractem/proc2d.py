@@ -1385,8 +1385,8 @@ def apply_flatfield(img: Union[np.ndarray, da.Array], reference: Union[np.ndarra
 def correct_dead_pixels(img: Union[np.ndarray, da.Array], pxmask: Union[np.ndarray, str], 
                         strategy: str = 'interpolate', 
                         interp_range: int = 1, replace_val: Union[float, int] = None, 
-                        mask_gaps: bool = False, edge_mask_x: int = 70, 
-                        edge_mask_y: int = 0, invert_mask: bool = False) -> np.ndarray:
+                        mask_gaps: bool = False, edge_mask_x: Union[int, Tuple] = (100, 30), 
+                        edge_mask_y: Union[int, Tuple] = 0, invert_mask: bool = False) -> np.ndarray:
     """Corrects a set of images for dead pixels by either replacing values with a 
     constant, or interpolation from a Gaussian-smoothed version of the image. It 
     requires a binary array (pxmask) which is 1 (or 255 or True) for dead pixels. 
@@ -1432,12 +1432,22 @@ def correct_dead_pixels(img: Union[np.ndarray, da.Array], pxmask: Union[np.ndarr
         pxmask[gap_pixels()] = True
 
     if edge_mask_x:
-        pxmask[:, :edge_mask_x] = True
-        pxmask[:, -edge_mask_x:] = True
+        if isinstance(edge_mask_x, int):
+            rng = (edge_mask_x, edge_mask_x)
+        else:
+            rng = edge_mask_x
+            print(rng)
+        pxmask[:, :rng[0]] = True
+        pxmask[:, -rng[1]:] = True
 
     if edge_mask_y:
-        pxmask[:edge_mask_y,:] = True
-        pxmask[-edge_mask_y:,:] = True
+        if isinstance(edge_mask_y, int):
+            rng = (edge_mask_y, edge_mask_y)
+        else:
+            rng = edge_mask_y   
+            print(rng)     
+        pxmask[:rng[0],:] = True
+        pxmask[-rng[1]:,:] = True
         
     if strategy == 'interpolate':
 

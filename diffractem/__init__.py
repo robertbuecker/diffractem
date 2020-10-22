@@ -22,6 +22,43 @@ def gap_pixels(detector='Lambda750k'):
     return gaps
 
 
+def panel_pix(panel_id=1, pxmask=None, img=None, 
+              detector='Lambda750k', include_gap=True):
+    
+    if detector == 'Lambda750k':
+        shape = (1556, 516)
+        panel_size = 256 if include_gap else 255
+        panel_gap = 4 if include_gap else 6
+        cutoff = (60, 0)
+        row, col = divmod(panel_id-1, 6)
+        if panel_id > 6:
+            col = 5-col        
+        if panel_id > 12:
+            raise ValueError('panel_id cannot be larger than 12')
+    else:
+        raise ValueError(f'Unknown detector {detector}')
+    
+    mask = np.zeros((shape[1], shape[0]))
+    #print(row,col)
+    cstart = col*(panel_size + panel_gap)
+    rstart = row*(panel_size + panel_gap)
+    mask[rstart:rstart+panel_size, cstart:cstart+panel_size] = 1
+    mask[:(cutoff[1]+1), :(cutoff[0]+1)] = 0
+    mask[-(cutoff[1]+1):, -(cutoff[0]+1):] = 0
+    if pxmask is not None:
+        mask = mask - pxmask
+    if img is None:
+        return mask == 1
+    else:
+        cimg = img[rstart:rstart+panel_size, cstart:cstart+panel_size]
+        if pxmask is not None:
+            pm = pxmask[rstart:rstart+panel_size, cstart:cstart+panel_size]
+        else:
+            pm = np.zeros_like(cimg)
+        cimg[pm != 0] = -1
+        return cimg
+
+
 def normalize_names(strin):
     strout = strin
     for character in [' ', '/', '(', ')', '-']:

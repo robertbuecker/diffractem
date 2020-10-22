@@ -6,6 +6,7 @@ from .stream_parser import StreamParser
 from .io import *
 from .pre_proc_opts import PreProcOpts
 from .proc2d import correct_dead_pixels
+from . import gap_pixels, panel_pix
 from typing import Iterable, Tuple, Union, Optional
 import os
 from tifffile import imread, imsave
@@ -56,11 +57,11 @@ def strip_file_path(df: pd.DataFrame, add_folder=False):
 
 
 def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=None,
-                   thr_rel_var=0.2, thr_mean=0.2, gap_factor=1, save_stat_imgs=False):
+                   thr_rel_var=0.2, thr_mean=0.2, gap_factor=1, save_stat_imgs=False, per_panel=False):
     """Calculates reference data for dead pixels AND flatfield (='gain'='sensitivity'). Returns the boolean dead pixel
     array, and a floating-point flatfield (normalized to median intensity 1)."""
 
-    imgs = da.from_array(h5py.File(reference_filename)['entry/instrument/detector/data'], (100, 516, 1556))
+    imgs = da.from_array(h5py.File(reference_filename)['entry/instrument/detector/data'])
     (mimg, vimg) = da.compute(imgs.mean(axis=0), imgs.var(axis=0))
 
     # Correct for sensor gaps.
@@ -74,15 +75,26 @@ def make_reference(reference_filename, output_base_fn=None, ref_smooth_range=Non
     # Make mask
     zeropix = mimg == 0
     mimg[mimg == 0] = mimg.mean()
-
+    
+    mimg_rel = mimg.copy() / np.median(mimg)
     vom = vimg / mimg
-    vom = vom / np.median(vom)
-    mimg = mimg / np.median(mimg)
+
+    if per_panel:
+        from diffractem import panel_pix
+        for pid in range(1,13,1):
+            sel = panel_pix(pid, include_gap=False)
+            vom[sel] = vom[sel] / np.median(vom[sel])
+            mimg[sel] = mimg[sel] / np.median(mimg[sel])
+        vom[gap] = vom[gap] / np.median(vom[gap])
+        mimg[gap] = mimg[gap] / np.median(mimg[gap])
+    else:
+        vom = vom / np.median(vom)
+        mimg = mimg / np.median(mimg)
 
     pxmask = zeropix + (abs(vom - 1) > thr_rel_var) + (abs(mimg - 1) > thr_mean)
 
     # now calculate the reference, using the corrected mean image
-    reference = correct_dead_pixels(mimg, pxmask, interp_range=4)
+    reference = correct_dead_pixels(mimg_rel, pxmask, interp_range=4, edge_mask_x=(100, 50))
 
     if not ref_smooth_range is None:
         reference = convolve(reference, Gaussian2DKernel(ref_smooth_range),
