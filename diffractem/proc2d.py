@@ -853,9 +853,10 @@ def apply_virtual_detector(img: np.ndarray, r_inner: float, r_outer: float,
 
 @loop_over_stack
 def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500, 
-              pxmask: Optional[np.ndarray] = None, min_snr: float = 4., threshold: float = 8,
+              pxmask: Optional[np.ndarray] = None, min_snr: float = 4., threshold: float = 7.,
               min_pix_count: int = 2, max_pix_count: int = 20, local_bg_radius: int = 3,
-              min_res: int = 0, max_res: int = 500, as_dict: bool = True) -> Union[dict,np.ndarray]:
+              min_res: int = 0, max_res: int = 500, 
+              as_dict: bool = True, extended_info: bool = False) -> Union[dict,np.ndarray]:
     """Find peaks in diffraction pattern using the peakfinder8 algorithm as used in
     CrystFEL, OnDA and Cheetah. For explanation of the finding parameters, please consult the 
     CrystFEL documentation (or just run `man indexamajig`).
@@ -894,6 +895,8 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
     R = (((X-x0)**2 + (Y-y0)**2)**.5).astype(np.float32)
      
     mask = np.ones_like(img, dtype=np.int8) if pxmask is None else (pxmask == 0).astype(np.int8)
+    mask[R > max_res] = 0
+    mask[R < min_res] = 0
            
     pks = peakfinder_8(max_peaks, 
                              img.astype(np.float32), 
@@ -906,16 +909,28 @@ def get_peaks(img: np.ndarray, x0: float, y0: float, max_peaks: int = 500,
                              threshold, 
                              min_snr, 
                              min_pix_count, 
-                             min_res, 
+                             max_pix_count, 
                              local_bg_radius)
     
     fill = [0]*(max_peaks-len(pks[0]))
-    
+    result = [('peakXPosRaw', np.array(pks[0] + fill)),
+            ('peakYPosRaw', np.array(pks[1] + fill)),
+            ('peakTotalIntensity', np.array(pks[2] + fill)),
+            ('nPeaks', np.array(len(pks[0])))]
+            
+    if extended_info:
+        result = result[:-1] + [
+            ('peakIndex', np.array(pks[3] + fill)),
+            ('peakNPix', np.array(pks[4] + fill)),
+            ('PeakMaxIntensity', np.array(pks[5] + fill)),
+            ('PeakSigma', np.array(pks[6] + fill)),
+            ('PeakSNR', np.array(pks[7] + fill)),
+            ('nPeaks', np.array(len(pks[0])))
+        ]
+        
     if as_dict:
-        return {'peakXPosRaw': np.array(pks[0] + fill),
-                'peakYPosRaw': np.array(pks[1] + fill),
-                'peakTotalIntensity': np.array(pks[2] + fill),
-                'nPeaks': np.array(len(pks[0]))}
+        # return dict(result)
+        return result
     else:
         return np.array(pks[0] + fill + pks[1] + fill + pks[2] + fill + [len(pks[0])])
 
