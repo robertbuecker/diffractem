@@ -5,7 +5,7 @@ import os
 from setuptools import Extension, setup
 
 ### ---
-# peakfinder8 Cython installation adapted from OnDA: https://github.com/ondateam/onda
+# peakfinder8 Cython version adapted from OnDA: https://github.com/ondateam/onda
 
 DIFFRACTEM_USE_CYTHON = os.getenv("DIFFRACTEM_USE_CYTHON")
 
@@ -51,7 +51,7 @@ setup(
         ],
     },
     author='Robert Buecker',
-    author_email='robert.buecker@mpsd.mpg.de',
+    author_email='robert.buecker@cssb-hamburg.de',
     description='Some tools for working with serial electron microscopy data.',
     install_requires=['h5py', 'numpy', 'pandas', 'tables', 'hdf5plugin',
                       'dask[complete]', 'tifffile', 'scipy', 'astropy', 
