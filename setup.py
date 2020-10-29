@@ -46,7 +46,7 @@ setup(
     # scripts=['bin/nxs2tif.py', 'bin/edview.py', 'bin/quick_proc.py'],
     entry_points={
         'console_scripts': [
-            'pre_process = diffractem.quick_proc:main',
+            'quick_proc = diffractem.quick_proc:main',
             'stream2sol = diffractem.stream_convert:main'
         ],
     },
