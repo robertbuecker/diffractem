@@ -114,65 +114,6 @@ def h5_to_dict(grp, exclude=('data', 'image'), max_len=100):
             d[k] = v.value
     return d
 
-
-def apply_shot_selection(lists, stacks, min_chunk=None, reset_shot_index=True):
-    """
-    Applies the selection of shots as defined by the 'selected' column of the shot list, returning corresponding
-    subsets of both lists (pandas DataFrames) and stacks (dask arrays).
-    :param lists: flat dict of lists. Does not handle subsets, so use flat=True when reading from file
-    :param stacks: dict of arrays. Again, not accounting for subsets. Use flat=True for reading
-    :param min_chunk: minimum chunk size of the output arrays along the stacked dimension
-    :param reset_shot_index: if True, the returned shot list has its index reset, with correspondingly updated serial
-            numbers in peak list. Recommended.
-    :return new_lists, new_stacks: subselected lists and stacks
-    """
-    # n
-    shots = lists['shots']  # just a shortcut
-    new_lists = lists.copy()
-    new_lists['shots'] = lists['shots'].query('selected').copy()
-    print('Keeping {} shots out of {}'.format(len(new_lists['shots']), len(shots)))
-    if 'peaks' in lists.keys():
-        # remove rejected shots from the peak list
-        # TODO: why is this not simply done with a right merge?
-        peaksel = lists['peaks'].merge(shots[['selected']], left_on='serial', right_index=True)['selected']
-        new_lists['peaks'] = lists['peaks'].loc[peaksel, :]
-
-        if reset_shot_index:
-            new_lists['shots']['newEv'] = range(len(new_lists['shots']))
-            new_lists['peaks'] = new_lists['peaks'].merge(new_lists['shots'].loc[:, ['newEv', ]],
-                                                          left_on='serial', right_index=True)
-            new_lists['peaks']['serial'] = new_lists['peaks']['newEv']
-            new_lists['peaks'].drop('newEv', axis=1, inplace=True)
-            new_lists['shots'].drop('newEv', axis=1, inplace=True)
-
-    if reset_shot_index:
-        new_lists['shots'].reset_index(drop=True, inplace=True)
-
-    new_stacks = {}
-    for k, stk in stacks.items():
-
-        # select the proper images from the stack
-        stack = stk[shots['selected'].values, ...]
-
-        # if desired, re-chunk such that chunks don't become too small
-        if min_chunk is not None:
-            nchk = 0
-            fchks = []
-            for ii, chk in enumerate(stack.chunks[0]):
-                nchk += chk
-                if nchk >= min_chunk:
-                    fchks.append(nchk)
-                    nchk = 0
-                elif ii == len(stack.chunks[0]) - 1:
-                    fchks[-1] += nchk
-
-            stack = stack.rechunk({0: tuple(fchks)})
-
-        new_stacks.update({k: stack})
-
-    return new_lists, new_stacks
-
-
 def make_master_h5(file_list, file_name=None, abs_path=False, local_group='/',
                    remote_group='/entry', verbose=False):
     fns, ids = expand_files(file_list, True)

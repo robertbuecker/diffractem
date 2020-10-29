@@ -180,7 +180,7 @@ def store_table(table: pd.DataFrame, path: str,
 def _save_single_chunk(dat: np.ndarray, file: str, subset: str, label: str, 
                        idcs: Union[list, np.ndarray], data_pattern: str, lock):   
     lock.acquire()
-    with h5py.File(file) as fh:
+    with h5py.File(file, 'a') as fh:
         path = f'{data_pattern}/{label}'.replace('%', subset)
         fh[path][idcs,:,:] = dat
     lock.release()
@@ -189,7 +189,7 @@ def _save_single_chunk(dat: np.ndarray, file: str, subset: str, label: str,
 def _save_single_chunk_multi(chks: dict, file: str, subset: str, 
                        idcs: Union[list, np.ndarray], lock):   
     lock.acquire()
-    with h5py.File(file) as fh:
+    with h5py.File(file, 'a') as fh:
         for p, d in chks.items():
             fh[p.replace('%', subset)][idcs,...] = d
     lock.release()

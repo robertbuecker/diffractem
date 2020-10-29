@@ -1458,7 +1458,7 @@ def correct_dead_pixels(img: Union[np.ndarray, da.Array], pxmask: Union[np.ndarr
             rng = (edge_mask_x, edge_mask_x)
         else:
             rng = edge_mask_x
-            print(rng)
+            # print(rng)
         pxmask[:, :rng[0]] = True
         pxmask[:, -rng[1]:] = True
 
@@ -1467,7 +1467,7 @@ def correct_dead_pixels(img: Union[np.ndarray, da.Array], pxmask: Union[np.ndarr
             rng = (edge_mask_y, edge_mask_y)
         else:
             rng = edge_mask_y   
-            print(rng)     
+            # print(rng)     
         pxmask[:rng[0],:] = True
         pxmask[-rng[1]:,:] = True
         
