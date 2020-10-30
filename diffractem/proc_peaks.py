@@ -35,7 +35,7 @@ def _ctr_from_pks(pkl: np.ndarray, p0: np.ndarray,
     else:
         corr = lambda p: np.sum(np.exp(-((pkl[:, 0:1] + pkl[:, 0:1].T - 2 * p[0]) ** 2
                                          + (pkl[:, 1:2] + pkl[:, 1:2].T - 2 * p[1]) ** 2) / (2 * sigma ** 2))) \
-                         / pkl.shape[0]
+                         / (2*pkl.shape[0])
 
     fun = lambda p: 1 / max(corr(p), 1e-10)  # prevent infs
     if np.isnan(fun(p0)):
@@ -253,7 +253,7 @@ def get_pk_data(n_pk: np.ndarray, pk_x: np.ndarray, pk_y: np.ndarray,
     
 class Cell(object):
     """
-    Partially stolen from the PyFAI package, with some simplifications 
+    Partially taken from the PyFAI package, with some simplifications 
     and speed enhancements for d-spacing calculation, as well as a 
     new refinement function.
     

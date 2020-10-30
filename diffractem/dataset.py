@@ -563,6 +563,8 @@ class Dataset:
 
         # ...it would be way more elegant, to just associate a StreamParser object, and merge the list in
         # accessors. But the merges can become pretty slow for large files, so we do it only here.
+        
+        warn('Dataset.merge_stream is deprecated. Please use StreamParser to work with indexing results', DeprecationWarning)
 
         if isinstance(streamfile, str):
             stream = StreamParser(streamfile)
@@ -869,7 +871,7 @@ class Dataset:
 
     def copy(self, file_suffix: Optional[str] = '_copy.h5', 
                     file_prefix: str = '', 
-                    new_folder: Union[str, None] = None):
+                    new_folder: Union[str, None] = None) -> 'Dataset':
         """Makes a (deep) copy of a dataset, changing the file names.
         
         Internally, this just calls `get_selection` with `query='True'`.
@@ -880,7 +882,7 @@ class Dataset:
             new_folder (Union[str, None], optional): as in `change_filenames`. Defaults to None.
 
         Returns:
-            [type]: [description]
+            Dataset: Copy of the dataset
         """
         
         return self.get_selection('True', file_suffix, file_prefix, new_folder)
@@ -1003,7 +1005,7 @@ class Dataset:
                 if str(e).startswith('Mismatched chunk structure'):
                     warn(f'Stack {sn} has mismatched chunk structure. Rechunking to minimum chunk sizes. '
                          'Consider rechunking manually before, to improve performance.')
-                    #TODO this comes with quite a performance penalty, but sth more complex would be comlex.
+                    #TODO this comes with quite a performance penalty, but sth more complex would be complex.
                     stk_rec = stk_sel.rechunk({0: tuple(sh_final['agg_len'].values)})
                     stk_agg = _map_sub_blocks(stk_rec,
                                               labels=sh_initial['_agg_grp_id'].values, 
@@ -1479,7 +1481,7 @@ class Dataset:
                         raise e
                 
                 if label == 'index':
-                    print('Writing recommended_zchunks attribute...')
+                    # print('Writing recommended_zchunks attribute...')
                     fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
                 #     fh[path.rsplit('/', 1)[0]].attrs['signal'] = self._diff_stack_label
 

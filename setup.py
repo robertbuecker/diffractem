@@ -1,11 +1,16 @@
 from setuptools import setup, Extension
-
-import numpy
 import os
 from setuptools import Extension, setup
 
 ### ---
-# peakfinder8 Cython installation adapted from OnDA: https://github.com/ondateam/onda
+# peakfinder8 Cython version adapted from OnDA: https://github.com/ondateam/onda
+
+try:
+    import numpy
+except (ModuleNotFoundError, NameError):
+    print('NumPy is not installed. Please install it before diffractem via:\n'
+          'pip install numpy')
+
 
 DIFFRACTEM_USE_CYTHON = os.getenv("DIFFRACTEM_USE_CYTHON")
 
@@ -46,18 +51,17 @@ setup(
     # scripts=['bin/nxs2tif.py', 'bin/edview.py', 'bin/quick_proc.py'],
     entry_points={
         'console_scripts': [
-            'pre_process = diffractem.quick_proc:main',
+            'quick_proc = diffractem.quick_proc:main',
             'stream2sol = diffractem.stream_convert:main'
         ],
     },
     author='Robert Buecker',
-    author_email='robert.buecker@mpsd.mpg.de',
+    author_email='robert.buecker@cssb-hamburg.de',
     description='Some tools for working with serial electron microscopy data.',
     install_requires=['h5py', 'numpy', 'pandas', 'tables', 'hdf5plugin',
                       'dask[complete]', 'tifffile', 'scipy', 'astropy', 
                       'matplotlib', 'numba', 'pyqtgraph', 'pyyaml', 'scikit-learn', 
-                      'scikit-image', 'ruamel.yaml', 'opencv-python-headless', 'PyQt5',
-                      'cfelpyutils'],
+                      'scikit-image', 'opencv-python-headless', 'PyQt5'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

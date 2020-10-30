@@ -13,11 +13,8 @@ pyqtgraph
 pyyaml
 scikit-learn
 scikit-image
-ruamel.yaml
 opencv-python-headless
 PyQt5
-cfelpyutils
-onda
 ipykernel
 nbsphinx
 jupyter-sphinx
