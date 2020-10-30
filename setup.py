@@ -1,11 +1,16 @@
 from setuptools import setup, Extension
-
-import numpy
 import os
 from setuptools import Extension, setup
 
 ### ---
 # peakfinder8 Cython version adapted from OnDA: https://github.com/ondateam/onda
+
+try:
+    import numpy
+except (ModuleNotFoundError, NameError):
+    print('NumPy is not installed. Please install it before diffractem via:\n'
+          'pip install numpy')
+
 
 DIFFRACTEM_USE_CYTHON = os.getenv("DIFFRACTEM_USE_CYTHON")
 

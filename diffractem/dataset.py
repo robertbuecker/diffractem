@@ -1481,7 +1481,7 @@ class Dataset:
                         raise e
                 
                 if label == 'index':
-                    print('Writing recommended_zchunks attribute...')
+                    # print('Writing recommended_zchunks attribute...')
                     fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
                 #     fh[path.rsplit('/', 1)[0]].attrs['signal'] = self._diff_stack_label
 

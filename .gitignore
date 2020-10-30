@@ -20,3 +20,4 @@ notebooks/proc_data
 *.dll
 *.dylib
 notebooks/
+conda-recipe/
