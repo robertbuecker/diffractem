@@ -244,25 +244,30 @@ def call_partialator(input: Union[list,str], options: dict, script_name: Optiona
                      out_dir: str = 'merged', slurm_opts: Optional[dict] = None, 
                      exc='partialator') -> Optional[str]:
     
-    options['input'] = input
+    if slurm and not cache_streams:
+        warn('If making a SLURM script, you usually want to set cache_streams=True to get the paths right on a cluster.')
+    
+    # looks weird, but required to have input first in the dict:
+    _options = {'input': input}
+    _options.update(options)
+    options = _options
     
     from itertools import product
     changing = {k: v for k, v in options.items() if (isinstance(v, list) or isinstance(v, tuple))}
     settings = pd.DataFrame([dict(zip(changing.keys(), element)) for element in product(*changing.values())])
 
+    full_call = '#!/bin/sh\n'
+
     # copy stream files to some fast local storage
     if cache_streams:
-        with open('partialator_run.sh', 'a') as fh:
-            fh.write(f'mkdir -p {out_dir}\n')
-            for fn in input:
-                fh.write(f'cp {fn} {out_dir}\n')
-                if split:
-                    fh.write(f'cp {fn.rsplit(".", 1)[0]}_split.txt {out_dir}\n')
+        full_call += f'mkdir -p {out_dir}\n'
+        for fn in input:
+            full_call += f'cp {fn} {out_dir}\n'
+            if split:
+                full_call += f'cp {fn.rsplit(".", 1)[0]}_split.txt {out_dir}\n'
 
     ii = 0 
-    
-    full_call = ''
-    
+        
     for idx, s in settings.iterrows():
         the_par = options.copy()
         the_par.update(dict(s))
@@ -272,6 +277,8 @@ def call_partialator(input: Union[list,str], options: dict, script_name: Optiona
         the_par['output'] = os.path.join('..', partialator_out) + '.hkl'
         the_par['input'] = os.path.join('..', os.path.basename(the_par['input'])) if cache_streams \
                         else os.path.join(os.getcwd(), the_par['input'])   
+        if split:
+            the_par['custom-split'] = the_par['input'].rsplit('.', 1)[0] + '_split.txt'
         partstr = make_command(exc, params={k: v for k, v in the_par.items() if len(k)==1}, 
                 opts={k: v for k, v in the_par.items() if len(k)>1})
 
@@ -304,7 +311,6 @@ def call_partialator(input: Union[list,str], options: dict, script_name: Optiona
     
     if script_name is not None:
         with open(script_name, 'w') as fh:
-            fh.write('#!/bin/sh\n')
             fh.write(full_call)
         print('Please run', script_name, 'to start merging.')
         return settings
@@ -312,15 +318,21 @@ def call_partialator(input: Union[list,str], options: dict, script_name: Optiona
         return settings, full_call
     
     
-def get_hkl_settings(filenames: Union[list, str], unique_only=False):
+def get_hkl_settings(filenames: Union[list, str], unique_only=False, custom_split=False):
     import re
     settings = []
     hklfiles = glob(filenames) if isinstance(filenames, str) else filenames
     for fn in hklfiles:
-        with open(fn, 'r') as fh:
+        if custom_split and os.path.exists(fn.rsplit('-', 1)[0] + '.hkl'):
+            base_fn = fn.rsplit('-', 1)[0] + '.hkl'
+            splt_lbl = fn.rsplit('-', 1)[-1].rsplit('.', 1)[0]
+        else:
+            base_fn = fn
+            splt_lbl = ''
+        with open(base_fn, 'r') as fh:
             for ln in fh:
                 if 'partialator' in ln:
-                    s = {'hklfile': fn}
+                    s = {'hklfile': fn, 'split_label': splt_lbl}
                     for opt in re.split(' --| -', ln)[1:]:                
                         p = re.split(' |=', opt)
                         if p[0] in ['o', 'output']:
@@ -329,6 +341,7 @@ def get_hkl_settings(filenames: Union[list, str], unique_only=False):
                             p[1] = p[1].strip(os.getcwd())
                         s[p[0].replace('-', '_')] = p[1].strip() if len(p) > 1 else True
                     settings.append(s)
+                    
     settings = pd.DataFrame(settings).apply(pd.to_numeric, errors='ignore')
     if unique_only:
         nunique = settings.apply(pd.Series.nunique)
