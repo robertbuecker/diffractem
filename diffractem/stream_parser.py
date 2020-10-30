@@ -295,6 +295,14 @@ class StreamParser:
     @property
     def files(self):
         return list(self.shots.file.unique())
+    
+    @property
+    def num_crystals(self):
+        return len(self._crystals)
+    
+    @property
+    def num_shots(self):
+        return len(self._shots)
 
     def parse(self, new_folder):
 
