@@ -27,7 +27,7 @@ class PreProcOpts:
         self.find_peaks: bool = True                #: apply peakfinder during image analysis
         self.compression: Union[int, str] = 32004       #: standard HDF5 compression. Suggested values: gzip, none, 32004 (lz4)
         self.cam_length: float = 2                     #: Average camera length (in m).
-        self.y_scale: float = 0.98                     #: Scaling of camera length along y. DEPRECATED!
+        self.y_scale: float = 1                     #: Scaling of camera length along y. DEPRECATED!
         self.ellipse_ratio: float = 1                  #: ellipticity of camera lentgh along arbitrary axis
         self.ellipse_angle: float = 0                     #: cam length ellipticity angle. (e.g. 0 is x, pi/2 is y,...)
         self.pixel_size: float = 55e-6                 #: Pixel size (in m)
