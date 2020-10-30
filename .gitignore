@@ -21,3 +21,4 @@ notebooks/proc_data
 *.dylib
 notebooks/
 conda-recipe/
+docs/_*
