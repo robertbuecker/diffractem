@@ -45,7 +45,7 @@ def quick_proc(ds, opts, label_raw, label, client, reference=None, pxmask=None):
     
     # initialize file structure
     for (file, subset), grp in ds.shots.groupby(['file', 'subset']):
-        with h5py.File(file) as fh:
+        with h5py.File(file, 'a') as fh:
             for pattern, data in sample_res.items():
                 path = pattern.replace('%', subset)
 #                 print('Initializing', file, path)
@@ -87,16 +87,18 @@ def main():
 
     parser = argparse.ArgumentParser(description='Quick and dirty pre-processing for Serial Electron Diffraction data', 
                                      allow_abbrev=False, epilog='Any other options are passed on as modification to the option file')
-    parser.add_argument('filename', type=str, nargs='*', help='List or HDF5 file or glob pattern')
-    parser.add_argument('-s', '--settings', type=str, help='Option YAML file', default='preproc.yaml')
-    parser.add_argument('-a', '--address', type=str, help='Address of dask.distributed cluster', default='127.0.0.1:8786')
-    parser.add_argument('-c', '--chunksize', type=int, help='Chunk size of raw data stack. Should be integer multiple of movie stack frames!', default=100)
+    parser.add_argument('filename', type=str, nargs='*', help='List or HDF5 file or glob pattern. Glob pattern must be given in SINGLE quotes.')
+    parser.add_argument('-s', '--settings', type=str, help='Option YAML file. Defaults to \'preproc.yaml\'.', default='preproc.yaml')
+    parser.add_argument('-A', '--address', type=str, help='Address of an existing dask.distributed cluster to use instead of making a new one. Defaults to making a new one.', default=None)
+    parser.add_argument('-N', '--nprocs', type=int, help='Number of processes of a new dask.distributed cluster. Defaults to letting dask decide.', default=None)
+    parser.add_argument('-L', '--local-directory', type=str, help='Fast (scratch) directory for computations. Defaults to the current directory.', default=None)
+    parser.add_argument('-c', '--chunksize', type=int, help='Chunk size of raw data stack. Should be integer multiple of movie stack frames! Defaults to 100.', default=100)
     parser.add_argument('-l', '--list-file', type=str, help='Name of output list file', default='processed.lst')
     parser.add_argument('-w', '--wait-for-files', help='Wait for files matching wildcard pattern', action='store_true')
     parser.add_argument('--include-existing', help='When using -w/--wait-for-file, also include existing files', action='store_true')
     parser.add_argument('--append', help='Append to list instead of overwrite', action='store_true')
-    parser.add_argument('-d', '--data-path-old', type=str, help='Raw data field in HDF5 file(s)', default='/%/data/raw_counts')
-    parser.add_argument('-n', '--data-path-new', type=str, help='Raw data field in HDF5 file(s)', default='/%/data/corrected')
+    parser.add_argument('-d', '--data-path-old', type=str, help='Raw data field in HDF5 file(s). Defaults to /entry/data/raw_data', default='/%/data/raw_counts')
+    parser.add_argument('-n', '--data-path-new', type=str, help='Corrected data field in HDF5 file(s). Defaults to /entry/data/corrected', default='/%/data/corrected')
     parser.add_argument('--no-bgcorr', help='Skip background correction', action='store_true')
     parser.add_argument('--no-validate', help='Do not validate files before attempting to process', action='store_true')
     # parser.add_argument('ppopt', nargs=argparse.REMAINDER, help='Preprocessing options to be overriden')
@@ -128,8 +130,24 @@ def main():
     print(f'Running on diffractem:', version())
     print(f'Current path is:', os.getcwd())
     
-    print('Connecting to cluster scheduler at', args.address)
-    client = Client(address=args.address)
+    # client = Client()
+    if args.address is not None:
+        print('Connecting to cluster scheduler at', args.address)
+    
+        try:
+            client = Client(address=args.address, timeout=3)
+        except:
+            print(f'\n----\nThere seems to be no dask.distributed scheduler running at {args.address}.\n'
+                f'Please double-check or start one by either omitting the --address option.')
+            return
+    else:
+        print('Creating a dask.distributed cluster...')
+        client = Client(n_workers=args.nprocs, local_directory=args.local_directory, processes=True)   
+        print('\n\n---\nStarted dask.distributed cluster:')
+        print(client)
+        print('You can access the dashboard for monitoring at: ', client.dashboard_link)
+        
+    
     client.run(os.chdir, os.getcwd())
     
     if len(args.filename) == 1:
@@ -172,7 +190,11 @@ def main():
         
         else:
             fns = io.expand_files(args.filename, validate=not args.no_validate)
-            ds_raw = Dataset.from_files(fns, chunking=args.chunksize)
+            if fns:
+                ds_raw = Dataset.from_files(fns, chunking=args.chunksize)
+            else:
+                print(f'\n---\n\nFile(s) {args.filename} not found or (all of them) invalid.')
+                return
             
         seen_raw_files.extend(ds_raw.files)
         

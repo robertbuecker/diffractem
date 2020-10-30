@@ -17,6 +17,47 @@ from scipy import ndimage
 from sklearn.cluster import DBSCAN, KMeans
 
 
+def get_data_stacks(filename, base_path='/%/data', labels=None):
+    # Internally, this function is structured 99% as get_meta_lists, just operating on dask
+    # arrays, not pandas frames
+    fns = expand_files(filename)
+    identifiers = base_path.rsplit('%', 1)
+    stacks = defaultdict(list)
+
+    for fn in fns:
+        fh = h5py.File(fn)
+
+        try:
+            if len(identifiers) == 1:
+                base_grp = {'': fh[identifiers[0]]}
+            else:
+                base_grp = fh[identifiers[0]]
+            for subset, ssgrp in base_grp.items():
+
+                if (len(identifiers) > 1) and identifiers[1]:
+                    if identifiers[1].strip('/') in ssgrp.keys():
+                        grp = ssgrp[identifiers[1].strip('/')]
+                else:
+                    grp = ssgrp  # subset identifier is on last level
+
+                if isinstance(grp, h5py.Group):
+                    for dsname, ds in grp.items():
+                        if ds is None:
+                            # can happen for dangling soft links
+                            continue
+                        if ((labels is None) or (dsname in labels)) \
+                                and isinstance(ds, h5py.Dataset) \
+                                and ('pandas_type' not in ds.attrs):
+                            stacks[dsname].append(da.from_array(ds, chunks=ds.chunks))
+
+        except Exception as err:
+            fh.close()
+            raise err
+
+    stacks = {sn: da.concatenate(s, axis=0) for sn, s in stacks.items()}
+    return stacks
+
+
 def peak_finder(img_raw, xy, profile = None, pxmask = None, noise = np.array
                 ([[False,True,False],[True,True,True],[False,True,False]]),
                  kernel_size = 9, threshold = 9, db_eps = 1.9,
@@ -518,3 +559,50 @@ def reduce_stack(filename, first_frame=1, last_frame=-1, aggregate='sum', suffix
     shots['file_raw'] = shots['file']
 
     return None
+
+
+def get_meta_lists(filename, base_path='/%/data', labels=None):
+    warnings.warn('Please use get_meta_list instead if you know what you\'re looking for. It is WAY faster.',
+                  DeprecationWarning)
+    fns = expand_files(filename)
+    identifiers = base_path.rsplit('%', 1)
+    lists = defaultdict(list)
+    # print(fns)
+
+    for fn in fns:
+        # print(fn)
+        with h5py.File(fn) as fh:
+
+            if len(identifiers) == 1:
+                base_grp = {'': fh[identifiers[0]]}
+            else:
+                base_grp = fh[identifiers[0]]
+            # print(base_grp)
+            for subset, ssgrp in base_grp.items():
+                # print(list(ssgrp.keys()))
+                if (len(identifiers) > 1) and identifiers[1]:
+                    if identifiers[1].strip('/') in ssgrp.keys():
+                        grp = ssgrp[identifiers[1].strip('/')]
+                    else:
+                        continue
+                else:
+                    grp = ssgrp  # subset identifier is on last level
+
+                if isinstance(grp, h5py.Group):
+                    # print(grp)
+                    for tname, tgrp in grp.items():
+                        # print(tname, tgrp)
+                        if tgrp is None:
+                            # can happen for dangling soft links
+                            continue
+                        if ((labels is None) or (tname in labels)) and ('table_type' in tgrp.attrs):
+                            newlist = pd.read_hdf(fn, tgrp.name)
+                            newlist['subset'] = subset
+                            newlist['file'] = fn
+                            # newlist['shot_in_subset'] = range(newlist.shape[0])
+
+                            lists[tname].append(newlist)
+                            # print(f'Appended {len(newlist)} items from {fn}: {subset} -> list {tname}')
+
+    lists = {tn: pd.concat(t, axis=0, ignore_index=True) for tn, t in lists.items()}
+    return lists
