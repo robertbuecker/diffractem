@@ -1775,6 +1775,7 @@ class Dataset:
                                         how='left', validate='m:1', indicator=True)
         
         if not all(sel_shots._merge == 'both'):
+            print(sel_shots.query('_merge != "both"')[['file', 'Event', 'region', 'crystal_id']])
             raise ValueError('Not all features present in the dataset are present in ds_from.')
 
         self.shots = sel_shots.drop('_merge', axis=1)
