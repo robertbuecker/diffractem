@@ -31,8 +31,15 @@ def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
                     # newlist = None
                     
                 if 'pandas_type' in fh[tbl_path].attrs:
-                    # print(f'Found list {tbl_path} in Pandas/PyTables format')
-                    newlist = pd.read_hdf(fn, tbl_path)
+                    warn(f'{fn}:{tbl_path} in Pandas/PyTables format. Please consider converting.', DeprecationWarning)
+                    try:
+                        newlist = pd.read_hdf(fn, tbl_path)
+                    except Exception as err:
+                        print('Tried to load a table in old-style diffractem format (pytables-style):\n'
+                              f'{fn}:{tbl_path} in Pandas/PyTables format.\n'
+                              'For this to work, you need to install the pytables package.\n'
+                              'Also, please consider converting the files to new form.')
+                        raise err
                 else:
                     dt = {}
                     for key, val in fh[tbl_path].items():

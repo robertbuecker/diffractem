@@ -57,7 +57,7 @@ setup(
     author='Robert Buecker',
     author_email='robert.buecker@cssb-hamburg.de',
     description='Some tools for working with serial electron microscopy data.',
-    install_requires=['h5py', 'numpy', 'pandas', 'tables', 'hdf5plugin',
+    install_requires=['h5py', 'numpy', 'pandas', 'hdf5plugin',
                       'dask[complete]', 'tifffile', 'scipy', 'astropy', 
                       'matplotlib', 'numba', 'pyqtgraph', 'pyyaml', 'scikit-learn', 
                       'scikit-image', 'PyQt5'],

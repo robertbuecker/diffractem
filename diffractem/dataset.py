@@ -470,7 +470,7 @@ class Dataset:
                 print('Error processing ' + self.map_pattern + '/features')
                 raise err
 
-    def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None, format: str = 'nexus'):
+    def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None):
         """Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. 
         
         The location into which the tables will be stored is defined in the Dataset object's attributes. The format
@@ -509,14 +509,14 @@ class Dataset:
         if (shots is None and self._shots_changed) or shots:
             # sh = self.shots.drop(['Event', 'shot_in_subset'], axis=1)
             # sh['id'] = sh[['sample', 'region', 'run', 'crystal_id']].apply(lambda x: '//'.join(x.astype(str)), axis=1)
-            fs.extend(nexus.store_table(self.shots, self.shots_pattern, parallel=self.parallel_io, format=format))
+            fs.extend(nexus.store_table(self.shots, self.shots_pattern, parallel=self.parallel_io, format='nexus'))
             self._shots_changed = False
 
         if (features is None and self._features_changed) or features:
             fs.extend(nexus.store_table(self.features.merge(self.shots[self._feature_id_cols + ['file', 'subset']], 
                                                             on=self._feature_id_cols, validate='1:m'), 
                                         self.map_pattern + '/features', parallel=self.parallel_io,
-                                        format=format))
+                                        format='nexus'))
             self._features_changed = False
 
         if stacks_were_open:
