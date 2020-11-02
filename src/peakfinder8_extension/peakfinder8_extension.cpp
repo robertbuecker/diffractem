@@ -8,7 +8,7 @@
         ],
         "include_dirs": [
             "src/peakfinder8_extension",
-            "/Users/antonie/anaconda3/envs/sed_dev/lib/python3.7/site-packages/numpy/core/include"
+            "/opts/anaconda/envs/ed_demo/lib/python3.8/site-packages/numpy/core/include"
         ],
         "language": "c++",
         "libraries": [
@@ -2172,7 +2172,7 @@ static PyObject *__pyx_codeobj__22;
 static PyObject *__pyx_codeobj__29;
 /* Late includes */
 
-/* "src/peakfinder8_extension/peakfinder8_extension.pyx":61
+/* "src/peakfinder8_extension/peakfinder8_extension.pyx":67
  * 
  * 
  * def peakfinder_8(int max_num_peaks, float[:,::1] data, char[:,::1] mask,             # <<<<<<<<<<<<<<
@@ -2248,77 +2248,77 @@ static PyObject *__pyx_pw_10diffractem_21peakfinder8_extension_1peakfinder_8(PyO
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_data)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 1); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 1); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_mask)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 2); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 2); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
         if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_pix_r)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 3); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 3); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  4:
         if (likely((values[4] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_asic_nx)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 4); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 4); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  5:
         if (likely((values[5] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_asic_ny)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 5); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 5); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  6:
         if (likely((values[6] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_nasics_x)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 6); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 6); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  7:
         if (likely((values[7] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_nasics_y)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 7); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 7); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  8:
         if (likely((values[8] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_adc_thresh)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 8); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 8); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  9:
         if (likely((values[9] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hitfinder_min_snr)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 9); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 9); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 10:
         if (likely((values[10] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hitfinder_min_pix_count)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 10); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 10); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 11:
         if (likely((values[11] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hitfinder_max_pix_count)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 11); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 11); __PYX_ERR(0, 67, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 12:
         if (likely((values[12] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hitfinder_local_bg_radius)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 12); __PYX_ERR(0, 61, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, 12); __PYX_ERR(0, 67, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "peakfinder_8") < 0)) __PYX_ERR(0, 61, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "peakfinder_8") < 0)) __PYX_ERR(0, 67, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 13) {
       goto __pyx_L5_argtuple_error;
@@ -2337,23 +2337,23 @@ static PyObject *__pyx_pw_10diffractem_21peakfinder8_extension_1peakfinder_8(PyO
       values[11] = PyTuple_GET_ITEM(__pyx_args, 11);
       values[12] = PyTuple_GET_ITEM(__pyx_args, 12);
     }
-    __pyx_v_max_num_peaks = __Pyx_PyInt_As_int(values[0]); if (unlikely((__pyx_v_max_num_peaks == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 61, __pyx_L3_error)
-    __pyx_v_data = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_data.memview)) __PYX_ERR(0, 61, __pyx_L3_error)
-    __pyx_v_mask = __Pyx_PyObject_to_MemoryviewSlice_d_dc_char(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_mask.memview)) __PYX_ERR(0, 61, __pyx_L3_error)
-    __pyx_v_pix_r = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_pix_r.memview)) __PYX_ERR(0, 62, __pyx_L3_error)
-    __pyx_v_asic_nx = __Pyx_PyInt_As_long(values[4]); if (unlikely((__pyx_v_asic_nx == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 62, __pyx_L3_error)
-    __pyx_v_asic_ny = __Pyx_PyInt_As_long(values[5]); if (unlikely((__pyx_v_asic_ny == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 62, __pyx_L3_error)
-    __pyx_v_nasics_x = __Pyx_PyInt_As_long(values[6]); if (unlikely((__pyx_v_nasics_x == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 62, __pyx_L3_error)
-    __pyx_v_nasics_y = __Pyx_PyInt_As_long(values[7]); if (unlikely((__pyx_v_nasics_y == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 63, __pyx_L3_error)
-    __pyx_v_adc_thresh = __pyx_PyFloat_AsFloat(values[8]); if (unlikely((__pyx_v_adc_thresh == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 63, __pyx_L3_error)
-    __pyx_v_hitfinder_min_snr = __pyx_PyFloat_AsFloat(values[9]); if (unlikely((__pyx_v_hitfinder_min_snr == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 63, __pyx_L3_error)
-    __pyx_v_hitfinder_min_pix_count = __Pyx_PyInt_As_long(values[10]); if (unlikely((__pyx_v_hitfinder_min_pix_count == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 64, __pyx_L3_error)
-    __pyx_v_hitfinder_max_pix_count = __Pyx_PyInt_As_long(values[11]); if (unlikely((__pyx_v_hitfinder_max_pix_count == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 64, __pyx_L3_error)
-    __pyx_v_hitfinder_local_bg_radius = __Pyx_PyInt_As_long(values[12]); if (unlikely((__pyx_v_hitfinder_local_bg_radius == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 65, __pyx_L3_error)
+    __pyx_v_max_num_peaks = __Pyx_PyInt_As_int(values[0]); if (unlikely((__pyx_v_max_num_peaks == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 67, __pyx_L3_error)
+    __pyx_v_data = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_data.memview)) __PYX_ERR(0, 67, __pyx_L3_error)
+    __pyx_v_mask = __Pyx_PyObject_to_MemoryviewSlice_d_dc_char(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_mask.memview)) __PYX_ERR(0, 67, __pyx_L3_error)
+    __pyx_v_pix_r = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_pix_r.memview)) __PYX_ERR(0, 68, __pyx_L3_error)
+    __pyx_v_asic_nx = __Pyx_PyInt_As_long(values[4]); if (unlikely((__pyx_v_asic_nx == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 68, __pyx_L3_error)
+    __pyx_v_asic_ny = __Pyx_PyInt_As_long(values[5]); if (unlikely((__pyx_v_asic_ny == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 68, __pyx_L3_error)
+    __pyx_v_nasics_x = __Pyx_PyInt_As_long(values[6]); if (unlikely((__pyx_v_nasics_x == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 68, __pyx_L3_error)
+    __pyx_v_nasics_y = __Pyx_PyInt_As_long(values[7]); if (unlikely((__pyx_v_nasics_y == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 69, __pyx_L3_error)
+    __pyx_v_adc_thresh = __pyx_PyFloat_AsFloat(values[8]); if (unlikely((__pyx_v_adc_thresh == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 69, __pyx_L3_error)
+    __pyx_v_hitfinder_min_snr = __pyx_PyFloat_AsFloat(values[9]); if (unlikely((__pyx_v_hitfinder_min_snr == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 69, __pyx_L3_error)
+    __pyx_v_hitfinder_min_pix_count = __Pyx_PyInt_As_long(values[10]); if (unlikely((__pyx_v_hitfinder_min_pix_count == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 70, __pyx_L3_error)
+    __pyx_v_hitfinder_max_pix_count = __Pyx_PyInt_As_long(values[11]); if (unlikely((__pyx_v_hitfinder_max_pix_count == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 70, __pyx_L3_error)
+    __pyx_v_hitfinder_local_bg_radius = __Pyx_PyInt_As_long(values[12]); if (unlikely((__pyx_v_hitfinder_local_bg_radius == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 71, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 61, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("peakfinder_8", 1, 13, 13, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 67, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("diffractem.peakfinder8_extension.peakfinder_8", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -2413,7 +2413,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("peakfinder_8", 0);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":68
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":74
  * 
  *     cdef tPeakList peak_list
  *     allocatePeakList(&peak_list, max_num_peaks)             # <<<<<<<<<<<<<<
@@ -2422,7 +2422,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
   allocatePeakList((&__pyx_v_peak_list), __pyx_v_max_num_peaks);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":70
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":76
  *     allocatePeakList(&peak_list, max_num_peaks)
  * 
  *     peakfinder8(&peak_list, &data[0, 0], &mask[0,0], &pix_r[0, 0], asic_nx, asic_ny,             # <<<<<<<<<<<<<<
@@ -2442,7 +2442,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   } else if (unlikely(__pyx_t_2 >= __pyx_v_data.shape[1])) __pyx_t_3 = 1;
   if (unlikely(__pyx_t_3 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_3);
-    __PYX_ERR(0, 70, __pyx_L1_error)
+    __PYX_ERR(0, 76, __pyx_L1_error)
   }
   __pyx_t_4 = 0;
   __pyx_t_5 = 0;
@@ -2457,7 +2457,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   } else if (unlikely(__pyx_t_5 >= __pyx_v_mask.shape[1])) __pyx_t_3 = 1;
   if (unlikely(__pyx_t_3 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_3);
-    __PYX_ERR(0, 70, __pyx_L1_error)
+    __PYX_ERR(0, 76, __pyx_L1_error)
   }
   __pyx_t_6 = 0;
   __pyx_t_7 = 0;
@@ -2472,10 +2472,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   } else if (unlikely(__pyx_t_7 >= __pyx_v_pix_r.shape[1])) __pyx_t_3 = 1;
   if (unlikely(__pyx_t_3 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_3);
-    __PYX_ERR(0, 70, __pyx_L1_error)
+    __PYX_ERR(0, 76, __pyx_L1_error)
   }
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":73
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":79
  *                 nasics_x, nasics_y, adc_thresh, hitfinder_min_snr,
  *                 hitfinder_min_pix_count, hitfinder_max_pix_count,
  *                 hitfinder_local_bg_radius, NULL)             # <<<<<<<<<<<<<<
@@ -2484,7 +2484,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
   (void)(peakfinder8((&__pyx_v_peak_list), (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_data.data + __pyx_t_1 * __pyx_v_data.strides[0]) )) + __pyx_t_2)) )))), (&(*((char *) ( /* dim=1 */ ((char *) (((char *) ( /* dim=0 */ (__pyx_v_mask.data + __pyx_t_4 * __pyx_v_mask.strides[0]) )) + __pyx_t_5)) )))), (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_pix_r.data + __pyx_t_6 * __pyx_v_pix_r.strides[0]) )) + __pyx_t_7)) )))), __pyx_v_asic_nx, __pyx_v_asic_ny, __pyx_v_nasics_x, __pyx_v_nasics_y, __pyx_v_adc_thresh, __pyx_v_hitfinder_min_snr, __pyx_v_hitfinder_min_pix_count, __pyx_v_hitfinder_max_pix_count, __pyx_v_hitfinder_local_bg_radius, NULL));
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":86
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":92
  *     cdef vector[double] peak_list_snr
  * 
  *     num_peaks = peak_list.nPeaks             # <<<<<<<<<<<<<<
@@ -2494,7 +2494,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   __pyx_t_8 = __pyx_v_peak_list.nPeaks;
   __pyx_v_num_peaks = __pyx_t_8;
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":88
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":94
  *     num_peaks = peak_list.nPeaks
  * 
  *     if num_peaks > max_num_peaks:             # <<<<<<<<<<<<<<
@@ -2504,7 +2504,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   __pyx_t_9 = ((__pyx_v_num_peaks > __pyx_v_max_num_peaks) != 0);
   if (__pyx_t_9) {
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":89
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":95
  * 
  *     if num_peaks > max_num_peaks:
  *         num_peaks = max_num_peaks             # <<<<<<<<<<<<<<
@@ -2513,7 +2513,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
     __pyx_v_num_peaks = __pyx_v_max_num_peaks;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":88
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":94
  *     num_peaks = peak_list.nPeaks
  * 
  *     if num_peaks > max_num_peaks:             # <<<<<<<<<<<<<<
@@ -2522,7 +2522,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
   }
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":91
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":97
  *         num_peaks = max_num_peaks
  * 
  *     for i in range(0, num_peaks):             # <<<<<<<<<<<<<<
@@ -2534,7 +2534,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_10; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":93
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":99
  *     for i in range(0, num_peaks):
  * 
  *         peak_x = peak_list.peak_com_x[i]             # <<<<<<<<<<<<<<
@@ -2543,7 +2543,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
     __pyx_v_peak_x = (__pyx_v_peak_list.peak_com_x[__pyx_v_i]);
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":94
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":100
  * 
  *         peak_x = peak_list.peak_com_x[i]
  *         peak_y = peak_list.peak_com_y[i]             # <<<<<<<<<<<<<<
@@ -2552,7 +2552,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
     __pyx_v_peak_y = (__pyx_v_peak_list.peak_com_y[__pyx_v_i]);
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":95
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":101
  *         peak_x = peak_list.peak_com_x[i]
  *         peak_y = peak_list.peak_com_y[i]
  *         peak_index = peak_list.peak_com_index[i]             # <<<<<<<<<<<<<<
@@ -2561,7 +2561,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
     __pyx_v_peak_index = (__pyx_v_peak_list.peak_com_index[__pyx_v_i]);
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":96
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":102
  *         peak_y = peak_list.peak_com_y[i]
  *         peak_index = peak_list.peak_com_index[i]
  *         peak_value = peak_list.peak_totalintensity[i]             # <<<<<<<<<<<<<<
@@ -2570,55 +2570,55 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
     __pyx_v_peak_value = (__pyx_v_peak_list.peak_totalintensity[__pyx_v_i]);
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":97
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":103
  *         peak_index = peak_list.peak_com_index[i]
  *         peak_value = peak_list.peak_totalintensity[i]
  *         peak_npix = peak_list.peak_npix[i]             # <<<<<<<<<<<<<<
  *         peak_maxi = peak_list.peak_maxintensity[i]
  *         peak_sigma = peak_list.peak_sigma[i]
  */
-    __pyx_t_11 = PyFloat_FromDouble((__pyx_v_peak_list.peak_npix[__pyx_v_i])); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 97, __pyx_L1_error)
+    __pyx_t_11 = PyFloat_FromDouble((__pyx_v_peak_list.peak_npix[__pyx_v_i])); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 103, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_11);
     __Pyx_XDECREF_SET(__pyx_v_peak_npix, __pyx_t_11);
     __pyx_t_11 = 0;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":98
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":104
  *         peak_value = peak_list.peak_totalintensity[i]
  *         peak_npix = peak_list.peak_npix[i]
  *         peak_maxi = peak_list.peak_maxintensity[i]             # <<<<<<<<<<<<<<
  *         peak_sigma = peak_list.peak_sigma[i]
  *         peak_snr = peak_list.peak_snr[i]
  */
-    __pyx_t_11 = PyFloat_FromDouble((__pyx_v_peak_list.peak_maxintensity[__pyx_v_i])); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 98, __pyx_L1_error)
+    __pyx_t_11 = PyFloat_FromDouble((__pyx_v_peak_list.peak_maxintensity[__pyx_v_i])); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 104, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_11);
     __Pyx_XDECREF_SET(__pyx_v_peak_maxi, __pyx_t_11);
     __pyx_t_11 = 0;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":99
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":105
  *         peak_npix = peak_list.peak_npix[i]
  *         peak_maxi = peak_list.peak_maxintensity[i]
  *         peak_sigma = peak_list.peak_sigma[i]             # <<<<<<<<<<<<<<
  *         peak_snr = peak_list.peak_snr[i]
  * 
  */
-    __pyx_t_11 = PyFloat_FromDouble((__pyx_v_peak_list.peak_sigma[__pyx_v_i])); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 99, __pyx_L1_error)
+    __pyx_t_11 = PyFloat_FromDouble((__pyx_v_peak_list.peak_sigma[__pyx_v_i])); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 105, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_11);
     __Pyx_XDECREF_SET(__pyx_v_peak_sigma, __pyx_t_11);
     __pyx_t_11 = 0;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":100
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":106
  *         peak_maxi = peak_list.peak_maxintensity[i]
  *         peak_sigma = peak_list.peak_sigma[i]
  *         peak_snr = peak_list.peak_snr[i]             # <<<<<<<<<<<<<<
  * 
  *         peak_list_x.push_back(peak_x)
  */
-    __pyx_t_11 = PyFloat_FromDouble((__pyx_v_peak_list.peak_snr[__pyx_v_i])); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 100, __pyx_L1_error)
+    __pyx_t_11 = PyFloat_FromDouble((__pyx_v_peak_list.peak_snr[__pyx_v_i])); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 106, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_11);
     __Pyx_XDECREF_SET(__pyx_v_peak_snr, __pyx_t_11);
     __pyx_t_11 = 0;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":102
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":108
  *         peak_snr = peak_list.peak_snr[i]
  * 
  *         peak_list_x.push_back(peak_x)             # <<<<<<<<<<<<<<
@@ -2629,10 +2629,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
       __pyx_v_peak_list_x.push_back(__pyx_v_peak_x);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 102, __pyx_L1_error)
+      __PYX_ERR(0, 108, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":103
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":109
  * 
  *         peak_list_x.push_back(peak_x)
  *         peak_list_y.push_back(peak_y)             # <<<<<<<<<<<<<<
@@ -2643,10 +2643,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
       __pyx_v_peak_list_y.push_back(__pyx_v_peak_y);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 103, __pyx_L1_error)
+      __PYX_ERR(0, 109, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":104
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":110
  *         peak_list_x.push_back(peak_x)
  *         peak_list_y.push_back(peak_y)
  *         peak_list_index.push_back(peak_index)             # <<<<<<<<<<<<<<
@@ -2657,10 +2657,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
       __pyx_v_peak_list_index.push_back(__pyx_v_peak_index);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 104, __pyx_L1_error)
+      __PYX_ERR(0, 110, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":105
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":111
  *         peak_list_y.push_back(peak_y)
  *         peak_list_index.push_back(peak_index)
  *         peak_list_value.push_back(peak_value)             # <<<<<<<<<<<<<<
@@ -2671,71 +2671,71 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
       __pyx_v_peak_list_value.push_back(__pyx_v_peak_value);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 105, __pyx_L1_error)
+      __PYX_ERR(0, 111, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":106
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":112
  *         peak_list_index.push_back(peak_index)
  *         peak_list_value.push_back(peak_value)
  *         peak_list_npix.push_back(peak_npix)             # <<<<<<<<<<<<<<
  *         peak_list_maxi.push_back(peak_maxi)
  *         peak_list_sigma.push_back(peak_sigma)
  */
-    __pyx_t_12 = __pyx_PyFloat_AsDouble(__pyx_v_peak_npix); if (unlikely((__pyx_t_12 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 106, __pyx_L1_error)
+    __pyx_t_12 = __pyx_PyFloat_AsDouble(__pyx_v_peak_npix); if (unlikely((__pyx_t_12 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 112, __pyx_L1_error)
     try {
       __pyx_v_peak_list_npix.push_back(__pyx_t_12);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 106, __pyx_L1_error)
+      __PYX_ERR(0, 112, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":107
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":113
  *         peak_list_value.push_back(peak_value)
  *         peak_list_npix.push_back(peak_npix)
  *         peak_list_maxi.push_back(peak_maxi)             # <<<<<<<<<<<<<<
  *         peak_list_sigma.push_back(peak_sigma)
  *         peak_list_snr.push_back(peak_snr)
  */
-    __pyx_t_12 = __pyx_PyFloat_AsDouble(__pyx_v_peak_maxi); if (unlikely((__pyx_t_12 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 107, __pyx_L1_error)
+    __pyx_t_12 = __pyx_PyFloat_AsDouble(__pyx_v_peak_maxi); if (unlikely((__pyx_t_12 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 113, __pyx_L1_error)
     try {
       __pyx_v_peak_list_maxi.push_back(__pyx_t_12);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 107, __pyx_L1_error)
+      __PYX_ERR(0, 113, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":108
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":114
  *         peak_list_npix.push_back(peak_npix)
  *         peak_list_maxi.push_back(peak_maxi)
  *         peak_list_sigma.push_back(peak_sigma)             # <<<<<<<<<<<<<<
  *         peak_list_snr.push_back(peak_snr)
  * 
  */
-    __pyx_t_12 = __pyx_PyFloat_AsDouble(__pyx_v_peak_sigma); if (unlikely((__pyx_t_12 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 108, __pyx_L1_error)
+    __pyx_t_12 = __pyx_PyFloat_AsDouble(__pyx_v_peak_sigma); if (unlikely((__pyx_t_12 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 114, __pyx_L1_error)
     try {
       __pyx_v_peak_list_sigma.push_back(__pyx_t_12);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 108, __pyx_L1_error)
+      __PYX_ERR(0, 114, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":109
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":115
  *         peak_list_maxi.push_back(peak_maxi)
  *         peak_list_sigma.push_back(peak_sigma)
  *         peak_list_snr.push_back(peak_snr)             # <<<<<<<<<<<<<<
  * 
  *     freePeakList(peak_list)
  */
-    __pyx_t_12 = __pyx_PyFloat_AsDouble(__pyx_v_peak_snr); if (unlikely((__pyx_t_12 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 109, __pyx_L1_error)
+    __pyx_t_12 = __pyx_PyFloat_AsDouble(__pyx_v_peak_snr); if (unlikely((__pyx_t_12 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 115, __pyx_L1_error)
     try {
       __pyx_v_peak_list_snr.push_back(__pyx_t_12);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 109, __pyx_L1_error)
+      __PYX_ERR(0, 115, __pyx_L1_error)
     }
   }
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":111
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":117
  *         peak_list_snr.push_back(peak_snr)
  * 
  *     freePeakList(peak_list)             # <<<<<<<<<<<<<<
@@ -2744,7 +2744,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  */
   freePeakList(__pyx_v_peak_list);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":113
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":119
  *     freePeakList(peak_list)
  * 
  *     return (peak_list_x, peak_list_y, peak_list_value, peak_list_index,             # <<<<<<<<<<<<<<
@@ -2752,39 +2752,39 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
  * 
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_11 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_x); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 113, __pyx_L1_error)
+  __pyx_t_11 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_x); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_11);
-  __pyx_t_13 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_y); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 113, __pyx_L1_error)
+  __pyx_t_13 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_y); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_13);
-  __pyx_t_14 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_value); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 113, __pyx_L1_error)
+  __pyx_t_14 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_value); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_14);
-  __pyx_t_15 = __pyx_convert_vector_to_py_long(__pyx_v_peak_list_index); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 113, __pyx_L1_error)
+  __pyx_t_15 = __pyx_convert_vector_to_py_long(__pyx_v_peak_list_index); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_15);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":114
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":120
  * 
  *     return (peak_list_x, peak_list_y, peak_list_value, peak_list_index,
  *             peak_list_npix, peak_list_maxi, peak_list_sigma, peak_list_snr)             # <<<<<<<<<<<<<<
  * 
  * 
  */
-  __pyx_t_16 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_npix); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 114, __pyx_L1_error)
+  __pyx_t_16 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_npix); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_16);
-  __pyx_t_17 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_maxi); if (unlikely(!__pyx_t_17)) __PYX_ERR(0, 114, __pyx_L1_error)
+  __pyx_t_17 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_maxi); if (unlikely(!__pyx_t_17)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_17);
-  __pyx_t_18 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_sigma); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 114, __pyx_L1_error)
+  __pyx_t_18 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_sigma); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
-  __pyx_t_19 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_snr); if (unlikely(!__pyx_t_19)) __PYX_ERR(0, 114, __pyx_L1_error)
+  __pyx_t_19 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_snr); if (unlikely(!__pyx_t_19)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_19);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":113
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":119
  *     freePeakList(peak_list)
  * 
  *     return (peak_list_x, peak_list_y, peak_list_value, peak_list_index,             # <<<<<<<<<<<<<<
  *             peak_list_npix, peak_list_maxi, peak_list_sigma, peak_list_snr)
  * 
  */
-  __pyx_t_20 = PyTuple_New(8); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 113, __pyx_L1_error)
+  __pyx_t_20 = PyTuple_New(8); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
   __Pyx_GIVEREF(__pyx_t_11);
   PyTuple_SET_ITEM(__pyx_t_20, 0, __pyx_t_11);
@@ -2814,7 +2814,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   __pyx_t_20 = 0;
   goto __pyx_L0;
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":61
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":67
  * 
  * 
  * def peakfinder_8(int max_num_peaks, float[:,::1] data, char[:,::1] mask,             # <<<<<<<<<<<<<<
@@ -2848,7 +2848,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_peakfinder_8(CYTH
   return __pyx_r;
 }
 
-/* "src/peakfinder8_extension/peakfinder8_extension.pyx":117
+/* "src/peakfinder8_extension/peakfinder8_extension.pyx":123
  * 
  * 
  * def peakfinder_8_with_pixel_information(int max_num_peaks, float[:,::1] data,             # <<<<<<<<<<<<<<
@@ -2927,83 +2927,83 @@ static PyObject *__pyx_pw_10diffractem_21peakfinder8_extension_3peakfinder_8_wit
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_data)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 1); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 1); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_mask)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 2); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 2); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
         if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_pix_r)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 3); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 3); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  4:
         if (likely((values[4] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_asic_nx)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 4); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 4); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  5:
         if (likely((values[5] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_asic_ny)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 5); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 5); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  6:
         if (likely((values[6] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_nasics_x)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 6); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 6); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  7:
         if (likely((values[7] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_nasics_y)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 7); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 7); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  8:
         if (likely((values[8] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_adc_thresh)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 8); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 8); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  9:
         if (likely((values[9] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hitfinder_min_snr)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 9); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 9); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 10:
         if (likely((values[10] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hitfinder_min_pix_count)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 10); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 10); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 11:
         if (likely((values[11] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hitfinder_max_pix_count)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 11); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 11); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 12:
         if (likely((values[12] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_hitfinder_local_bg_radius)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 12); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 12); __PYX_ERR(0, 123, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case 13:
         if (likely((values[13] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_outlier_mask)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 13); __PYX_ERR(0, 117, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, 13); __PYX_ERR(0, 123, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "peakfinder_8_with_pixel_information") < 0)) __PYX_ERR(0, 117, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "peakfinder_8_with_pixel_information") < 0)) __PYX_ERR(0, 123, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 14) {
       goto __pyx_L5_argtuple_error;
@@ -3023,24 +3023,24 @@ static PyObject *__pyx_pw_10diffractem_21peakfinder8_extension_3peakfinder_8_wit
       values[12] = PyTuple_GET_ITEM(__pyx_args, 12);
       values[13] = PyTuple_GET_ITEM(__pyx_args, 13);
     }
-    __pyx_v_max_num_peaks = __Pyx_PyInt_As_int(values[0]); if (unlikely((__pyx_v_max_num_peaks == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 117, __pyx_L3_error)
-    __pyx_v_data = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_data.memview)) __PYX_ERR(0, 117, __pyx_L3_error)
-    __pyx_v_mask = __Pyx_PyObject_to_MemoryviewSlice_d_dc_char(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_mask.memview)) __PYX_ERR(0, 118, __pyx_L3_error)
-    __pyx_v_pix_r = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_pix_r.memview)) __PYX_ERR(0, 118, __pyx_L3_error)
-    __pyx_v_asic_nx = __Pyx_PyInt_As_long(values[4]); if (unlikely((__pyx_v_asic_nx == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 119, __pyx_L3_error)
-    __pyx_v_asic_ny = __Pyx_PyInt_As_long(values[5]); if (unlikely((__pyx_v_asic_ny == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 119, __pyx_L3_error)
-    __pyx_v_nasics_x = __Pyx_PyInt_As_long(values[6]); if (unlikely((__pyx_v_nasics_x == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 119, __pyx_L3_error)
-    __pyx_v_nasics_y = __Pyx_PyInt_As_long(values[7]); if (unlikely((__pyx_v_nasics_y == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 120, __pyx_L3_error)
-    __pyx_v_adc_thresh = __pyx_PyFloat_AsFloat(values[8]); if (unlikely((__pyx_v_adc_thresh == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 120, __pyx_L3_error)
-    __pyx_v_hitfinder_min_snr = __pyx_PyFloat_AsFloat(values[9]); if (unlikely((__pyx_v_hitfinder_min_snr == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 121, __pyx_L3_error)
-    __pyx_v_hitfinder_min_pix_count = __Pyx_PyInt_As_long(values[10]); if (unlikely((__pyx_v_hitfinder_min_pix_count == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 122, __pyx_L3_error)
-    __pyx_v_hitfinder_max_pix_count = __Pyx_PyInt_As_long(values[11]); if (unlikely((__pyx_v_hitfinder_max_pix_count == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 123, __pyx_L3_error)
-    __pyx_v_hitfinder_local_bg_radius = __Pyx_PyInt_As_long(values[12]); if (unlikely((__pyx_v_hitfinder_local_bg_radius == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 124, __pyx_L3_error)
-    __pyx_v_outlier_mask = __Pyx_PyObject_to_MemoryviewSlice_d_dc_char(values[13], PyBUF_WRITABLE); if (unlikely(!__pyx_v_outlier_mask.memview)) __PYX_ERR(0, 125, __pyx_L3_error)
+    __pyx_v_max_num_peaks = __Pyx_PyInt_As_int(values[0]); if (unlikely((__pyx_v_max_num_peaks == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 123, __pyx_L3_error)
+    __pyx_v_data = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_data.memview)) __PYX_ERR(0, 123, __pyx_L3_error)
+    __pyx_v_mask = __Pyx_PyObject_to_MemoryviewSlice_d_dc_char(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_mask.memview)) __PYX_ERR(0, 124, __pyx_L3_error)
+    __pyx_v_pix_r = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_pix_r.memview)) __PYX_ERR(0, 124, __pyx_L3_error)
+    __pyx_v_asic_nx = __Pyx_PyInt_As_long(values[4]); if (unlikely((__pyx_v_asic_nx == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 125, __pyx_L3_error)
+    __pyx_v_asic_ny = __Pyx_PyInt_As_long(values[5]); if (unlikely((__pyx_v_asic_ny == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 125, __pyx_L3_error)
+    __pyx_v_nasics_x = __Pyx_PyInt_As_long(values[6]); if (unlikely((__pyx_v_nasics_x == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 125, __pyx_L3_error)
+    __pyx_v_nasics_y = __Pyx_PyInt_As_long(values[7]); if (unlikely((__pyx_v_nasics_y == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 126, __pyx_L3_error)
+    __pyx_v_adc_thresh = __pyx_PyFloat_AsFloat(values[8]); if (unlikely((__pyx_v_adc_thresh == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 126, __pyx_L3_error)
+    __pyx_v_hitfinder_min_snr = __pyx_PyFloat_AsFloat(values[9]); if (unlikely((__pyx_v_hitfinder_min_snr == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 127, __pyx_L3_error)
+    __pyx_v_hitfinder_min_pix_count = __Pyx_PyInt_As_long(values[10]); if (unlikely((__pyx_v_hitfinder_min_pix_count == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 128, __pyx_L3_error)
+    __pyx_v_hitfinder_max_pix_count = __Pyx_PyInt_As_long(values[11]); if (unlikely((__pyx_v_hitfinder_max_pix_count == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 129, __pyx_L3_error)
+    __pyx_v_hitfinder_local_bg_radius = __Pyx_PyInt_As_long(values[12]); if (unlikely((__pyx_v_hitfinder_local_bg_radius == (long)-1) && PyErr_Occurred())) __PYX_ERR(0, 130, __pyx_L3_error)
+    __pyx_v_outlier_mask = __Pyx_PyObject_to_MemoryviewSlice_d_dc_char(values[13], PyBUF_WRITABLE); if (unlikely(!__pyx_v_outlier_mask.memview)) __PYX_ERR(0, 131, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 117, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("peakfinder_8_with_pixel_information", 1, 14, 14, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 123, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("diffractem.peakfinder8_extension.peakfinder_8_with_pixel_information", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -3102,7 +3102,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("peakfinder_8_with_pixel_information", 0);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":128
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":134
  * 
  *     cdef tPeakList peak_list
  *     allocatePeakList(&peak_list, max_num_peaks)             # <<<<<<<<<<<<<<
@@ -3111,7 +3111,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
   allocatePeakList((&__pyx_v_peak_list), __pyx_v_max_num_peaks);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":130
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":136
  *     allocatePeakList(&peak_list, max_num_peaks)
  * 
  *     peakfinder8(&peak_list, &data[0, 0], &mask[0, 0], &pix_r[0, 0], asic_nx, asic_ny,             # <<<<<<<<<<<<<<
@@ -3131,7 +3131,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   } else if (unlikely(__pyx_t_2 >= __pyx_v_data.shape[1])) __pyx_t_3 = 1;
   if (unlikely(__pyx_t_3 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_3);
-    __PYX_ERR(0, 130, __pyx_L1_error)
+    __PYX_ERR(0, 136, __pyx_L1_error)
   }
   __pyx_t_4 = 0;
   __pyx_t_5 = 0;
@@ -3146,7 +3146,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   } else if (unlikely(__pyx_t_5 >= __pyx_v_mask.shape[1])) __pyx_t_3 = 1;
   if (unlikely(__pyx_t_3 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_3);
-    __PYX_ERR(0, 130, __pyx_L1_error)
+    __PYX_ERR(0, 136, __pyx_L1_error)
   }
   __pyx_t_6 = 0;
   __pyx_t_7 = 0;
@@ -3161,10 +3161,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   } else if (unlikely(__pyx_t_7 >= __pyx_v_pix_r.shape[1])) __pyx_t_3 = 1;
   if (unlikely(__pyx_t_3 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_3);
-    __PYX_ERR(0, 130, __pyx_L1_error)
+    __PYX_ERR(0, 136, __pyx_L1_error)
   }
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":133
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":139
  *                 nasics_x, nasics_y, adc_thresh, hitfinder_min_snr,
  *                 hitfinder_min_pix_count, hitfinder_max_pix_count,
  *                 hitfinder_local_bg_radius, &outlier_mask[0, 0])             # <<<<<<<<<<<<<<
@@ -3184,10 +3184,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   } else if (unlikely(__pyx_t_9 >= __pyx_v_outlier_mask.shape[1])) __pyx_t_3 = 1;
   if (unlikely(__pyx_t_3 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_3);
-    __PYX_ERR(0, 133, __pyx_L1_error)
+    __PYX_ERR(0, 139, __pyx_L1_error)
   }
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":130
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":136
  *     allocatePeakList(&peak_list, max_num_peaks)
  * 
  *     peakfinder8(&peak_list, &data[0, 0], &mask[0, 0], &pix_r[0, 0], asic_nx, asic_ny,             # <<<<<<<<<<<<<<
@@ -3196,7 +3196,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
   (void)(peakfinder8((&__pyx_v_peak_list), (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_data.data + __pyx_t_1 * __pyx_v_data.strides[0]) )) + __pyx_t_2)) )))), (&(*((char *) ( /* dim=1 */ ((char *) (((char *) ( /* dim=0 */ (__pyx_v_mask.data + __pyx_t_4 * __pyx_v_mask.strides[0]) )) + __pyx_t_5)) )))), (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_pix_r.data + __pyx_t_6 * __pyx_v_pix_r.strides[0]) )) + __pyx_t_7)) )))), __pyx_v_asic_nx, __pyx_v_asic_ny, __pyx_v_nasics_x, __pyx_v_nasics_y, __pyx_v_adc_thresh, __pyx_v_hitfinder_min_snr, __pyx_v_hitfinder_min_pix_count, __pyx_v_hitfinder_max_pix_count, __pyx_v_hitfinder_local_bg_radius, (&(*((char *) ( /* dim=1 */ ((char *) (((char *) ( /* dim=0 */ (__pyx_v_outlier_mask.data + __pyx_t_8 * __pyx_v_outlier_mask.strides[0]) )) + __pyx_t_9)) ))))));
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":146
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":152
  *     cdef vector[double] peak_list_snr
  * 
  *     num_peaks = peak_list.nPeaks             # <<<<<<<<<<<<<<
@@ -3206,7 +3206,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   __pyx_t_10 = __pyx_v_peak_list.nPeaks;
   __pyx_v_num_peaks = __pyx_t_10;
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":148
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":154
  *     num_peaks = peak_list.nPeaks
  * 
  *     if num_peaks > max_num_peaks:             # <<<<<<<<<<<<<<
@@ -3216,7 +3216,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   __pyx_t_11 = ((__pyx_v_num_peaks > __pyx_v_max_num_peaks) != 0);
   if (__pyx_t_11) {
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":149
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":155
  * 
  *     if num_peaks > max_num_peaks:
  *         num_peaks = max_num_peaks             # <<<<<<<<<<<<<<
@@ -3225,7 +3225,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
     __pyx_v_num_peaks = __pyx_v_max_num_peaks;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":148
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":154
  *     num_peaks = peak_list.nPeaks
  * 
  *     if num_peaks > max_num_peaks:             # <<<<<<<<<<<<<<
@@ -3234,7 +3234,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
   }
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":151
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":157
  *         num_peaks = max_num_peaks
  * 
  *     for i in range(0, num_peaks):             # <<<<<<<<<<<<<<
@@ -3246,7 +3246,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_12; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":153
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":159
  *     for i in range(0, num_peaks):
  * 
  *         peak_x = peak_list.peak_com_x[i]             # <<<<<<<<<<<<<<
@@ -3255,7 +3255,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
     __pyx_v_peak_x = (__pyx_v_peak_list.peak_com_x[__pyx_v_i]);
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":154
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":160
  * 
  *         peak_x = peak_list.peak_com_x[i]
  *         peak_y = peak_list.peak_com_y[i]             # <<<<<<<<<<<<<<
@@ -3264,7 +3264,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
     __pyx_v_peak_y = (__pyx_v_peak_list.peak_com_y[__pyx_v_i]);
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":155
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":161
  *         peak_x = peak_list.peak_com_x[i]
  *         peak_y = peak_list.peak_com_y[i]
  *         peak_index = peak_list.peak_com_index[i]             # <<<<<<<<<<<<<<
@@ -3273,7 +3273,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
     __pyx_v_peak_index = (__pyx_v_peak_list.peak_com_index[__pyx_v_i]);
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":156
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":162
  *         peak_y = peak_list.peak_com_y[i]
  *         peak_index = peak_list.peak_com_index[i]
  *         peak_value = peak_list.peak_totalintensity[i]             # <<<<<<<<<<<<<<
@@ -3282,55 +3282,55 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
     __pyx_v_peak_value = (__pyx_v_peak_list.peak_totalintensity[__pyx_v_i]);
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":157
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":163
  *         peak_index = peak_list.peak_com_index[i]
  *         peak_value = peak_list.peak_totalintensity[i]
  *         peak_npix = peak_list.peak_npix[i]             # <<<<<<<<<<<<<<
  *         peak_maxi = peak_list.peak_maxintensity[i]
  *         peak_sigma = peak_list.peak_sigma[i]
  */
-    __pyx_t_13 = PyFloat_FromDouble((__pyx_v_peak_list.peak_npix[__pyx_v_i])); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 157, __pyx_L1_error)
+    __pyx_t_13 = PyFloat_FromDouble((__pyx_v_peak_list.peak_npix[__pyx_v_i])); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 163, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_13);
     __Pyx_XDECREF_SET(__pyx_v_peak_npix, __pyx_t_13);
     __pyx_t_13 = 0;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":158
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":164
  *         peak_value = peak_list.peak_totalintensity[i]
  *         peak_npix = peak_list.peak_npix[i]
  *         peak_maxi = peak_list.peak_maxintensity[i]             # <<<<<<<<<<<<<<
  *         peak_sigma = peak_list.peak_sigma[i]
  *         peak_snr = peak_list.peak_snr[i]
  */
-    __pyx_t_13 = PyFloat_FromDouble((__pyx_v_peak_list.peak_maxintensity[__pyx_v_i])); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 158, __pyx_L1_error)
+    __pyx_t_13 = PyFloat_FromDouble((__pyx_v_peak_list.peak_maxintensity[__pyx_v_i])); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 164, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_13);
     __Pyx_XDECREF_SET(__pyx_v_peak_maxi, __pyx_t_13);
     __pyx_t_13 = 0;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":159
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":165
  *         peak_npix = peak_list.peak_npix[i]
  *         peak_maxi = peak_list.peak_maxintensity[i]
  *         peak_sigma = peak_list.peak_sigma[i]             # <<<<<<<<<<<<<<
  *         peak_snr = peak_list.peak_snr[i]
  * 
  */
-    __pyx_t_13 = PyFloat_FromDouble((__pyx_v_peak_list.peak_sigma[__pyx_v_i])); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 159, __pyx_L1_error)
+    __pyx_t_13 = PyFloat_FromDouble((__pyx_v_peak_list.peak_sigma[__pyx_v_i])); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 165, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_13);
     __Pyx_XDECREF_SET(__pyx_v_peak_sigma, __pyx_t_13);
     __pyx_t_13 = 0;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":160
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":166
  *         peak_maxi = peak_list.peak_maxintensity[i]
  *         peak_sigma = peak_list.peak_sigma[i]
  *         peak_snr = peak_list.peak_snr[i]             # <<<<<<<<<<<<<<
  * 
  *         peak_list_x.push_back(peak_x)
  */
-    __pyx_t_13 = PyFloat_FromDouble((__pyx_v_peak_list.peak_snr[__pyx_v_i])); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 160, __pyx_L1_error)
+    __pyx_t_13 = PyFloat_FromDouble((__pyx_v_peak_list.peak_snr[__pyx_v_i])); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 166, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_13);
     __Pyx_XDECREF_SET(__pyx_v_peak_snr, __pyx_t_13);
     __pyx_t_13 = 0;
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":162
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":168
  *         peak_snr = peak_list.peak_snr[i]
  * 
  *         peak_list_x.push_back(peak_x)             # <<<<<<<<<<<<<<
@@ -3341,10 +3341,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
       __pyx_v_peak_list_x.push_back(__pyx_v_peak_x);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 162, __pyx_L1_error)
+      __PYX_ERR(0, 168, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":163
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":169
  * 
  *         peak_list_x.push_back(peak_x)
  *         peak_list_y.push_back(peak_y)             # <<<<<<<<<<<<<<
@@ -3355,10 +3355,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
       __pyx_v_peak_list_y.push_back(__pyx_v_peak_y);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 163, __pyx_L1_error)
+      __PYX_ERR(0, 169, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":164
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":170
  *         peak_list_x.push_back(peak_x)
  *         peak_list_y.push_back(peak_y)
  *         peak_list_index.push_back(peak_index)             # <<<<<<<<<<<<<<
@@ -3369,10 +3369,10 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
       __pyx_v_peak_list_index.push_back(__pyx_v_peak_index);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 164, __pyx_L1_error)
+      __PYX_ERR(0, 170, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":165
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":171
  *         peak_list_y.push_back(peak_y)
  *         peak_list_index.push_back(peak_index)
  *         peak_list_value.push_back(peak_value)             # <<<<<<<<<<<<<<
@@ -3383,71 +3383,71 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
       __pyx_v_peak_list_value.push_back(__pyx_v_peak_value);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 165, __pyx_L1_error)
+      __PYX_ERR(0, 171, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":166
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":172
  *         peak_list_index.push_back(peak_index)
  *         peak_list_value.push_back(peak_value)
  *         peak_list_npix.push_back(peak_npix)             # <<<<<<<<<<<<<<
  *         peak_list_maxi.push_back(peak_maxi)
  *         peak_list_sigma.push_back(peak_sigma)
  */
-    __pyx_t_14 = __pyx_PyFloat_AsDouble(__pyx_v_peak_npix); if (unlikely((__pyx_t_14 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 166, __pyx_L1_error)
+    __pyx_t_14 = __pyx_PyFloat_AsDouble(__pyx_v_peak_npix); if (unlikely((__pyx_t_14 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 172, __pyx_L1_error)
     try {
       __pyx_v_peak_list_npix.push_back(__pyx_t_14);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 166, __pyx_L1_error)
+      __PYX_ERR(0, 172, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":167
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":173
  *         peak_list_value.push_back(peak_value)
  *         peak_list_npix.push_back(peak_npix)
  *         peak_list_maxi.push_back(peak_maxi)             # <<<<<<<<<<<<<<
  *         peak_list_sigma.push_back(peak_sigma)
  *         peak_list_snr.push_back(peak_snr)
  */
-    __pyx_t_14 = __pyx_PyFloat_AsDouble(__pyx_v_peak_maxi); if (unlikely((__pyx_t_14 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 167, __pyx_L1_error)
+    __pyx_t_14 = __pyx_PyFloat_AsDouble(__pyx_v_peak_maxi); if (unlikely((__pyx_t_14 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 173, __pyx_L1_error)
     try {
       __pyx_v_peak_list_maxi.push_back(__pyx_t_14);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 167, __pyx_L1_error)
+      __PYX_ERR(0, 173, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":168
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":174
  *         peak_list_npix.push_back(peak_npix)
  *         peak_list_maxi.push_back(peak_maxi)
  *         peak_list_sigma.push_back(peak_sigma)             # <<<<<<<<<<<<<<
  *         peak_list_snr.push_back(peak_snr)
  * 
  */
-    __pyx_t_14 = __pyx_PyFloat_AsDouble(__pyx_v_peak_sigma); if (unlikely((__pyx_t_14 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 168, __pyx_L1_error)
+    __pyx_t_14 = __pyx_PyFloat_AsDouble(__pyx_v_peak_sigma); if (unlikely((__pyx_t_14 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 174, __pyx_L1_error)
     try {
       __pyx_v_peak_list_sigma.push_back(__pyx_t_14);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 168, __pyx_L1_error)
+      __PYX_ERR(0, 174, __pyx_L1_error)
     }
 
-    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":169
+    /* "src/peakfinder8_extension/peakfinder8_extension.pyx":175
  *         peak_list_maxi.push_back(peak_maxi)
  *         peak_list_sigma.push_back(peak_sigma)
  *         peak_list_snr.push_back(peak_snr)             # <<<<<<<<<<<<<<
  * 
  *     freePeakList(peak_list)
  */
-    __pyx_t_14 = __pyx_PyFloat_AsDouble(__pyx_v_peak_snr); if (unlikely((__pyx_t_14 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 169, __pyx_L1_error)
+    __pyx_t_14 = __pyx_PyFloat_AsDouble(__pyx_v_peak_snr); if (unlikely((__pyx_t_14 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 175, __pyx_L1_error)
     try {
       __pyx_v_peak_list_snr.push_back(__pyx_t_14);
     } catch(...) {
       __Pyx_CppExn2PyErr();
-      __PYX_ERR(0, 169, __pyx_L1_error)
+      __PYX_ERR(0, 175, __pyx_L1_error)
     }
   }
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":171
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":177
  *         peak_list_snr.push_back(peak_snr)
  * 
  *     freePeakList(peak_list)             # <<<<<<<<<<<<<<
@@ -3456,7 +3456,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  */
   freePeakList(__pyx_v_peak_list);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":173
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":179
  *     freePeakList(peak_list)
  * 
  *     return (peak_list_x, peak_list_y, peak_list_value, peak_list_index,             # <<<<<<<<<<<<<<
@@ -3464,39 +3464,39 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
  * 
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_13 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_x); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 173, __pyx_L1_error)
+  __pyx_t_13 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_x); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 179, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_13);
-  __pyx_t_15 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_y); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 173, __pyx_L1_error)
+  __pyx_t_15 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_y); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 179, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_15);
-  __pyx_t_16 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_value); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 173, __pyx_L1_error)
+  __pyx_t_16 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_value); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 179, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_16);
-  __pyx_t_17 = __pyx_convert_vector_to_py_long(__pyx_v_peak_list_index); if (unlikely(!__pyx_t_17)) __PYX_ERR(0, 173, __pyx_L1_error)
+  __pyx_t_17 = __pyx_convert_vector_to_py_long(__pyx_v_peak_list_index); if (unlikely(!__pyx_t_17)) __PYX_ERR(0, 179, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_17);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":174
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":180
  * 
  *     return (peak_list_x, peak_list_y, peak_list_value, peak_list_index,
  *             peak_list_npix, peak_list_maxi, peak_list_sigma, peak_list_snr)             # <<<<<<<<<<<<<<
  * 
  * 
  */
-  __pyx_t_18 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_npix); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 174, __pyx_L1_error)
+  __pyx_t_18 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_npix); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 180, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
-  __pyx_t_19 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_maxi); if (unlikely(!__pyx_t_19)) __PYX_ERR(0, 174, __pyx_L1_error)
+  __pyx_t_19 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_maxi); if (unlikely(!__pyx_t_19)) __PYX_ERR(0, 180, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_19);
-  __pyx_t_20 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_sigma); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 174, __pyx_L1_error)
+  __pyx_t_20 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_sigma); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 180, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
-  __pyx_t_21 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_snr); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 174, __pyx_L1_error)
+  __pyx_t_21 = __pyx_convert_vector_to_py_double(__pyx_v_peak_list_snr); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 180, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":173
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":179
  *     freePeakList(peak_list)
  * 
  *     return (peak_list_x, peak_list_y, peak_list_value, peak_list_index,             # <<<<<<<<<<<<<<
  *             peak_list_npix, peak_list_maxi, peak_list_sigma, peak_list_snr)
  * 
  */
-  __pyx_t_22 = PyTuple_New(8); if (unlikely(!__pyx_t_22)) __PYX_ERR(0, 173, __pyx_L1_error)
+  __pyx_t_22 = PyTuple_New(8); if (unlikely(!__pyx_t_22)) __PYX_ERR(0, 179, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_22);
   __Pyx_GIVEREF(__pyx_t_13);
   PyTuple_SET_ITEM(__pyx_t_22, 0, __pyx_t_13);
@@ -3526,7 +3526,7 @@ static PyObject *__pyx_pf_10diffractem_21peakfinder8_extension_2peakfinder_8_wit
   __pyx_t_22 = 0;
   goto __pyx_L0;
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":117
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":123
  * 
  * 
  * def peakfinder_8_with_pixel_information(int max_num_peaks, float[:,::1] data,             # <<<<<<<<<<<<<<
@@ -17589,7 +17589,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {0, 0, 0, 0, 0, 0, 0}
 };
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
-  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 91, __pyx_L1_error)
+  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 97, __pyx_L1_error)
   __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_n_s_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(1, 133, __pyx_L1_error)
   __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_n_s_MemoryError); if (!__pyx_builtin_MemoryError) __PYX_ERR(1, 148, __pyx_L1_error)
   __pyx_builtin_enumerate = __Pyx_GetBuiltinName(__pyx_n_s_enumerate); if (!__pyx_builtin_enumerate) __PYX_ERR(1, 151, __pyx_L1_error)
@@ -17798,29 +17798,29 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__18);
   __Pyx_GIVEREF(__pyx_tuple__18);
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":61
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":67
  * 
  * 
  * def peakfinder_8(int max_num_peaks, float[:,::1] data, char[:,::1] mask,             # <<<<<<<<<<<<<<
  *                  float[:,::1] pix_r, long asic_nx, long asic_ny, long nasics_x,
  *                  long nasics_y, float adc_thresh, float hitfinder_min_snr,
  */
-  __pyx_tuple__19 = PyTuple_Pack(32, __pyx_n_s_max_num_peaks, __pyx_n_s_data, __pyx_n_s_mask, __pyx_n_s_pix_r, __pyx_n_s_asic_nx, __pyx_n_s_asic_ny, __pyx_n_s_nasics_x, __pyx_n_s_nasics_y, __pyx_n_s_adc_thresh, __pyx_n_s_hitfinder_min_snr, __pyx_n_s_hitfinder_min_pix_count, __pyx_n_s_hitfinder_max_pix_count, __pyx_n_s_hitfinder_local_bg_radius, __pyx_n_s_peak_list, __pyx_n_s_i, __pyx_n_s_peak_x, __pyx_n_s_peak_y, __pyx_n_s_peak_value, __pyx_n_s_peak_list_x, __pyx_n_s_peak_list_y, __pyx_n_s_peak_list_index, __pyx_n_s_peak_list_value, __pyx_n_s_peak_list_npix, __pyx_n_s_peak_list_maxi, __pyx_n_s_peak_list_sigma, __pyx_n_s_peak_list_snr, __pyx_n_s_num_peaks, __pyx_n_s_peak_index, __pyx_n_s_peak_npix, __pyx_n_s_peak_maxi, __pyx_n_s_peak_sigma, __pyx_n_s_peak_snr); if (unlikely(!__pyx_tuple__19)) __PYX_ERR(0, 61, __pyx_L1_error)
+  __pyx_tuple__19 = PyTuple_Pack(32, __pyx_n_s_max_num_peaks, __pyx_n_s_data, __pyx_n_s_mask, __pyx_n_s_pix_r, __pyx_n_s_asic_nx, __pyx_n_s_asic_ny, __pyx_n_s_nasics_x, __pyx_n_s_nasics_y, __pyx_n_s_adc_thresh, __pyx_n_s_hitfinder_min_snr, __pyx_n_s_hitfinder_min_pix_count, __pyx_n_s_hitfinder_max_pix_count, __pyx_n_s_hitfinder_local_bg_radius, __pyx_n_s_peak_list, __pyx_n_s_i, __pyx_n_s_peak_x, __pyx_n_s_peak_y, __pyx_n_s_peak_value, __pyx_n_s_peak_list_x, __pyx_n_s_peak_list_y, __pyx_n_s_peak_list_index, __pyx_n_s_peak_list_value, __pyx_n_s_peak_list_npix, __pyx_n_s_peak_list_maxi, __pyx_n_s_peak_list_sigma, __pyx_n_s_peak_list_snr, __pyx_n_s_num_peaks, __pyx_n_s_peak_index, __pyx_n_s_peak_npix, __pyx_n_s_peak_maxi, __pyx_n_s_peak_sigma, __pyx_n_s_peak_snr); if (unlikely(!__pyx_tuple__19)) __PYX_ERR(0, 67, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__19);
   __Pyx_GIVEREF(__pyx_tuple__19);
-  __pyx_codeobj__20 = (PyObject*)__Pyx_PyCode_New(13, 0, 32, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__19, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_src_peakfinder8_extension_peakfi, __pyx_n_s_peakfinder_8, 61, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__20)) __PYX_ERR(0, 61, __pyx_L1_error)
+  __pyx_codeobj__20 = (PyObject*)__Pyx_PyCode_New(13, 0, 32, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__19, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_src_peakfinder8_extension_peakfi, __pyx_n_s_peakfinder_8, 67, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__20)) __PYX_ERR(0, 67, __pyx_L1_error)
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":117
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":123
  * 
  * 
  * def peakfinder_8_with_pixel_information(int max_num_peaks, float[:,::1] data,             # <<<<<<<<<<<<<<
  *                                         char[:,::1] mask, float[:,::1] pix_r,
  *                                         long asic_nx, long asic_ny, long nasics_x,
  */
-  __pyx_tuple__21 = PyTuple_Pack(33, __pyx_n_s_max_num_peaks, __pyx_n_s_data, __pyx_n_s_mask, __pyx_n_s_pix_r, __pyx_n_s_asic_nx, __pyx_n_s_asic_ny, __pyx_n_s_nasics_x, __pyx_n_s_nasics_y, __pyx_n_s_adc_thresh, __pyx_n_s_hitfinder_min_snr, __pyx_n_s_hitfinder_min_pix_count, __pyx_n_s_hitfinder_max_pix_count, __pyx_n_s_hitfinder_local_bg_radius, __pyx_n_s_outlier_mask, __pyx_n_s_peak_list, __pyx_n_s_i, __pyx_n_s_peak_x, __pyx_n_s_peak_y, __pyx_n_s_peak_value, __pyx_n_s_peak_list_x, __pyx_n_s_peak_list_y, __pyx_n_s_peak_list_index, __pyx_n_s_peak_list_value, __pyx_n_s_peak_list_npix, __pyx_n_s_peak_list_maxi, __pyx_n_s_peak_list_sigma, __pyx_n_s_peak_list_snr, __pyx_n_s_num_peaks, __pyx_n_s_peak_index, __pyx_n_s_peak_npix, __pyx_n_s_peak_maxi, __pyx_n_s_peak_sigma, __pyx_n_s_peak_snr); if (unlikely(!__pyx_tuple__21)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_tuple__21 = PyTuple_Pack(33, __pyx_n_s_max_num_peaks, __pyx_n_s_data, __pyx_n_s_mask, __pyx_n_s_pix_r, __pyx_n_s_asic_nx, __pyx_n_s_asic_ny, __pyx_n_s_nasics_x, __pyx_n_s_nasics_y, __pyx_n_s_adc_thresh, __pyx_n_s_hitfinder_min_snr, __pyx_n_s_hitfinder_min_pix_count, __pyx_n_s_hitfinder_max_pix_count, __pyx_n_s_hitfinder_local_bg_radius, __pyx_n_s_outlier_mask, __pyx_n_s_peak_list, __pyx_n_s_i, __pyx_n_s_peak_x, __pyx_n_s_peak_y, __pyx_n_s_peak_value, __pyx_n_s_peak_list_x, __pyx_n_s_peak_list_y, __pyx_n_s_peak_list_index, __pyx_n_s_peak_list_value, __pyx_n_s_peak_list_npix, __pyx_n_s_peak_list_maxi, __pyx_n_s_peak_list_sigma, __pyx_n_s_peak_list_snr, __pyx_n_s_num_peaks, __pyx_n_s_peak_index, __pyx_n_s_peak_npix, __pyx_n_s_peak_maxi, __pyx_n_s_peak_sigma, __pyx_n_s_peak_snr); if (unlikely(!__pyx_tuple__21)) __PYX_ERR(0, 123, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__21);
   __Pyx_GIVEREF(__pyx_tuple__21);
-  __pyx_codeobj__22 = (PyObject*)__Pyx_PyCode_New(14, 0, 33, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__21, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_src_peakfinder8_extension_peakfi, __pyx_n_s_peakfinder_8_with_pixel_informat, 117, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__22)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_codeobj__22 = (PyObject*)__Pyx_PyCode_New(14, 0, 33, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__21, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_src_peakfinder8_extension_peakfi, __pyx_n_s_peakfinder_8_with_pixel_informat, 123, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__22)) __PYX_ERR(0, 123, __pyx_L1_error)
 
   /* "View.MemoryView":286
  *         return self.name
@@ -18233,46 +18233,46 @@ if (!__Pyx_RefNanny) {
   if (__Pyx_patch_abc() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":20
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":26
  * from libc.stdint cimport int8_t
  * 
  * import numpy             # <<<<<<<<<<<<<<
  * 
  * cdef extern from "peakfinder8.hh":
  */
-  __pyx_t_1 = __Pyx_Import(__pyx_n_s_numpy, 0, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 20, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_Import(__pyx_n_s_numpy, 0, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 26, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_numpy, __pyx_t_1) < 0) __PYX_ERR(0, 20, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_numpy, __pyx_t_1) < 0) __PYX_ERR(0, 26, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":61
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":67
  * 
  * 
  * def peakfinder_8(int max_num_peaks, float[:,::1] data, char[:,::1] mask,             # <<<<<<<<<<<<<<
  *                  float[:,::1] pix_r, long asic_nx, long asic_ny, long nasics_x,
  *                  long nasics_y, float adc_thresh, float hitfinder_min_snr,
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_10diffractem_21peakfinder8_extension_1peakfinder_8, NULL, __pyx_n_s_diffractem_peakfinder8_extension); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 61, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_10diffractem_21peakfinder8_extension_1peakfinder_8, NULL, __pyx_n_s_diffractem_peakfinder8_extension); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 67, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_peakfinder_8, __pyx_t_1) < 0) __PYX_ERR(0, 61, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_peakfinder_8, __pyx_t_1) < 0) __PYX_ERR(0, 67, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":117
+  /* "src/peakfinder8_extension/peakfinder8_extension.pyx":123
  * 
  * 
  * def peakfinder_8_with_pixel_information(int max_num_peaks, float[:,::1] data,             # <<<<<<<<<<<<<<
  *                                         char[:,::1] mask, float[:,::1] pix_r,
  *                                         long asic_nx, long asic_ny, long nasics_x,
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_10diffractem_21peakfinder8_extension_3peakfinder_8_with_pixel_information, NULL, __pyx_n_s_diffractem_peakfinder8_extension); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_10diffractem_21peakfinder8_extension_3peakfinder_8_with_pixel_information, NULL, __pyx_n_s_diffractem_peakfinder8_extension); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 123, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_peakfinder_8_with_pixel_informat, __pyx_t_1) < 0) __PYX_ERR(0, 117, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_peakfinder_8_with_pixel_informat, __pyx_t_1) < 0) __PYX_ERR(0, 123, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
   /* "src/peakfinder8_extension/peakfinder8_extension.pyx":1
- * # This file is part of OnDA.             # <<<<<<<<<<<<<<
- * #
- * # OnDA is free software: you can redistribute it and/or modify it under the terms of
+ * # This file is originally part of OnDA, available at             # <<<<<<<<<<<<<<
+ * # <https://www.ondamonitor.com>, which is released under the terms
+ * # of the GNU General Public License. It has been adapted for
  */
   __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);

@@ -1,6 +1,5 @@
 from setuptools import setup, Extension
 import os
-from setuptools import Extension, setup
 
 ### ---
 # peakfinder8 Cython version adapted from OnDA: https://github.com/ondateam/onda
@@ -61,7 +60,7 @@ setup(
     install_requires=['h5py', 'numpy', 'pandas', 'tables', 'hdf5plugin',
                       'dask[complete]', 'tifffile', 'scipy', 'astropy', 
                       'matplotlib', 'numba', 'pyqtgraph', 'pyyaml', 'scikit-learn', 
-                      'scikit-image', 'opencv-python-headless', 'PyQt5'],
+                      'scikit-image', 'PyQt5'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

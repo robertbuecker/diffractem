@@ -2,7 +2,6 @@ import json
 from scipy.cluster.vq import kmeans2
 from scipy._lib._util import _asarray_validated
 #from sklearn.cluster import KMeans
-import cv2
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -26,6 +25,12 @@ from diffractem import tools, io, normalize_keys, nexus
 
 def align_ecc(img, img_ref, method='ecc', mode='affine',
               coords=None, rescale=False, use_gradient=True):
+    
+    try:
+        import cv2
+    except ModuleNotFoundError:
+        print('It seems OpenCV is not install. Please do so by running:' 
+              'pip install opencv-python-headless')
 
     if rescale:
         img0 = rescale_intensity(img_ref, in_range='image', out_range='float32').astype('float32')
