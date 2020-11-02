@@ -136,9 +136,7 @@ class Dataset:
         self._features = pd.DataFrame(columns=self._feature_id_cols)
 
     def __str__(self):
-        return (f'diffractem Dataset object spanning {len(self._shots.file.unique())} NeXus/HDF5 files\n-----\n'
-                f'{self._shots.shape[0]} shots ({self._shots.selected.sum()} selected)\n'
-                f'{self._peaks.shape[0]} peaks, {self._predict.shape[0]} predictions, '
+        return (f'diffractem Dataset object spanning {len(self._shots.file.unique())} NeXus/HDF5 files\n-----\n'                f'{self._shots.shape[0]} shots ({self._shots.selected.sum()} selected)\n'
                 f'{self._features.shape[0]} features\n'
                 f'{len(self._stacks)} data stacks: {", ".join(self._stacks.keys())}\n'
                 f'Diffraction data stack: {self._diff_stack_label}\n'
@@ -400,15 +398,12 @@ class Dataset:
         self._shots = pd.concat(shots, axis=0).reset_index(drop=True)
         print(f'Found {self.shots.shape[0]} shots, initialized shot table.')
 
-    def load_tables(self, shots: bool = False, features: bool = False, 
-                    peaks: bool = False, predict: bool = False, files: bool = None):
+    def load_tables(self, shots: bool = False, features: bool = False, files: bool = None):
         """Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.
 
         Args:
             shots (bool, optional): Get shot table. Defaults to False.
             features (bool, optional): Get feature table. Defaults to False.
-            peaks (bool, optional): Get peaks table. Defaults to False.
-            predict (bool, optional): Get prediction table. Defaults to False.
             files (bool, optional): Only include sub selection of files - usually not a good idea.
                 Uses all files of dataset if None. Defaults to None.
         """
@@ -475,24 +470,7 @@ class Dataset:
                 print('Error processing ' + self.map_pattern + '/features')
                 raise err
 
-        if peaks:
-            try:
-                self._peaks = nexus.get_table(files, self.result_pattern + '/peaks', parallel=self.parallel_io)
-                self._peaks_changed = False
-            except KeyError:
-                pass
-                #print('No peaks found at ' + self.result_pattern + '/peaks')
-
-        if predict:
-            try:
-                self._predict = nexus.get_table(files, self.result_pattern + '/predict', parallel=self.parallel_io)
-                self._predict_changed = False
-            except KeyError:
-                pass
-                #print('No predictions found at ' + self.result_pattern + '/predict')
-
-    def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None,
-                     peaks: Union[None, bool] = None, predict: Union[None, bool] = None, format: str = 'nexus'):
+    def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None, format: str = 'nexus'):
         """Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. 
         
         The location into which the tables will be stored is defined in the Dataset object's attributes. The format
@@ -540,16 +518,6 @@ class Dataset:
                                         self.map_pattern + '/features', parallel=self.parallel_io,
                                         format=format))
             self._features_changed = False
-
-        if (peaks is None and self._peaks_changed) or peaks:
-            fs.extend(
-                nexus.store_table(self.peaks, self.result_pattern + '/peaks', parallel=self.parallel_io, format=format))
-            self._peaks_changed = False
-
-        if (predict is None and self._predict_changed) or predict:
-            fs.extend(nexus.store_table(self.predict, self.result_pattern + '/predict', parallel=self.parallel_io,
-                                        format=format))
-            self._predict_changed = False
 
         if stacks_were_open:
             self.open_stacks()
@@ -1791,10 +1759,6 @@ class Dataset:
         
         if persist: 
             self.persist_stacks(list(peakdata))
-
-    def merge_acquisition_data(self, fields: dict):
-        # mange instrument (acquisition) data like exposure time etc. into shot list
-        raise NotImplementedError('merge_acquisition_data not yet implemented')
 
     def write_list(self, listfile: str, append: bool = False):
         """
