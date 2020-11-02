@@ -48,10 +48,11 @@ Please first make sure that all dependcies for compiling CrystFEL are installed,
 https://www.desy.de/~twhite/crystfel/install.html
 
 As you might not want the electron-enabled CrystFEL version to interfere with a potentially existing (or future) installation of standard CrystFEL, we suggest to install it into the `conda` environment we created above.
-This way, the electron CrystFEL version will be enabled (put on the path first) as soon as the environment is enabled.
+This way, the electron CrystFEL version will be enabled (put on the path first) as soon as the environment is activated.
 
 We start with _pinkIndexer_ (otherwise CrystFEL will not recognize its presence):
 ```
+conda activate diffractem
 git clone https://stash.desy.de/users/gevorkov/repos/pinkindexer
 cd pinkindexer
 mkdir build
@@ -63,6 +64,7 @@ make install
 
 And finally _CrystFEL_ (electron version) itself:
 ```
+conda activate diffractem
 git clone https://stash.desy.de/projects/MPSDED/repos/crystfel
 cd crystfel
 mkdir build
