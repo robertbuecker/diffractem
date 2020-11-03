@@ -85,7 +85,7 @@ setup(
                       'scikit-image', 'PyQt5'],
     classifiers=[
         "Programming Language :: Python :: 3",
-        "OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+        "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
     ],
     ext_modules = extensions
 )
