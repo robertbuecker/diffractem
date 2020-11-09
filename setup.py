@@ -38,7 +38,7 @@ DIFFRACTEM_USE_CYTHON = os.getenv("DIFFRACTEM_USE_CYTHON")
 ext = ".pyx" if DIFFRACTEM_USE_CYTHON else ".c"  # pylint: disable=invalid-name
 
 peakfinder8_ext = Extension(  # pylint: disable=invalid-name
-    name="diffractem.peakfinder8_extension.peakfinder8_extension",
+    name="diffractem.peakfinder8_extension",
     include_dirs=[numpy.get_include()],
     libraries=["stdc++"],
     sources=[
@@ -64,7 +64,7 @@ else:
 
 setup(
     name='diffractem',
-    version='0.3.4',
+    version='0.3.4.post2',
     packages=['diffractem'],
     url='https://github.com/robertbuecker/diffractem',
     license='',
