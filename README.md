@@ -53,7 +53,7 @@ This way, the electron CrystFEL version will be enabled (put on the path first) 
 We start with _pinkIndexer_ (otherwise CrystFEL will not recognize its presence):
 ```
 conda activate diffractem
-git clone https://stash.desy.de/users/gevorkov/repos/pinkindexer
+git clone https://stash.desy.de/scm/~gevorkov/pinkindexer.git
 cd pinkindexer
 mkdir build
 cd build
@@ -65,7 +65,7 @@ make install
 And finally _CrystFEL_ (electron version) itself:
 ```
 conda activate diffractem
-git clone https://stash.desy.de/projects/MPSDED/repos/crystfel
+git clone https://stash.desy.de/scm/mpsded/crystfel.git
 cd crystfel
 mkdir build
 cd build
