@@ -9,30 +9,58 @@ Critical dependencies are the electron-enabled version of _CrystFEL_ (http://www
 and _pinkIndexer_, available at https://stash.desy.de/users/gevorkov/repos/pinkindexer.
 
 ## Installation
-...in three steps:
-* set up a python environment
-* install diffractem itself
-* install _CrystFEL_ and _pinkIndexer_
+To use most features you will also need an installation of _CrystFEL_ and _pinkIndexer_, the former in a specific electron-enabled version (this will likely become obsolete with the release of CrystFEL 0.10.0).
 
-### Set up Python (conda) environment 
+### Create conda enivronment
+We _strongly_ suggest to use the Anaconda3 Python distribution/package manager, and create a dedicated environment within it for diffractem and CrystFEL.
+If you do not have Anaconda installed, it is sufficient to obtain the minimal _Miniconda_  of the `conda` package manager at https://docs.conda.io/en/latest/miniconda.
 
-To install diffractem, we _strongly_ suggest to use the Anaconda3 Python distribution, and create a dedicated environment within it.
-If you do not have Anaconda yet, please get either the minimal Miniconda version at or the minimal version at https://docs.conda.io/en/latest/miniconda.html, or the full version at https://www.anaconda.com/products/individual.
-
-Once installed, please create a new anaconda environment for diffractem:
+Once installed, please create a new anaconda environment for diffractem, **without installing any packages**, and activate it:
 ```
-conda create -n diffractem -c conda-forge python=3.8 numpy ipykernel
-```
-You can append more packages at your liking. 
-E.g. if you do not have a Jupyter installation on your system yet (check by running `jupyter notebook` and see if something happens), you might want to add `jupyter`, or even `jupyterlab` (more modern version).
-
-### Install diffractem
-
-Next, activate your new environment
-```
+conda create -n diffractem -c conda-forge
 conda activate diffractem
 ```
-...and install diffractem itself, either from PyPi:
+### Install CrystFEL and pinkIndexer
+As you might not want the electron-enabled CrystFEL version to interfere with a potentially existing (or future) installation of standard CrystFEL, we suggest to install them directly into the location of our anaconda environment.
+
+Please first make sure that all dependencies for compiling CrystFEL are installed, following Steps 1-3 here (but NOT Step 4 - it is the wrong CrystFEL version):
+https://www.desy.de/~twhite/crystfel/install.html
+
+[N.B. If you're having trouble fulfilling CrystFELs dependencies e.g. because you do not have root access to install them or they are not included in your distribution's package repository, also consider installing them using `conda`.
+As a common example, if you are using Ubuntu 16.04, which comes with a too old version of cmake, you may want to run `conda install cmake`.]
+
+Here is a complete sequence of steps to install pinkIndexer and CrystFEL:
+
+```
+git clone https://stash.desy.de/scm/~gevorkov/pinkindexer.git
+git clone https://stash.desy.de/scm/mpsded/crystfel.git
+cd pinkindexer
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+make -j `nproc`
+make install
+cd ../../crystfel
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+make -j `nproc`
+make install
+cd ../..
+```
+
+After that, running `indexamajig --version` should return something similar to `CrystFEL: 0.9.1+886ae521`.
+
+### Install Python and Jupyter 
+Now, install a basic Python with Jupyter into your environment.
+We recommend using `jupyterlab` for interaction with diffractem.
+If you prefer the classic `jupyter`, you can use it instead in the command below.
+```
+conda install -c conda-forge python=3.8 numpy jupyterlab ipywidgets ipympl
+```
+### Install diffractem
+
+Finally install diffractem itself, either from PyPi:
 ```
 pip install diffractem
 ```
@@ -43,43 +71,6 @@ cd diffractem
 pip install -e .
 ```
 
-### Install CrystFEL and pinkIndexer
-Please first make sure that all dependcies for compiling CrystFEL are installed, following Steps 1-3 here (but NOT Step 4 - it is the wrong CrystFEL version):
-https://www.desy.de/~twhite/crystfel/install.html
-
-As you might not want the electron-enabled CrystFEL version to interfere with a potentially existing (or future) installation of standard CrystFEL, we suggest to install it into a (possibly temporary, see below) different location - let's assume `~/opt/crystfel` for this example.
-
-Note that the `conda` environment of diffractem should **not** be activated when compiling _pinkIndexer_ and _CrystFEL_ as this may cause library version trouble on some operating systems.
-Furthermore, _pinkIndexer_ needs to be installed **before** CrystFEL itself to be recognized during compilation. 
-Here is a complete sequence of steps:
-
-```
-conda deactivate
-export CRYSTFEL_INSTALL_DIR=~/opt/crystfel
-git clone https://stash.desy.de/scm/~gevorkov/pinkindexer.git
-git clone https://stash.desy.de/scm/mpsded/crystfel.git
-cd pinkindexer
-mkdir build
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=$CRYSTFEL_INSTALL_DIR
-make -j `nproc`
-make install
-cd ../../crystfel
-mkdir build
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=$CRYSTFEL_INSTALL_DIR
-make -j `nproc`
-make install
-cd ../..
-```
-
-When working with diffractem and CrystFEL it needs to be ensured that the CrystFEL install location is on the `$PATH` environment variable.
-A recommended way to automate this is to move your CrystFEL installation into the location of your `conda` environment for diffractem:
-```
-conda activate diffractem
-mv -r $CRYSTFEL_INSTALL_DIR/* $CONDA_PREFIX
-```
-This way, the electron CrystFEL version will be enabled (put on the path first) as soon as the environment is activated.
 
 Now you should be ready to go! To get started, why don't you download the example notebooks:
 ```
