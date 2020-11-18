@@ -47,32 +47,39 @@ pip install -e .
 Please first make sure that all dependcies for compiling CrystFEL are installed, following Steps 1-3 here (but NOT Step 4 - it is the wrong CrystFEL version):
 https://www.desy.de/~twhite/crystfel/install.html
 
-As you might not want the electron-enabled CrystFEL version to interfere with a potentially existing (or future) installation of standard CrystFEL, we suggest to install it into the `conda` environment we created above.
-This way, the electron CrystFEL version will be enabled (put on the path first) as soon as the environment is activated.
+As you might not want the electron-enabled CrystFEL version to interfere with a potentially existing (or future) installation of standard CrystFEL, we suggest to install it into a (possibly temporary, see below) different location - let's assume `~/opt/crystfel` for this example.
 
-We start with _pinkIndexer_ (otherwise CrystFEL will not recognize its presence):
+Note that the `conda` environment of diffractem should **not** be activated when compiling _pinkIndexer_ and _CrystFEL_ as this may cause library version trouble on some operating systems.
+Furthermore, _pinkIndexer_ needs to be installed **before** CrystFEL itself to be recognized during compilation. 
+Here is a complete sequence of steps:
+
 ```
-conda activate diffractem
+conda deactivate
+export CRYSTFEL_INSTALL_DIR=~/opt/crystfel
 git clone https://stash.desy.de/scm/~gevorkov/pinkindexer.git
+git clone https://stash.desy.de/scm/mpsded/crystfel.git
 cd pinkindexer
 mkdir build
 cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
-make
+cmake .. -DCMAKE_INSTALL_PREFIX=$CRYSTFEL_INSTALL_DIR
+make -j `nproc`
 make install
-```
-
-And finally _CrystFEL_ (electron version) itself:
-```
-conda activate diffractem
-git clone https://stash.desy.de/scm/mpsded/crystfel.git
-cd crystfel
+cd ../../crystfel
 mkdir build
 cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
-make
+cmake .. -DCMAKE_INSTALL_PREFIX=$CRYSTFEL_INSTALL_DIR
+make -j `nproc`
 make install
+cd ../..
 ```
+
+When working with diffractem and CrystFEL it needs to be ensured that the CrystFEL install location is on the `$PATH` environment variable.
+A recommended way to automate this is to move your CrystFEL installation into the location of your `conda` environment for diffractem:
+```
+conda activate diffractem
+mv -r $CRYSTFEL_INSTALL_DIR/* $CONDA_PREFIX
+```
+This way, the electron CrystFEL version will be enabled (put on the path first) as soon as the environment is activated.
 
 Now you should be ready to go! To get started, why don't you download the example notebooks:
 ```
