@@ -76,7 +76,7 @@ Now you should be ready to go! To get started, why don't you download the exampl
 ```
 git clone https://github.com/robertbuecker/serialed-examples
 ```
-And get example raw data at www.empiar.org under the ID 10542.
+And get example raw data at www.empiar.org under the ID EMPIA-10542, or at MPDL Edmond: https://edmond.mpdl.mpg.de/imeji/collection/32lI6YJ7DZaF5L_K.
 
 And when you're ready to go: just make your own branches of the notebooks for your own projects, and have fun!
 
