@@ -357,7 +357,7 @@ class Dataset:
         if init_stacks and not open_stacks:
             self.init_stacks(chunking=chunking)
         if load_tables:
-            self.load_tables(features=True, peaks=True, predict=True)          
+            self.load_tables(features=True)          
         if open_stacks:
             self.open_stacks(chunking=chunking)
         if open_stacks and persist_meta:
@@ -950,7 +950,10 @@ class Dataset:
         func_lib = {'sum': lambda x: np.sum(x, axis=0, keepdims=True),
                     'mean': lambda x: np.mean(x, axis=0, keepdims=True),
                     'first': lambda x: x[:1,...],
-                    'last': lambda x: x[-1:,...]}
+                    'last': lambda x: x[-1:,...],
+                    'std': lambda x: np.std(x, axis=0, keepdims=True),
+                    'var': lambda x: np.var(x, axis=0, keepdims=True),
+                    'var_over_mean': lambda x: np.var(x, axis=0, keepdims=True)/np.mean(x, axis=0, keepdims=True)}
             
         for sn, s in self.stacks.items():
 
