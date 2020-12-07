@@ -364,7 +364,7 @@ def subtract_bg(fn, opt: PreProcOpts):
     ds.add_stack('centered', bg_corrected, overwrite=True)
     ds.change_filenames(opt.nobg_file_suffix)
     ds.init_files(keep_features=False, overwrite=True)
-    ds.store_tables(shots=True, features=True, peaks=False)
+    ds.store_tables(shots=True, features=True)
     ds.open_stacks(readonly=False)
 
     # for lbl in ['nPeaks', 'peakTotalIntensity', 'peakXPosRaw', 'peakYPosRaw']:
@@ -537,7 +537,7 @@ def cumulate(fn, opt: PreProcOpts):
     dssel.change_filenames(opt.cum_file_suffix)
     dssel.init_files(overwrite=True, keep_features=False)
     log('File initialized, writing tables...')
-    dssel.store_tables(shots=True, features=True, peaks=False)
+    dssel.store_tables(shots=True, features=True)
 
     try:
         dssel.open_stacks(readonly=False)

@@ -1822,7 +1822,7 @@ class Dataset:
                             'peakTotalIntensity'],
                             compression='gzip', overwrite=True)
         ds_ctr.close_stacks()
-        ds_ctr.store_tables(shots=True, features=False, peaks=False, predict=False)
+        ds_ctr.store_tables(shots=True, features=False)
         ds_ctr.write_list(f'{filename}.lst')
         print(f'Virtual file {filename}.h5 and list file {filename}.lst successfully exported.')
         
