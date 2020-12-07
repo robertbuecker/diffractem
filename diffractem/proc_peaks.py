@@ -287,12 +287,11 @@ class Cell(object):
         self.beta = beta
         self.gamma = gamma
         self.lattice_type = lattice_type if lattice_type in self.lattices else "triclinic"
-        self._centering = centering
         self.unique_axis = unique_axis
         self._volume = None
         self.selection_rules = []
         "contains a list of functions returning True(allowed)/False(forbidden)/None(unknown)"
-        self.centering = "P"
+        self.centering = centering
         self.hkl = None
         self._d_min = d_min
         self.init_hkl(d_min)
