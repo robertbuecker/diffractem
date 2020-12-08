@@ -606,7 +606,7 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
         [type]: [description]
     """
     
-    fnroot = fn.rsplit('/',1)[-1].rsplit('.')[0]
+    fnroot = fn.rsplit('/',1)[-1].rsplit('.',1)[0]
 
     foms = list(foms)
     
