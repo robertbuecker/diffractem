@@ -171,20 +171,21 @@ def get_acf(npk, x, y, I=None, roi_length=512, output_radius=256,
     sz = roi_length * oversample
     rng = output_radius * oversample
     
-    pkx = (oversample * x[:npk]).round().astype(int) + sz//2
-    pky = (oversample * y[:npk]).round().astype(int) + sz//2
-    pkI = None if I is None else I[:npk]
-    
     if px_ang is not None:
-        t_par = (pkx**2 + pky**2)**.5 * px_ang
+        t_par = (x[:npk]**2 + y[:npk]**2)**.5 * px_ang
         acorr = 2*np.sin(np.arctan(t_par)/2) / t_par
     else:
         acorr = 1
-        
+            
+    pkx = (oversample * acorr * x[:npk]).round().astype(int) + sz//2
+    pky = (oversample * acorr * y[:npk]).round().astype(int) + sz//2
+    pkI = None if I is None else I[:npk]
+
     valid = (pkx >= 0) & (pkx < sz) & (pky >= 0) & (pky < sz)
-    pkx, pky, pkI = acorr*pkx[valid], acorr*pky[valid], 1 if I is None else pkI[valid]
+    pkx, pky, pkI = pkx[valid], pky[valid], 1 if I is None else pkI[valid]
     dense = np.zeros((sz, sz), dtype=np.float if I is None else np.uint8)
-    dense[pkx, pky] = pkI if I is not None else 1
+    dense[pky, pkx] = pkI if I is not None else 1
+    # print(f'{dense.shape}, {rng}, {sz}')
     acf = fft.ifft2(np.abs(fft.fft2(dense))**2)
     acf = fft.ifftshift(acf).real
     if I is None:
@@ -578,7 +579,7 @@ class Cell(object):
         # find out which parameters should be optimized
         if self.lattice_type == 'triclinic':
             parameters = ['a', 'b', 'c', 'alpha', 'beta', 'gamma']
-        elif self.lattice_type == 'monolinic':
+        elif self.lattice_type == 'monoclinic':
             parameters = ['a', 'b', 'c', 'beta']
         elif self.lattice_type == 'orthorhombic':
             parameters = ['a', 'b', 'c']
@@ -591,7 +592,7 @@ class Cell(object):
         elif self.lattice_type == 'rhombohedral':
             parameters = ['a', 'alpha']
         else:
-            raise Exception('This should not happen. Yell at Robert.')
+            raise Exception(f'This should not happen (lattice type is set to {self.lattice_type}). Yell at Robert.')
         
         _, unique_pos = np.unique(self.d(), return_index=True) # unique d-spacings
         p0 = [getattr(self, cpar) for cpar in parameters]
