@@ -18,6 +18,7 @@ class PreProcOpts:
         self.reference: str = 'Ref12_reference.tif'  #: Name of reference image for flat-field correction in TIF format
         self.pxmask: str = 'Ref12_pxmask.tif'        #: Name of pixelmask TIF image
         self.correct_saturation: bool = True          #: Correct for detector saturation using paralyzable model
+        self.remove_background: bool = True       #: Determine and subtract background during image correction
         self.dead_time: float = 1.9e-3                 #: Dead time (in ms) for paralyzable detector model
         self.dead_time_gap_factor: float = 2           #: Factor for dead time in gap-pixels 
         self.shutter_time: float = 2                   #: Shutter time (in ms) for paralyzable detector model
@@ -44,7 +45,7 @@ class PreProcOpts:
         self.select_query: str = 'frame >= 0'        #: query string for selection of shots from raw data
         self.agg_query: str = 'frame >= 0 and frame <= 5'    #: query string for aggregation of patterns
         self.agg_file_suffix: str = '_agg.h5'        #: file suffix for aggregated patterns
-        self.aggregate: bool = True                   #: calculate aggregated patterns
+        self.aggregate: bool = True                   #: calculate aggregated patterns (only for real-time analysis)
         self.scratch_dir: str = '/scratch/diffractem'#: scratch directory for temporary data
         self.proc_dir: str = 'proc_data'             #: directory for pre-processed data
         self.rechunk: bool = None

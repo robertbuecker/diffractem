@@ -432,10 +432,12 @@ def _get_corr_img(img: np.ndarray,
     # here, _always_ choose strategy='replace'. Interpolation will only be done on the final step
     # img = correct_dead_pixels(img, pxmask=pxmask, strategy='replace', mask_gaps=opts.mask_gaps)
 
-    img = remove_background(img, x0, y0, nPeaks, peakXPosRaw, peakYPosRaw, pxmask=None)
-    return img
+    if opts.remove_background:
+        img = remove_background(img, x0, y0, nPeaks, peakXPosRaw, peakYPosRaw, pxmask=pxmask)
+
+    # return img
     # has to be re-done after background correction
-    # TODO THIS IS A TRAIN WRECK. FIX ME
+
     img = correct_dead_pixels(img, pxmask, strategy='interpolate' if opts.interpolate_dead else 'replace', mask_gaps=opts.mask_gaps)
     
     return img
@@ -1200,11 +1202,13 @@ def remove_background(img: np.ndarray, x0: Optional[float] = None, y0: Optional[
     
     # ALWAYS mask gaps for the background determination
     # TODO THIS FAILS FOR IMAGES NOT MATCHING THE MAIN DETECTOR GEOMETRY
-    img_nopk = correct_dead_pixels(img_nopk, pxmask, mask_gaps=True, strategy='replace')
+    img_nopk = correct_dead_pixels(img_nopk, pxmask, mask_gaps=True, strategy='replace', replace_val=replace_val)
     # return img_nopk
     r0 = radial_proj(img_nopk, x0, y0, my_func=rfunc, filter_len=filter_len)
 
-    img_nobg = strip_img(img, prof=r0, x0=x0, y0=y0, pxmask=pxmask, truncate=truncate, 
+    # don't supply pxmask to strip_image, as it will enforce replace behavior and has no advantage vs. separate
+    # correction
+    img_nobg = strip_img(img, prof=r0, x0=x0, y0=y0, pxmask=None, truncate=truncate, 
         keep_edge_offset=True, interp=True, dtype=img.dtype)
 
     return img_nobg
