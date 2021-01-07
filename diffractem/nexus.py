@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from warnings import warn
 from .io import expand_files, dict_to_h5
+from distributed.lock import Lock
 
 
 def _get_table_from_single_file(fn: str, path: str) -> pd.DataFrame:
@@ -194,8 +195,9 @@ def _save_single_chunk(dat: np.ndarray, file: str, subset: str, label: str,
     return file, subset, path, idcs
 
 def _save_single_chunk_multi(chks: dict, file: str, subset: str, 
-                       idcs: Union[list, np.ndarray], lock):   
+                       idcs: Union[list, np.ndarray], lock: Lock):   
     lock.acquire()
+    # print('Have lock: ', lock)
     with h5py.File(file, 'a') as fh:
         for p, d in chks.items():
             fh[p.replace('%', subset)][idcs,...] = d

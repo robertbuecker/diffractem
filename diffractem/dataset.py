@@ -1702,7 +1702,7 @@ class Dataset:
             sol.drop(columns=beam_center, inplace=True)  
         
         if sol_file is not None:
-            sol.to_csv(sol_file, header=False, index=False, sep=' ')
+            sol.to_csv(sol_file, header=False, index=False, sep=' ', float_format='%.4g')
         
         return sol
             
