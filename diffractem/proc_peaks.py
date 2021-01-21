@@ -166,11 +166,12 @@ def get_acf(npk, x, y, I=None, roi_length=512, output_radius=256,
                 #         raise ftr.exception()
                 res = [f.result() for f in ftrs]
         return (np.stack(stk) for stk in zip(*res))  
-    
-    
+      
     sz = roi_length * oversample
     rng = output_radius * oversample
-    
+    if rng > sz//2-1:
+        raise ValueError(f'Maximum output range is {roi_length//2-1}.')
+        
     if px_ang is not None:
         t_par = (x[:npk]**2 + y[:npk]**2)**.5 * px_ang
         acorr = 2*np.sin(np.arctan(t_par)/2) / t_par
@@ -200,6 +201,7 @@ def get_acf(npk, x, y, I=None, roi_length=512, output_radius=256,
                              my_func=np.sum, x0=sz//2, y0=sz//2)
     else:
         rad = None
+
     return acf[sz//2-rng:sz//2+rng, sz//2-rng:sz//2+rng], rad
 
 
@@ -384,6 +386,12 @@ class Cell(object):
         """
         self = cls.cubic(a, centering="F")
         self.selection_rules.append(lambda h, k, l: not((h % 2 == 0) and (k % 2 == 0) and (l % 2 == 0) and ((h + k + l) % 4 != 0)))
+        return self
+    
+    @classmethod
+    def triclinic(cls, a, b, c, alpha, beta, gamma, centering="P"):
+        a, b, c, alpha, beta, gamma = (float(p) for p in [a, b, c, alpha, beta, gamma])
+        self = cls(a, b, c, alpha, beta, gamma, lattice_type='triclinic', centering='P')
         return self
        
     @property
