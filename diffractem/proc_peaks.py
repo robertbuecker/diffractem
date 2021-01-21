@@ -420,6 +420,9 @@ class Cell(object):
             self.selection_rules.append(lambda h, k, l: np.isin(h % 2 + k % 2 + l % 2, (0, 3)))
         if self._centering == "R":
             self.selection_rules.append(lambda h, k, l: ((h - k + l) % 3 == 0))
+        if self._centering == "C":
+            self.selection_rules.append(lambda h, k, l: ((h + k) % 2 == 0))
+        #TODO C-CENTERING IS NOT WORKING ARGH!
         
     def init_hkl(self, d_min: float = 5.):
         """Sets up a grid with valid Miller indices for this lattice.
