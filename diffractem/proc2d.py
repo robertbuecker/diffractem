@@ -1112,7 +1112,7 @@ def strip_img(img: np.ndarray, prof: np.ndarray,
     ylen,xlen = img.shape
     y,x = np.ogrid[0:ylen,0:xlen]
 
-    if interpolate:
+    if interp:
         iprof = interpolate.interp1d(range(len(prof)), prof, fill_value=0, bounds_error=False)
         radius = ((x-x0)**2 + (y-y0)**2)**0.5
         profile = np.zeros(1+np.floor(np.max(radius)).astype(np.int32))
