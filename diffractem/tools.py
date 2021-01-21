@@ -353,11 +353,15 @@ def call_indexamajig_slurm(input, geometry, name='idx', cell: Optional[str] = No
                      im_params: Optional[dict] = None,
                      procs: Optional[int] = None, exc='indexamajig', copy_fields: list = (), 
                      shots_per_run: int = 50, partition: str = 'medium', time: str = '01:59:00', 
-                     folder='partitions', tar_file: Optional[str] = None, threads: int = 1,
+                     folder='partitions', write_tar_file: bool = False, threads: int = 1,
                      local_bin_dir: Optional[str] = None, **kwargs):
     
+    if 'tar_file' in kwargs:
+        warn('use of tar_file is deprecated, please use write_tar_file=True and a defined name instead.')
+        write_tar_file=True
+    
     script_name = f'im_run_{name}.sh'
-    tar_file = f'{name}.tar.gz'
+    tar_file = f'{name}.tar.gz' if write_tar_file else None
 
     cf_call = []
     os.makedirs(folder, exist_ok=True)
