@@ -242,6 +242,16 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
     adf1 = apply_virtual_detector(img, opts.r_adf1[0], opts.r_adf1[1], ctr_refined[0], ctr_refined[1])
     adf2 = apply_virtual_detector(img, opts.r_adf2[0], opts.r_adf2[1], ctr_refined[0], ctr_refined[1])
 
+    # detector shifts in lab frame (_not_ detector) - i.e., require inverse ellipticity correction
+    c, s = np.cos(opts.ellipse_angle*np.pi/180), np.sin(opts.ellipse_angle*np.pi/180)
+    R = np.array([[c, -s], [s, c]])
+    # note that the ellipse values are _inverted_ (x' gets scaled by 1/sqrt(ratio))
+    RR = R.T @ ([[opts.ellipse_ratio**(-.5)],[opts.ellipse_ratio**(.5)]] * R)
+    shift_mm = np.array([-1e3 * opts.pixel_size * (ctr_refined[0] - img.shape[1]/2 + 0.5), 
+                -1e3 * opts.pixel_size * (ctr_refined[1] - img.shape[0]/2 + 0.5)])
+    shift_mm = np.linalg.inv(RR) @ shift_mm
+    
+    # X0 = RR @ [[-xsz//2], [-ysz//2]]
     pattern_info = {'com_x': com[0], 'com_y': com[1],
                     'lor_pk': lorentz[0], 
                     'lor_x': lorentz[1],
@@ -252,8 +262,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
                     'center_refine_score': cost,
                     'adf1': adf1,
                     'adf2': adf2,
-                    'shift_x_mm': -1e3 * opts.pixel_size * (ctr_refined[0] - img.shape[1]/2 + 0.5),
-                    'shift_y_mm': -1e3 * opts.pixel_size * (ctr_refined[1] - img.shape[0]/2 + 0.5),
+                    'det_shift_x_mm': shift_mm[0],
+                    'det_shift_y_mm': shift_mm[1],
                     'num_peaks': peak_data['nPeaks'],
                     'peak_data': peak_data}
         
