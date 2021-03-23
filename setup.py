@@ -73,7 +73,7 @@ setup(
     entry_points={
         'console_scripts': [
             'quick_proc = diffractem.quick_proc:main',
-            'stream2sol = diffractem.stream_convert:main'
+            'stream2sol = diffractem.stream2sol:main'
         ],
     },
     author='Robert Buecker',
