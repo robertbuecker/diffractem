@@ -298,7 +298,7 @@ class Dataset:
     @classmethod
     def from_files(cls, files: Union[list, str, tuple], open_stacks: bool = True, chunking: Union[int, str] = 'hdf5', 
                    persist_meta: bool = True, init_stacks: bool = False, load_tables: bool = True, 
-                   diff_stack_label: str = 'raw_counts', validate_files: bool = False, **kwargs):
+                   diff_stack_label: str = 'raw_counts', validate_files: bool = False, unique_features: bool = True, **kwargs):
         """Create a `Dataset` object from HDF5 file(s) stored on disk.
         
         There is some flexibility with regards to how to define the input files. You can specify them by
@@ -328,6 +328,9 @@ class Dataset:
             diff_stack_label (str, optional): Label of the diffraction data stack. Defaults to 'raw_counts'.
             validate_files (bool, optional): Validate the HDF5 files (that is, check for required groups and datasets)
                 before attempting to open them. Defaults to False.
+            unique_features (bool, optional): Only keeps one copy of each feature/crystal in the feature table, if region, sample name,
+                and crystal ID match. Set to False, if you took multiple runs from the same region with different features, e.g.
+                for non-feature-matched multi-tilt serial ED. Defaults to True.
             **kwargs: Dataset attributes to be set right away.
 
         Returns:
@@ -340,6 +343,10 @@ class Dataset:
 
         for k, v in kwargs.items():
             self.__dict__[k] = v
+
+        if not unique_features:
+            print('Assuming non-unique features per region - adding run ID to feature ID set.')
+            self._feature_id_cols += ['run']
 
         if len(file_list) == 1:
             print('Single-file dataset, disabling parallel I/O.')
@@ -357,7 +364,7 @@ class Dataset:
         if init_stacks and not open_stacks:
             self.init_stacks(chunking=chunking)
         if load_tables:
-            self.load_tables(features=True)          
+            self.load_tables(features=True, unique_features=unique_features)          
         if open_stacks:
             self.open_stacks(chunking=chunking)
         if open_stacks and persist_meta:
@@ -398,7 +405,7 @@ class Dataset:
         self._shots = pd.concat(shots, axis=0).reset_index(drop=True)
         print(f'Found {self.shots.shape[0]} shots, initialized shot table.')
 
-    def load_tables(self, shots: bool = False, features: bool = False, files: bool = None):
+    def load_tables(self, shots: bool = False, features: bool = False, files: bool = None, unique_features: bool = False):
         """Load pandas metadata tables from the HDF5 files. Set the argument for the table you want to load to True.
 
         Args:
@@ -406,6 +413,9 @@ class Dataset:
             features (bool, optional): Get feature table. Defaults to False.
             files (bool, optional): Only include sub selection of files - usually not a good idea.
                 Uses all files of dataset if None. Defaults to None.
+            unique_festures (bool, optional): only keep one copy of each feature, if crystal ID, region and
+                sample match. Set to False if you took multiple runs on the same regions with different
+                features. Defaults to True.
         """
 
         if files is None:
@@ -463,7 +473,9 @@ class Dataset:
                         rename(columns={'name': 'sample', 'region_id': 'region', 'run_id': 'run'})
                     self._features = self._features.merge(sdat, how='left', on=['file', 'subset'])
 
-                self._features.drop_duplicates(self._feature_id_cols, inplace=True) # for multi files with identical features
+                if unique_features:
+                    self._features.drop_duplicates(self._feature_id_cols, inplace=True) # for multi files with identical features
+                    
                 self._features.drop(columns=[c for c in ['file', 'subset'] if c in self._features.columns], inplace=True)
 
             except Exception as err:
