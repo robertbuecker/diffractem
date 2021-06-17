@@ -514,7 +514,13 @@ def make_geometry(opts: PreProcOpts, file_name: Optional[str] = None, image_name
            'data': '/%/data/' + image_name,
            'dim0': '%',
            'dim1': 'ss',
-           'dim2': 'fs',
+           'dim2': 'fs'}
+    
+    if opts.peak_data_path is not None:
+        par.update({'peak_list': opts.peak_data_path,
+                    'peak_list_type': 'cxi'})
+    
+    par.update({
            'p0/min_ss': 0,
            'p0/max_ss': ysz - 1,
            'p0/min_fs': 0,
@@ -522,13 +528,13 @@ def make_geometry(opts: PreProcOpts, file_name: Optional[str] = None, image_name
            'p0/corner_x': X0[0,0],
            'p0/corner_y': X0[1,0],
            'p0/fs': f'{RR[0,0]:+.04f}x {RR[0,1]:+.04f}y',
-           'p0/ss': f'{RR[1,0]:+.04f}x {RR[1,1]:+.04f}y'}
+           'p0/ss': f'{RR[1,0]:+.04f}x {RR[1,1]:+.04f}y'})
     
     if mask:
-        par.update({'mask': '/mask',
-            'mask_file': 'pxmask.h5',
-            'mask_good': '0x01',
-            'mask_bad': '0x00'})
+        par.update({'p0/mask': '/mask',
+            'p0/mask_file': 'pxmask.h5',
+            'p0/mask_good': '0x01',
+            'p0/mask_bad': '0x00'})
         
     if write_mask:
         with h5py.File('pxmask.h5', 'w') as fh:
@@ -639,9 +645,10 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
         raise cpe
 
     sd1 = pd.read_csv(f'{shell_dir}/hkl_{fnroot}.dat', delim_whitespace=True, header=None, skiprows=1)
-    sd1.columns = ['Center 1/nm', 'nref', 'Possible',  
-                                    'Compl', 'Meas', 'Red', 'SNR', 'Std dev', 
-                                    'Mean', 'd/A', 'Min 1/nm', 'Max 1/nm']
+    sd1.columns = ['Center 1/nm', 'nref', 'Possible', 'Compl', 'Meas', 'Red', 'SNR', 'Std dev', 
+                                    'Mean', 'd/A', 'Min 1/nm', 'Max 1/nm'] if len(sd1.columns) == 12 \
+                else ['Center 1/nm', 'nref', 'Possible', 'Compl', 'Meas', 'Red', 'SNR', 
+                                    'Mean', 'd/A', 'Min 1/nm', 'Max 1/nm'] # newer CrystFEL versions don't include Std Dev
 
     idx = 0
     sd2 = None
