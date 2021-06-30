@@ -278,7 +278,8 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                      lazy: bool = False, sync: bool = True,
                      errors: str = 'raise', via_array: bool = False,
                      output_file: Optional[str] = None, 
-                     shots: Optional[pd.DataFrame] = None) -> Tuple[pd.DataFrame, dict]:
+                     shots: Optional[pd.DataFrame] = None,
+                     dummy_stack_name: str = 'corrected') -> Tuple[pd.DataFrame, dict]:
     """'Macro' function for getting information about diffraction patterns.
     
     `get_pattern_info` finds diffraction peaks and computes information such as pattern center on a given diffraction 
@@ -321,6 +322,8 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             data file that can be loaded using Dataset objects.
         shots (pd.DataFrame, optional): Dataframe of shot data of same height as the image array. If not None,
             its columns will be joined to those of the shot data for storing the results into the output file.
+        dummy_ds_name (str, optional): Name of virtual data set to be written into the output file in order to
+            fake data, if required by another program (e.g. CrystFEL). Defaults to 'corrected'.
 
     Returns:
         Tuple[pd.DataFrame, dict]: pandas DataFrame holding general pattern information, and dict holding CXI-format
@@ -403,12 +406,18 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         
     else:
         raise ValueError('Input image(s) must be a dask or numpy array.')
-        
+        list(fh['/entry/shots'].values())[0].shape[0]
+
     if output_file is not None:
         with h5py.File(output_file, 'w') as fh:
             for k, v in peakinfo.items():
                 fh.create_dataset('/entry/data/' + k, data=v, compression='gzip', chunks=(1,) + v.shape[1:])
             fh['/entry/data'].attrs['recommended_zchunks'] = -1
+            
+            dummy_layout = h5py.VirtualLayout(img.shape, dtype='i1')
+            fh.create_virtual_dataset('/entry/' + dummy_stack_name, dummy_layout, fillvalue=-1)
+            fh['/entry/data'].attrs['signal'] = dummy_stack_name
+            
         shotdata_id = pd.concat([shots, shotdata], axis=1)
         nexus.store_table(shotdata_id, file=output_file, subset='entry', path='/%/shots')
         print('Wrote analysis results to file', output_file)
