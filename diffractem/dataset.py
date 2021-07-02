@@ -6,6 +6,7 @@ import dask.array as da
 from dask.diagnostics import ProgressBar
 from dask.distributed import Client
 from . import io, nexus
+from .pre_proc_opts import PreProcOpts
 from .stream_parser import StreamParser
 # from .map_image import MapImage
 import h5py
@@ -1822,6 +1823,96 @@ class Dataset:
         ds_ctr.store_tables(shots=True, features=False)
         ds_ctr.write_list(f'{filename}.lst')
         print(f'Virtual file {filename}.h5 and list file {filename}.lst successfully exported.')
+        
+    def update_det_shift(self, opt_file: str = 'preproc.yaml', panel: str = 'p0'):
+        """Updates the lab-frame detector shift in the shot table, as required by CrystFEL to account
+        for a varying direct beam position. As the dataset object has no idea about the lab-frame geometry,
+        you'll need to supply it, either from a diffractem options file (.yaml), or a CrystFEL geometry 
+        file (.geom). Also detector distortions are accounted for here. The column names in the shot tables
+        are automatically determined from the options/geometry file.
+        
+        Note that this method does not automatically store the shot table afterwards - to do so, run
+        ds.store_tables(shots=True) right afterwards.
+
+        Args:
+            opt_file (str, optional): Options file name. Can be a diffractem PreProcOpts file (.yaml) or
+                a CrystFEL geometry file (.geom) - as determined by the file extension. 
+                Defaults to 'preproc.yaml'.
+            panel (str, optional): Label of panel in CrystFEL geometry file to which the center coordinates
+                of the dataset refer. Defaults to p0.
+        """
+        
+        if opt_file.endswith('yaml') or opt_file.endswith('yml'):
+
+            print(f'Taking parameters from diffractem options file {opt_file}')
+            # Calculate mm shifts w.r.t. lab frame, for use with CrystFEL
+            opts = PreProcOpts(opt_file)
+
+            c, s = np.cos(opts.ellipse_angle*np.pi/180), np.sin(opts.ellipse_angle*np.pi/180)
+            R = np.array([[c, -s], [s, c]])
+            RR = R.T @ ([[opts.ellipse_ratio**(-.5)],[opts.ellipse_ratio**(.5)]] * R)
+
+            # panel-space shift
+            x0, y0, pxs = opts.xsize/2, opts.ysize/2, opts.pixel_size * 1e3
+            shift_labels = [opts.det_shift_x_path, opts.det_shift_y_path]
+            
+        elif opt_file.endswith('geom'):
+            
+            print(f'Taking parameters from CrystFEL geometry file {opt_file}')
+            import re
+
+            T = np.array([0.,0.,0.])
+            RR = np.diag([1.,1.,1.])
+            axs = {'x': 0, 'y': 1, 'z': 2}
+            rng_min = np.zeros(2, dtype=int)
+            rng_max = np.zeros(2, dtype=int)
+            shift_labels = ['', '']
+
+            for ln in open(opt_file,'r'):
+
+                if '=' in ln:
+                    key, val = ln.split('=', 1)
+                else:
+                    continue
+
+                if f'{panel}/corner_' in key:
+                    # not needed, in the simplest case
+                    for k, v in axs.items():
+                        if f'_{k}' in key:
+                            T[v] = float(val)
+
+                elif (f'{panel}/fs' in key) or (f'{panel}/ss' in key):
+                    parsed = [s.strip() for s in re.findall('\s*[+-]?\d*\.?\d*\s*\D\s', val)]
+                    for v in parsed:
+                        RR[axs[v[-1]], 0 if 'fs' in key else 1] = float(v[:-1])
+
+                elif (f'{panel}/min_' in key):
+                    rng_min[0 if 'fs' in ln else 1] = int(val)
+
+                elif (f'{panel}/max_' in key):
+                    rng_max[0 if 'fs' in ln else 1] = int(val)
+
+                elif 'res' in key:
+                    key, val = ln.split('=', 1)
+                    pxs = round((1000/float(val)), 6)
+                    
+                elif 'detector_shift_' in key:
+                    if not val.strip().endswith('mm'):
+                        raise ValueError('geom file must expect detector shifts in mm!')
+                    shift_labels[1 if '_y' in key else 0] = val.rsplit(' ', 1)[0].rsplit('/')[-1]
+    
+            RR = RR[:2,:2]
+            x0, y0 = tuple((-np.linalg.inv(RR) @ T[:2]))
+            
+        else:
+            raise ValueError('Option file must be of type .yaml or .geom.')
+            
+        shift_p = np.array([self.shots.center_x.values - x0 + 0.5, 
+                            self.shots.center_y.values - y0 + 0.5])        
+
+        # real-space shift
+        shift_mm = - pxs * (RR @ shift_p)
+        self.shots[shift_labels] = shift_mm.T
         
     def view(self, shot=0, Imax=30, log=False):
         """Interactive viewing widget for use in Jupyter notbeooks.

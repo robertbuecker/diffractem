@@ -6,6 +6,7 @@ from .stream_parser import StreamParser
 from .io import *
 from .pre_proc_opts import PreProcOpts
 from .proc2d import correct_dead_pixels
+from .dataset import Dataset
 from . import gap_pixels, panel_pix
 from typing import Iterable, Tuple, Union, Optional
 import os
@@ -701,3 +702,12 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
         overall[fld] = float(sect[1].strip().split(' ')[0])
 
     return sd, overall, so
+
+def update_det_shift(fn: str, opt_file: str = 'preproc.yaml', panel: str = 'p0'):
+    """Updates the detector shift of a dataset read from fn using a geometry stored in opt_file.
+    Convenience function if you don't have the dataset open and don't want to bother with it.
+    See Dataset.update_det_shift for further documentation.
+    """
+    ds = Dataset.from_files(fn, open_stacks=False, chunking=-1)
+    ds.update_det_shift(opt_file=opt_file, panel=panel)
+    ds.store_tables(shots=True)
