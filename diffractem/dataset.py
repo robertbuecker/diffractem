@@ -5,7 +5,7 @@ import dask.array.gufunc
 import dask.array as da
 from dask.diagnostics import ProgressBar
 from dask.distributed import Client
-from . import io, nexus, tools
+from . import io, nexus
 from .stream_parser import StreamParser
 # from .map_image import MapImage
 import h5py
@@ -13,7 +13,6 @@ from typing import Union, Dict, Optional, List, Tuple, Callable
 import copy
 from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
-from tables import NaturalNameWarning
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
 from contextlib import contextmanager
 import os
@@ -483,17 +482,7 @@ class Dataset:
                 raise err
 
     def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None):
-        """Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. 
-        
-        The location into which the tables will be stored is defined in the Dataset object's attributes. The format
-        in which they are stored is, on the other hand, determined by the *format* argument. If set to 'tables',
-        PyTables will be used to store the table in a native HDF5 table format, which however is somewhat uncommon
-        and not recognized by CrystFEL. If set to 'nexus' (Default), each column of the table will be stored as
-        a one-dimensional dataset.
-        
-        As a general recommendation, **always** use nexus format to store the shots and features. For peaks and 
-        predictions, 'tables' is rather preferred, as it allows faster read/write and is more flexible with
-        regards to column labels.
+        """Stores the metadata tables (shots, features) into HDF5 files. 
         
         For each of the tables,
         it can be automatically determined if they have changed and should be stored (however, this only works if 
@@ -503,9 +492,6 @@ class Dataset:
         Args:
             shots (Union[None, bool], optional): Store shot table. Defaults to None.
             features (Union[None, bool], optional): Store feature table. Defaults to None.
-            peaks (Union[None, bool], optional): Store peak table. Defaults to None.
-            predict (Union[None, bool], optional): Store prediction table. Defaults to None.
-            format (str, optional): Table storage format in HDF5 file, can be 'nexus' or 'tables'. Defaults to 'nexus'.
         """
         
         fs = []
@@ -517,7 +503,6 @@ class Dataset:
         else:
             stacks_were_open = False
 
-        simplefilter('ignore', NaturalNameWarning)
         if (shots is None and self._shots_changed) or shots:
             # sh = self.shots.drop(['Event', 'shot_in_subset'], axis=1)
             # sh['id'] = sh[['sample', 'region', 'run', 'crystal_id']].apply(lambda x: '//'.join(x.astype(str)), axis=1)
@@ -1838,7 +1823,88 @@ class Dataset:
         ds_ctr.write_list(f'{filename}.lst')
         print(f'Virtual file {filename}.h5 and list file {filename}.lst successfully exported.')
         
-    def view(self, **kwargs):
-        """Calls `tools.viewing_widget` on the dataset. Keyword arguments are passed through.
+    def view(self, shot=0, Imax=30, log=False):
+        """Interactive viewing widget for use in Jupyter notbeooks.
+
+        Args:
+            ds_disp ([type]): [description]
+            Imax (int, optional): [description]. Defaults to 30.
+            log (bool, optional): [description]. Defaults to False.
         """
-        tools.viewing_widget(self, **kwargs)
+        from ipywidgets import interact, interactive, fixed, interact_manual
+        import ipywidgets as widgets
+        from IPython.display import display
+        import matplotlib.pyplot as plt
+
+        output = widgets.Output()
+        with output:
+            fh, ax = plt.subplots(1,1, constrained_layout=True)
+            
+        have_peaks = 'nPeaks' in self.stacks
+        have_center = 'center_x' in self.shots
+        
+        img_stack = self.diff_data
+        
+        if max(self.diff_data.chunks[0]) > 10:
+            warn(f'Diffraction data chunks are large (up to {max(self.diff_data.chunks[0])} shots). If their '
+                'computation is heavy or your disk is slow, consider rechunking the dataset in a smart way for display.')
+        
+        fh.canvas.toolbar_position='bottom'    
+        fh.canvas.header_visible=False    
+        ih = ax.imshow(img_stack[shot,...].compute(scheduler='threading'), vmin=0, vmax=Imax, cmap='gray_r')
+        if have_peaks:
+            sc = ax.scatter([], [], c='g', alpha=0.1)
+        if have_center:
+            cx, cy = (plt.axvline(self.shots.loc[0,'center_x'], c='b', alpha=0.2), 
+                    plt.axhline(self.shots.loc[0,'center_y'], c='b', alpha=0.2))
+        ax.axis('off')
+        
+        # symmetrize figure
+
+        w_shot = widgets.IntSlider(min=0, max=img_stack.shape[0], step=1, value=shot)
+        w_selected = widgets.ToggleButton(False, description='selected')
+        w_indicator = widgets.Label(f'{self.shots.selected.sum()} of {len(self.shots)} shots selected.')
+        w_info = widgets.Textarea(layout=widgets.Layout(height='100%'))
+        w_vmax = widgets.FloatText(Imax, description='Imax')
+        w_log = widgets.Checkbox(log, description='log')
+        # w_info_parent = widgets.Accordion(children=[w_info])
+        
+        def update(shot=shot, vmax=Imax, log=log):
+            shdat = self.shots.loc[shot]
+            w_selected.value = bool(shdat.selected)
+            w_info.value = '\n'.join([f'{k}: {v}' for k, v in shdat.items()])
+            if log:
+                ih.set_data(np.log10(img_stack[shot,...].compute(scheduler='single-threaded')))
+                ih.set_clim(0.1, np.log10(vmax))            
+            else:           
+                ih.set_data(img_stack[shot,...].compute(scheduler='single-threaded'))
+                ih.set_clim(0, vmax)
+            if have_peaks:
+                sc.set_offsets(np.stack((self.peakXPosRaw[shot,:self.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'), 
+                        self.peakYPosRaw[shot,:self.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'))).T)    
+            if have_center:
+                cx.set_xdata(self.shots.loc[shot,'center_x'])
+                cy.set_ydata(self.shots.loc[shot,'center_y'])
+                
+            # ax.set_title(f'{shdat.file}: {shdat.Event}\n {shdat.num_peaks} peaks')
+            fh.canvas.draw()
+            
+        def set_selected(val):
+            self.shots.loc[w_shot.value, 'selected'] = val['new']
+            w_indicator.value =  f'{self.shots.selected.sum()} of {len(self.shots)} shots selected.'
+        
+        update()
+        
+        interactive(update, shot=w_shot, vmax=w_vmax, log=w_log)
+        w_selected.observe(set_selected, 'value')
+
+        ui = widgets.VBox([widgets.HBox([widgets.VBox([w_info, 
+                                        w_shot]), 
+                                        output]), 
+                        widgets.HBox([w_selected, 
+                                        w_indicator, 
+                                        w_vmax, 
+                                        w_log])]
+                        )
+
+        display(ui)
