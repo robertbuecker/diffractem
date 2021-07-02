@@ -521,8 +521,8 @@ def make_geometry(opts: PreProcOpts, file_name: Optional[str] = None, image_name
                     'peak_list_type': 'cxi'})
         
     if (opts.det_shift_x_path is not None) and (opts.det_shift_y_path is not None):
-        par.update({'detector_shift_x': f'{opts.det_shift_x_path} mm',
-                    'detector_shift_y': f'{opts.det_shift_y_path} mm'})
+        par.update({'detector_shift_x': f'/%/shots/{opts.det_shift_x_path} mm',
+                    'detector_shift_y': f'/%/shots/{opts.det_shift_y_path} mm'})
     
     par.update({
            'p0/min_ss': 0,
