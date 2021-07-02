@@ -527,8 +527,8 @@ def make_geometry(opts: PreProcOpts, file_name: Optional[str] = None, image_name
            'p0/max_fs': xsz - 1,
            'p0/corner_x': X0[0,0],
            'p0/corner_y': X0[1,0],
-           'p0/fs': f'{RR[0,0]:+.04f}x {RR[0,1]:+.04f}y',
-           'p0/ss': f'{RR[1,0]:+.04f}x {RR[1,1]:+.04f}y'})
+           'p0/fs': f'{RR[0,0]:+.04f}x {RR[1,0]:+.04f}y',
+           'p0/ss': f'{RR[0,1]:+.04f}x {RR[1,1]:+.04f}y'})
     
     if mask:
         par.update({'p0/mask': '/mask',
