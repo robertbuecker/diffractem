@@ -406,7 +406,6 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         
     else:
         raise ValueError('Input image(s) must be a dask or numpy array.')
-        list(fh['/entry/shots'].values())[0].shape[0]
 
     if output_file is not None:
         with h5py.File(output_file, 'w') as fh:
