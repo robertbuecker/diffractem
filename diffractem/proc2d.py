@@ -242,14 +242,21 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
     adf1 = apply_virtual_detector(img, opts.r_adf1[0], opts.r_adf1[1], ctr_refined[0], ctr_refined[1])
     adf2 = apply_virtual_detector(img, opts.r_adf2[0], opts.r_adf2[1], ctr_refined[0], ctr_refined[1])
 
-    # detector shifts in lab frame (_not_ detector) - i.e., require inverse ellipticity correction
+    # Lab-space shifts. Not really consistent to calculate them here, and even worse, copied code
+    # from Dataset. Just go and cast the first stone.
     c, s = np.cos(opts.ellipse_angle*np.pi/180), np.sin(opts.ellipse_angle*np.pi/180)
     R = np.array([[c, -s], [s, c]])
-    # note that the ellipse values are _inverted_ (x' gets scaled by 1/sqrt(ratio))
     RR = R.T @ ([[opts.ellipse_ratio**(-.5)],[opts.ellipse_ratio**(.5)]] * R)
-    shift_mm = np.array([-1e3 * opts.pixel_size * (ctr_refined[0] - img.shape[1]/2 + 0.5), 
-                -1e3 * opts.pixel_size * (ctr_refined[1] - img.shape[0]/2 + 0.5)])
-    shift_mm = np.linalg.inv(RR) @ shift_mm
+
+    # panel-space shift
+    x0, y0, pxs = opts.xsize/2, opts.ysize/2, opts.pixel_size * 1e3
+    shift_labels = [opts.det_shift_x_path, opts.det_shift_y_path]
+
+    shift_p = np.array([ctr_refined[0] - x0 + 0.5, 
+                        ctr_refined[1] - y0 + 0.5])        
+
+    # real-space shift
+    shift_mm = - pxs * (RR @ shift_p)
     
     # X0 = RR @ [[-xsz//2], [-ysz//2]]
     pattern_info = {'com_x': com[0], 'com_y': com[1],
@@ -262,8 +269,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
                     'center_refine_score': cost,
                     'adf1': adf1,
                     'adf2': adf2,
-                    'det_shift_x_mm': shift_mm[0],
-                    'det_shift_y_mm': shift_mm[1],
+                    shift_labels[0]: shift_mm[0],
+                    shift_labels[1]: shift_mm[1],
                     'num_peaks': peak_data['nPeaks'],
                     'peak_data': peak_data}
         
