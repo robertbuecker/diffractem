@@ -49,6 +49,8 @@ class PreProcOpts:
         self.scratch_dir: str = '/scratch/diffractem'#: scratch directory for temporary data
         self.proc_dir: str = 'proc_data'             #: directory for pre-processed data
         self.peak_data_path: str = '/%/data'        #: path in HDF5 files to peak data in CXI format
+        self.det_shift_x_path: str = '/%/shots/det_shift_x_mm' #: path in HDF5 files to lab frame detector shift (x)
+        self.det_shift_y_path: str = '/%/shots/det_shift_y_mm' #: path in HDF5 files to lab frame detector shift (y)
         self.rechunk: bool = None
         self.peak_search_params: dict = \
             {'min-res': 5, 'max-res': 600,
