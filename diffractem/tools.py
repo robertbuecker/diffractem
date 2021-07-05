@@ -370,15 +370,15 @@ def call_indexamajig_slurm(input, geometry, name='idx', cell: Optional[str] = No
 
     from subprocess import run
     local_bin_dir = '' if local_bin_dir is None else local_bin_dir
-    run(f'{os.path.join(local_bin_dir,"list_events")} -i {input} -g virtual.geom -o {input}-shots.lst'.split(' '))
+    run(f'{os.path.join(local_bin_dir,"list_events")} -i {input} -g {geometry} -o {input}-shots.lst'.split(' '))
     shots = pd.read_csv(f'{input}-shots.lst', delim_whitespace=True, names=['file', 'Event'])
     os.remove(f'{input}-shots.lst')
 
     if threads > 1:
         # add thread parameters here if needed (e.g. for other indexers)
-        im_params['pinkIndexer-thread-count'] = threads
+        im_params['max-indexer-threads'] = threads
 
-    for ii, grp in shots.groupby(shots.index // shots_per_run):
+    for ii, grp in shots.groupby(np.arange(len(shots)) // shots_per_run):
         jobname = f'{name}_{ii:03d}'
         basename = f'{folder}/' + jobname
         grp[['file', 'Event']].to_csv(basename + '.lst', header=False, index=False, sep=' ')
@@ -397,6 +397,8 @@ def call_indexamajig_slurm(input, geometry, name='idx', cell: Optional[str] = No
         
     with open(script_name, 'w') as fh:
         fh.write('\n'.join(cf_call))
+        # print(cf_call)
+        # print(script_name)
     os.chmod(script_name, os.stat(script_name).st_mode | 0o111)
 
     if tar_file is not None:
