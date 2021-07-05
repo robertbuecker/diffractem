@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+
+# Create solution file for '--indexing=file' from a stream
+#
+# Copyright © 2020-2021 Max-Planck-Gesellschaft
+#                       zur Förderung der Wissenschaften e.V.
+# Copyright © 2021 Deutsches Elektronen-Synchrotron DESY,
+#                  a research centre of the Helmholtz Association.
+#
+# Authors:
+#   2020 Robert Bücker <robert.buecker@cssb-hamburg.de>
+#   2021 Thomas White <thomas.white@desy.de>
+
 from io import StringIO
 import re
 from warnings import warn
@@ -25,26 +37,49 @@ CRYSTAL_DATA_FIELS = ['astar', 'bstar', 'cstar', 'predict_refine/det_shift',
                       'profile_radius', 'diffraction_resolution_limit']
 
 args = None
-
 class Crystal:
     
     def __init__(self, line):
         self.astar = (None, None, None)
         self.bstar = (None, None, None)
         self.cstar = (None, None, None)
+        self.lattice_type = None
+        self.centering = None
+        self.unique_axis = None
         self.det_shift = (None, None)
-        self.profile_radius = None
-        self.resolution = None
         self.start_line = line
 
     @property
     def initialized(self):
-        return all([x is not None 
-                    for x in [*self.astar, *self.bstar, *self.cstar,
-                              *self.det_shift, self.profile_radius, 
-                              self.resolution]])
+        global legacy
+        required_fields = [*self.astar, *self.bstar, *self.cstar,
+                              *self.det_shift]
+        if not legacy:
+            required_fields += [self.lattice_type, self.centering]
+        return all([x is not None for x in required_fields])
+
+    @property
+    def lattice_type_sym(self):
+        if self.lattice_type == 'triclinic':
+            return 'a' + self.centering
+        elif self.lattice_type == 'monoclinic':
+            return 'm' + self.centering + self.unique_axis
+        elif self.lattice_type == 'orthorhombic':
+            return 'o' + self.centering
+        elif self.lattice_type == 'tetragonal':
+            return 't' + self.centering + self.unique_axis
+        elif self.lattice_type == 'cubic':
+            return 'c' + self.centering
+        elif self.lattice_type == 'hexagonal':
+            return 'h' + self.centering + self.unique_axis
+        elif self.lattice_type == 'rhombohedral':
+            return 'r' + self.centering
+        else:
+            warn('Invalid lattice type {}'.format(self.lattice_type))
+            return 'invalid'
     
     def __str__(self):
+        global legacy
         if not self.initialized:
             warn('Trying to get string from non-initialized crystal from line {}.'.format(self.start_line))
             return None        
@@ -52,8 +87,8 @@ class Crystal:
             cs = ' '.join(['{0[0]} {0[1]} {0[2]}'.format(vec) 
                             for vec in [self.astar, self.bstar, self.cstar]])
             cs += ' {0[0]} {0[1]}'.format(self.det_shift)
-            if args.include_pars: # this is a bit dirty but will become obsolete one day
-                cs += ' {0} {1}'.format(self.profile_radius, self.resolution)
+            if not legacy:
+                cs += ' ' + self.lattice_type_sym
             return cs
 
 class Chunk:
@@ -94,8 +129,12 @@ class Chunk:
 
 def parse_stream(stream, sol=None, return_meta=True, 
                  file_label='Image filename', event_label='Event',
-                 x_shift_label=None, y_shift_label=None, shift_factor=1):
-
+                 x_shift_label=None, y_shift_label=None, omit_cell=False):
+    
+    global legacy
+    legacy = omit_cell
+    print('Legacy mode:', legacy)
+    
     curr_chunk = None
     curr_cryst = None
     geom = ''
@@ -143,7 +182,7 @@ def parse_stream(stream, sol=None, return_meta=True,
                     curr_chunk = None
                     
                 elif l.startswith(file_label):
-                    curr_chunk.file = l.split(' ')[-1].strip()
+                    curr_chunk.file = l.split(' ', 2)[-1].strip()
                     
                 elif l.startswith(event_label):
                     curr_chunk.Event = l.split(' ')[-1].strip()
@@ -174,17 +213,20 @@ def parse_stream(stream, sol=None, return_meta=True,
                     
                 elif l.startswith('cstar'):
                     curr_cryst.cstar = parse_vec(l)
-                    
-                elif l.startswith('profile_radius'):
-                    curr_cryst.profile_radius = parse_vec(l)[0]
+ 
+                elif l.startswith('lattice_type'):
+                    curr_cryst.lattice_type = l.split(' ')[2].strip()
+
+                elif l.startswith('centering'):
+                    curr_cryst.centering = l.split(' ')[2].strip()
+
+                elif l.startswith('unique_axis'):
+                    curr_cryst.unique_axis = l.split(' ')[2].strip()
                     
                 elif l.startswith('predict_refine/det_shift'):
                     curr_cryst.det_shift = parse_vec(l)
                     curr_cryst.det_shift = (curr_cryst.det_shift[0] + curr_chunk.x_shift,
                                             curr_cryst.det_shift[1] + curr_chunk.y_shift)
-                    
-                elif l.startswith('diffraction_resolution_limit'):
-                    curr_cryst.resolution = parse_vec(l)[0]
                     
             elif  l.startswith(BEGIN_GEOM) and not have_geom:
                 parsing_geom = True
@@ -237,19 +279,18 @@ def main():
     parser.add_argument('-o', '--output', type=str, help='Output solution file', required=True)
     parser.add_argument('-g', '--geometry-out', type=str, help='Output geometry file (optional)')
     parser.add_argument('-p', '--cell-out', type=str, help='Output cell file (optional)')
+    parser.add_argument('-L', '--legacy', help='Legacy file format: omit cell info', action='store_true')
     parser.add_argument('--file-field', type=str, help='Field in chunks for image filename', default='Image filename')
     parser.add_argument('--event-field', type=str, help='Field in chunk for event identifier', default='Event')
     parser.add_argument('--x-shift-field', type=str, help='Field in chunk for x-shift identifier', default='')
     parser.add_argument('--y-shift-field', type=str, help='Field in chunk for y-shift identifier', default='')
-    parser.add_argument('--shift-factor', type=float, 
-                        help='Pre-factor for shifts, typically the pixel size in mm if the shifts are in pixel', default=1)
-    parser.add_argument('--include-pars', help='Include profile radius and resolution estimate into sol file', action='store_true')
 
     args = parser.parse_args()
     
     meta = parse_stream(args.input, args.output, return_meta=True, 
                         file_label=args.file_field, event_label=args.event_field,
-                        x_shift_label=args.x_shift_field, y_shift_label=args.y_shift_field)
+                        x_shift_label=args.x_shift_field, y_shift_label=args.y_shift_field,
+                        omit_cell=args.legacy)
     # print('Original indexamajig call was: \n' + meta[0])
     if args.geometry_out:
         with open(args.geometry_out, 'w') as fh:

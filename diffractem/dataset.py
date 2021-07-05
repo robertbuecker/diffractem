@@ -1673,37 +1673,80 @@ class Dataset:
                     warn(f'{lbl_from} not in stacks, skipping.')
                 self.shots[lbl_to] = stk[lbl_from]
             
-    def get_indexing_solution(self, stream: Union[str, StreamParser], sol_file: Optional[str] = None, 
-                              beam_center: Optional[Union[List, Tuple]] = ('center_x', 'center_y'), 
-                              pixel_size: Optional[float] = 0.055, img_size: Union[Tuple, List] = (1556, 516)):
+    def get_indexing_solution(self, stream: Union[str, StreamParser], sol_file: str, 
+                              legacy: bool = False,
+                              det_shift: Optional[Union[List, Tuple]] = None,
+                              beam_center: Optional[Union[List, Tuple]] = None, 
+                              pixel_size: float = 1, 
+                              img_size: Union[Tuple, List] = (0,0)):
+        """Writes a .sol file containing an indexing solution from a stream file that has been generated
+        using this dataset, or another which holds patterns from the same set of crystals. This is identified
+        by the shot table columns [sample, region, crystal_id, run] being identical.
         
+        Typically, you will want to use this function when "broadcasting" the indexing results you've obtained
+        with one aggregation of a dose-fractionation movie to another aggregation, or even the dataset containing
+        all the single shots.
+        
+        NB: If you just want to simply generate a .sol file from a .stream, keeping all file and event identifiers,
+        you might rather want to use the sol2stream command line tool, which is faster and simpler.
+
+        Args:
+            stream (Union[str, StreamParser]): Stream file holding the indexing solution
+            sol_file (str): Output solution file
+            legacy (bool, optional): Writes .sol file compatible with older electron-adapted CrystFEL versions,
+                where the .sol file does not contain cell information. Defaults to False.
+            det_shift (list, optional): List of stream file extra header field names holding a
+                detector shift in mm to be added on top of that found by the indexer. Defaults to None.
+            beam_center (list, optional): List of stream file extra header field names holding the beam
+                center in pixels to be added on top of that found by the indexer. Defaults to None.
+            pixel_size (float, optional): Required if using beam_center. Defaults to 1.
+            img_size (Union[Tuple, List], optional): (x, y) size of images in pixels. Required if using_beam center. 
+                Defaults to (0,0).
+        """
+    
         from itertools import product
         
         if isinstance(stream, str):
-            stream = StreamParser(stream)
+            stream = StreamParser(stream)        
         
-        idcol = ['crystal_id', 'region', 'sample', 'run']
-        idcol_s = [f'hdf5{self.shots_pattern}/{c}' for c in idcol]
+        idcols = ['sample', 'region', 'crystal_id', 'run']
+        idcols_s = [[c for c in stream.shots.columns if c.endswith(c2)][0] for c2 in idcols]
         
         beam_center = list(beam_center) if beam_center is not None else []
+        det_shift = list(det_shift) if det_shift is not None else []
+            
+        if beam_center:
+            raise ValueError('If legacy=True, you cannot supply an add-on beam center.')
 
-        data_col = [''.join(p) for p in 
-                        product(('astar_', 'bstar_', 'cstar_'), ('x', 'y', 'z'))] + ['xshift', 'yshift']
-                        
-        shots = self.shots[['file', 'Event'] + idcol + beam_center]
-                        
-        sol = shots.merge(stream.shots[idcol_s + data_col], 
-            left_on=idcol, right_on=idcol_s, how='left')[['file', 'Event'] + data_col + beam_center].dropna()
+        from io import StringIO
+        from . import stream_convert
+        sol, meta = stream_convert.parse_stream(stream.filename, omit_cell=legacy)
+        sol_tbl = pd.read_csv(StringIO(sol), delim_whitespace=True, header=None) 
+        sol_tbl.columns=['file', 'Event', 'astar_x', 'astar_y', 'astar_z',
+                            'bstar_x', 'bstar_y', 'bstar_z',
+                            'cstar_x', 'cstar_y', 'cstar_z', 
+                        'det_shift_x', 'det_shift_y', 'cell_type']
+
+        sol_cryst_id = sol_tbl.merge(stream.shots[['file', 'Event'] + idcols_s + beam_center], 
+                                    on=['file', 'Event'], how='left').rename(
+            columns={cs: c for c, cs in zip(idcols, idcols_s)}).drop(columns=['file', 'Event'])
+
+        final_sol_tbl = self.shots[idcols + ['file', 'Event']].merge(sol_cryst_id, on=idcols, 
+                                                                how='inner', validate='m:1').drop(columns=idcols)
         
         if beam_center:
-            sol['xshift'] = sol['xshift'] - pixel_size*(sol[beam_center[0]] - img_size[0]//2 + 0.5)
-            sol['yshift'] = sol['yshift'] - pixel_size*(sol[beam_center[1]] - img_size[1]//2 + 0.5)
-            sol.drop(columns=beam_center, inplace=True)  
+            final_sol_tbl['det_shift_y'] = final_sol_tbl['det_shift_y'] \
+                - pixel_size*(final_sol_tbl[beam_center[1]] - img_size[1]//2 + 0.5)
+            final_sol_tbl['det_shift_x'] = final_sol_tbl['det_shift_x'] \
+                - pixel_size*(final_sol_tbl[beam_center[0]] - img_size[0]//2 + 0.5)
+            final_sol_tbl.drop(columns=beam_center, inplace=True)  
+            
+        if det_shift:
+            final_sol_tbl['det_shift_y'] = final_sol_tbl['det_shift_y'] - final_sol_tbl[det_shift[1]]
+            final_sol_tbl['det_shift_x'] = final_sol_tbl['det_shift_x'] - final_sol_tbl[det_shift[0]]
+            final_sol_tbl.drop(columns=det_shift, inplace=True)  
         
-        if sol_file is not None:
-            sol.to_csv(sol_file, header=False, index=False, sep=' ', float_format='%.4g')
-        
-        return sol
+        final_sol_tbl.to_csv(sol_file, header=False, index=False, sep=' ', float_format='%.4g')
             
     def merge_pattern_info(self, ds_from: Union['Dataset', str], merge_cols: Optional[List[str]] = None, 
                            by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id'), 

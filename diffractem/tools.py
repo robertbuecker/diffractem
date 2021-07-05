@@ -226,7 +226,7 @@ def make_command(program, arguments=None, params=None, opts=None, *args, **kwarg
     for o, v in opts.items():
         if (v is not None) and not isinstance(v, bool):
             exc += f' --{o}={v}'
-        elif (v is None) or v:
+        elif (v is None) and v:
             exc += f' --{o}'
 
     return exc
