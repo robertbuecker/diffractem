@@ -133,7 +133,8 @@ def parse_stream(stream, sol=None, return_meta=True,
     
     global legacy
     legacy = omit_cell
-    print('Legacy mode:', legacy)
+    if legacy:
+        print('Generating legacy solution file (omitting cell type). Do you really want that?')
     
     curr_chunk = None
     curr_cryst = None

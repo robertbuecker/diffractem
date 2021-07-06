@@ -3,7 +3,7 @@ from tifffile import imread
 import numpy as np
 import dask.array as da
 import dask
-from dask.distributed import Client
+from dask.distributed import Client, progress
 from numba import jit, prange, int64
 from . import gap_pixels, nexus
 from .pre_proc_opts import PreProcOpts
@@ -356,15 +356,20 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         if lazy:
             return res_del
         if client is not None:
+            # print(f'Running get_pattern_info on cluster at {client.scheduler_info()["address"]}. \n'
+            #       f'Watch progress at {client.dashboard_link} (or forward port if remote).')            
+            res_del = client.persist(res_del)
+            progress(res_del, notebook=False)
             ftrs = client.compute(res_del)
-            print(f'Running get_pattern_info on cluster at {client.scheduler_info()["address"]}. \n'
-                  f'Watch progress at {client.dashboard_link} (or forward port if remote).')
             if not sync:
                 return ftrs
             alldat = stack_nested(client.gather(ftrs, errors=errors), func=np.concatenate)
         else:
             warn('get_pattern_info is run on a dask array without distributed client - might be slow!')
             alldat = dask.compute()
+
+        shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
+        peakinfo = alldat['peak_data']
             
     elif isinstance(img, da.Array) and via_array:
         # do extra step by casting output of _generate_pattern_info into a dask array and 
@@ -388,7 +393,10 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                                     chunks=(img.chunks[0], _encode_info(template).shape[1]),
                                     name='pattern_info')
         # return info_array # for debugging purposes
-        alldat = client.compute(info_array, sync=True)
+        
+        alldat = client.persist(info_array)
+        progress(alldat, notebook=False)
+        alldat = alldat.compute(sync=True)
 
         # recreate shot data table
         cols = [k for k in sorted(template) if k != 'peak_data']
@@ -421,7 +429,7 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             fh['/entry/data'].attrs['recommended_zchunks'] = -1
             
             dummy_layout = h5py.VirtualLayout(img.shape, dtype='i1')
-            fh.create_virtual_dataset('/entry/' + dummy_stack_name, dummy_layout, fillvalue=-1)
+            fh.create_virtual_dataset('/entry/data/' + dummy_stack_name, dummy_layout, fillvalue=-1)
             fh['/entry/data'].attrs['signal'] = dummy_stack_name
             
         shotdata_id = pd.concat([shots, shotdata], axis=1)
