@@ -4,8 +4,8 @@ import numpy as np
 import dask.array.gufunc
 import dask.array as da
 from dask.diagnostics import ProgressBar
-from dask.distributed import Client
-from . import io, nexus
+from dask.distributed import Client, LocalCluster, progress
+from . import io, nexus, proc2d
 from .pre_proc_opts import PreProcOpts
 from .stream_parser import StreamParser
 # from .map_image import MapImage
@@ -835,6 +835,28 @@ class Dataset:
 
         return newset
 
+    def get_random_subset(self, N: int = 10, seed: int = None) -> "Dataset":
+        """Returns a randomized subset of the dataset containing `N` shots.
+
+        Args:
+            N (int, optional): Sample size. Defaults to 10.
+            seed (int, optional): If not None, seeds the random number generator with this number. 
+                This allows to obtain a reproducable subset in every call. Defaults to None.
+
+        Returns:
+            Dataset: random subset of this dataset.
+        """
+        
+        if seed is not None:
+            np.random.seed(4200) # seed the random choice of patterns. Change the magic number if you don't like them.
+
+        self.shots['selected'] = False
+        self.shots.loc[np.random.choice(range(self.shots.shape[0]), N), 'selected'] = True
+        ds_sample = self.get_selection()
+        self.shots['selected'] = True
+        
+        return ds_sample
+
     def copy(self, file_suffix: Optional[str] = '_copy.h5', 
                     file_prefix: str = '', 
                     new_folder: Union[str, None] = None) -> 'Dataset':
@@ -1175,37 +1197,44 @@ class Dataset:
                     curr_lbl = self._diff_stack_label
                 
                 for dsname, ds in grp.items():
-                    if ds is None:
-                        # can happen for dangling soft links
-                        continue
-                    if ((labels is None) or (dsname in labels)) \
-                            and isinstance(ds, h5py.Dataset) \
-                            and ('pandas_type' not in ds.attrs):
-                        # h5 dataset for file/subset found!
-                        if checklen and (ds.shape[0] != subgrp.shape[0]):
-                            raise ValueError(f'Stack height mismatch in f{fn}:{subset}. ' +
-                                             f'Expected {subgrp.shape[0]} shots, found {ds.shape[0]}.')
-                        
-                        if zchunks is not None:
-                            chunks = (zchunks,) + ds.chunks[1:]
-                        elif chunking == 'hdf5':
-                            chunks = ds.chunks
-                        elif chunking == 'auto':
-                            chunks = 'auto'
-                        elif chunking == 'existing':
-                            chunks = self._stacks[dsname][subgrp.index.values,...].chunks
-                        else:
-                            raise ValueError('chunking must be an integer, list, tuple, "dataset", or "auto".')
-                        
-                        stackname = '_'.join([os.path.basename(fn).rsplit('.', 1)[0],
-                                                subset, dsname])
+                    try:
+                        if ds is None:
+                            # can happen for dangling soft links
+                            continue
+                        if ((labels is None) or (dsname in labels)) \
+                                and isinstance(ds, h5py.Dataset) \
+                                and ('pandas_type' not in ds.attrs):
+                            # h5 dataset for file/subset found!
+                            if checklen and (ds.shape[0] != subgrp.shape[0]):
+                                raise ValueError(f'Stack height mismatch in f{fn}:{subset}. ' +
+                                                f'Expected {subgrp.shape[0]} shots, found {ds.shape[0]}.')
+                            
+                            if zchunks is not None:
+                                if ds.chunks is not None:
+                                    chunks = (zchunks,) + ds.chunks[1:]
+                                else:
+                                    chunks = (zchunks,) + ds.shape[1:]
+                            elif chunking == 'hdf5':
+                                chunks = ds.chunks
+                            elif chunking == 'auto':
+                                chunks = 'auto'
+                            elif chunking == 'existing':
+                                chunks = self._stacks[dsname][subgrp.index.values,...].chunks
+                            else:
+                                raise ValueError('chunking must be an integer, list, tuple, "dataset", or "auto".')
+                            
+                            stackname = '_'.join([os.path.basename(fn).rsplit('.', 1)[0],
+                                                    subset, dsname])
 
-                        if init:
-                            newstack = da.empty(shape=ds.shape, dtype=ds.dtype, chunks=chunks, name=stackname)
-                        else:
-                            # print('adding stack: '+ds.name)
-                            newstack = da.from_array(ds, chunks=chunks, name=stackname)
-                        stacks[dsname].append(newstack)
+                            if init:
+                                newstack = da.empty(shape=ds.shape, dtype=ds.dtype, chunks=chunks, name=stackname)
+                            else:
+                                # print('adding stack: '+ds.name)
+                                newstack = da.from_array(ds, chunks=chunks, name=stackname)
+                            stacks[dsname].append(newstack)
+                            
+                    except Exception as err:
+                        print(f'Could not read data stack {dsname} because:\n{err}')
 
         for sn, s in stacks.items():
             try:
@@ -1747,6 +1776,56 @@ class Dataset:
             final_sol_tbl.drop(columns=det_shift, inplace=True)  
         
         final_sol_tbl.to_csv(sol_file, header=False, index=False, sep=' ', float_format='%.4g')
+        
+    def compute_pattern_info(self, opts: Union[PreProcOpts, str], client: Optional[Client] = None, output_file='image_info.h5'):
+        """Computes the diffraction pattern information (center, peaks, virtual dark field etc.) for the diffraction data stack
+        of the data set. Encapsulates proc2d.get_pattern_info, automatically merging its outcome into the dataset. Also writes
+        a diffraction pattern info file, which is a fully valid diffractem HDF5 file, just without the actual diffraction patterns
+        (hence very small); it can be used for indexing without the actual data files, e.g. on a remote cluster.
+
+        Args:
+            opts (PreprocOpts, str): PreProcOpts object or filename of a preprocessing options yaml file.
+            client (dask.distributed.Client, optional): dask.distributed Client object. Supply if you have a cluster running already. 
+                If None, creates one (with default settings) for this task specifically, which is shut down after completion.
+                This is a bit inefficient and does not allow custom settings (such as a scratch drive), so starting a cluster
+                explicitly and supplying it here might be a good idea. Defaults to None.
+            output_file (str, optional): File name of pattern info HDF5 file. Defaults to 'image_info.h5'.
+
+        """
+
+        if client is None:
+            print('No dask.distributed client supplied, so starting up a local cluster...')
+            client = Client()
+            print(f'Client started. View dashboard at {client.dashboard_link}')
+            private_client = True
+        else: 
+            private_client = False
+            
+        if isinstance(opts, str):
+            opts = PreProcOpts(opts)
+            
+        self.shots[['_file', '_Event']] = self.shots[['file', 'Event']]
+
+        try:
+            print(f'Starting computation... view detailed dashboard at {client.dashboard_link}')
+            shotdata, peakinfo = proc2d.get_pattern_info(self.raw_counts, opts, client, via_array=True, lazy=False, sync=True,
+                                                        output_file=output_file, 
+                                                        shots=self.shots[['file_raw', 'Event_raw', '_file', '_Event', 'sample', 
+                                                                            'region', 'run', 'crystal_id']])
+
+            self.shots = pd.concat([self.shots.drop(columns=[c for c in shotdata.columns if c in self.shots.columns]), shotdata], axis=1)
+            for k, v in peakinfo.items():
+                self.add_stack(k, v, overwrite=True, persist=True)
+        
+        except Exception as err:
+            print('Computing pattern info did not work because...')
+            raise err
+        
+        finally:
+            self.shots.drop(columns=['_file', '_Event'], inplace=True)
+            if private_client:
+                print(f'Shutting down local cluster.')
+                client.shutdown()
             
     def merge_pattern_info(self, ds_from: Union['Dataset', str], merge_cols: Optional[List[str]] = None, 
                            by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id'), 
@@ -1759,7 +1838,7 @@ class Dataset:
         and peak positions from an aggregated data set (where each pattern corresponds to exactly one shot) to a
         full data set (where each pattern often corresponds to many shots, such as frames of a diffraction movie).
         
-        In this case you'd call the method like: `ds_all.merge_pattern_info(ds_agg)`, where ds_agg is the
+        In this case you'd call the method like: `ds_all.merge_pattern_info(self)`, where self is the
         aggregated data set to get the information from.
 
         Args:
