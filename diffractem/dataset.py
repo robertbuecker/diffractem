@@ -2053,9 +2053,9 @@ class Dataset:
         """Interactive viewing widget for use in Jupyter notbeooks.
 
         Args:
-            ds_disp ([type]): [description]
-            Imax (int, optional): [description]. Defaults to 30.
-            log (bool, optional): [description]. Defaults to False.
+            shot (int, optional): Shot number to show initially
+            Imax (int, optional): Maximum intensity to be shown initially. Defaults to 30.
+            log (bool, optional): Toggles initial logarithmic display. Defaults to False.
         """
         from ipywidgets import interact, interactive, fixed, interact_manual
         import ipywidgets as widgets
