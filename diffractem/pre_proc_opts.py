@@ -49,22 +49,44 @@ class PreProcOpts:
         self.rechunk: bool = None
         self.peak_search_params: dict = \
             {'min-res': 5, 'max-res': 600,
-            'local-bg-radius': 3, 'threshold': 8,
-            'min-pix-count': 3,
-            'min-snr': 3, 'int-radius': '3,4,5',
+            'local-bg-radius': 5, 'threshold': 8,
+            'min-pix-count': 3, 'max-pix-count': 10000,
+            'min-snr': 3.5,
             'peaks': 'peakfinder8'}             #: parameters for peak finding using peakfinder8
         self.indexing_params: dict = \
-            {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
-            'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
-            'peaks': 'peakfinder8', 
-            'indexing': 'none'}                 #: indexamajig parameters for indexing (of virtual files)
+            {'indexing': 'pinkIndexer',
+            'integration': 'rings-nograd-nocen',
+            'int-radius': '3,4,6',
+            'peaks': 'cxi',
+            'max-indexer-threads': 2,
+            'min-peaks': 15,
+            'no-refine': True,
+            'no-retry': True,
+            'no-check-peaks': True,
+            'camera-length-estimate': 1,
+            'pinkIndexer-considered-peaks-count': 4,
+            'pinkIndexer-angle-resolution': 4,
+            'pinkIndexer-refinement-type': 5,
+            'pinkIndexer-tolerance': 0.1,
+            'pinkIndexer-reflection-radius': 0.001,
+            'pinkIndexer-max-resolution-for-indexing': 2,
+            'pinkIndexer-no-check-indexed': False
+             }                                  #: indexamajig parameters for indexing
         self.integration_params: dict = \
-            {'min-res': 0, 'max-res': 400, 'local-bg-radius': 4,
-            'threshold': 10, 'min-pix-count': 3, 'min-snr': 5,
-            'peaks': 'peakfinder8', 
-            'indexing': 'none'}                 #: indexamajig parameters for integration
+            {'indexing': 'file',
+            'integration': 'rings-nograd-nocen',
+            'int-radius': '3,4,6',
+            'peaks': 'cxi',
+            'max-indexer-threads': 2,
+            'min-peaks': 15,
+            'no-refine': True,
+            'no-retry': True,
+            'no-check-peaks': True,
+            'overpredict': False
+             }                                  #: indexamajig parameters for integration-only (without indexing)
         self.peak_search_params.update({'temp-dir': self.scratch_dir})
         self.indexing_params.update({'temp-dir': self.scratch_dir})
+        self.indexing_params.update({'camera-length-estimate': self.cam_length})
         self.max_peaks: int = 500               #: maximum number of peaks for peak finding
         self.im_exc = 'indexamajig'             #: default executable for indexamajig, can point to non-standard path
         self.friedel_refine = True              #: perform Friedel-pair center refinement in get_pattern_info
