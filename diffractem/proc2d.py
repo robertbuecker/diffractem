@@ -3,7 +3,7 @@ from tifffile import imread
 import numpy as np
 import dask.array as da
 import dask
-from dask.distributed import Client
+from dask.distributed import Client, progress
 from numba import jit, prange, int64
 from . import gap_pixels, nexus
 from .pre_proc_opts import PreProcOpts
@@ -242,14 +242,21 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
     adf1 = apply_virtual_detector(img, opts.r_adf1[0], opts.r_adf1[1], ctr_refined[0], ctr_refined[1])
     adf2 = apply_virtual_detector(img, opts.r_adf2[0], opts.r_adf2[1], ctr_refined[0], ctr_refined[1])
 
-    # detector shifts in lab frame (_not_ detector) - i.e., require inverse ellipticity correction
+    # Lab-space shifts. Not really consistent to calculate them here, and even worse, copied code
+    # from Dataset. Just go and cast the first stone.
     c, s = np.cos(opts.ellipse_angle*np.pi/180), np.sin(opts.ellipse_angle*np.pi/180)
     R = np.array([[c, -s], [s, c]])
-    # note that the ellipse values are _inverted_ (x' gets scaled by 1/sqrt(ratio))
     RR = R.T @ ([[opts.ellipse_ratio**(-.5)],[opts.ellipse_ratio**(.5)]] * R)
-    shift_mm = np.array([-1e3 * opts.pixel_size * (ctr_refined[0] - img.shape[1]/2 + 0.5), 
-                -1e3 * opts.pixel_size * (ctr_refined[1] - img.shape[0]/2 + 0.5)])
-    shift_mm = np.linalg.inv(RR) @ shift_mm
+
+    # panel-space shift
+    x0, y0, pxs = opts.xsize/2, opts.ysize/2, opts.pixel_size * 1e3
+    shift_labels = [opts.det_shift_x_path, opts.det_shift_y_path]
+
+    shift_p = np.array([ctr_refined[0] - x0 + 0.5, 
+                        ctr_refined[1] - y0 + 0.5])        
+
+    # real-space shift
+    shift_mm = - pxs * (RR @ shift_p)
     
     # X0 = RR @ [[-xsz//2], [-ysz//2]]
     pattern_info = {'com_x': com[0], 'com_y': com[1],
@@ -262,8 +269,8 @@ def _generate_pattern_info(img: np.ndarray, opts: PreProcOpts,
                     'center_refine_score': cost,
                     'adf1': adf1,
                     'adf2': adf2,
-                    'det_shift_x_mm': shift_mm[0],
-                    'det_shift_y_mm': shift_mm[1],
+                    shift_labels[0]: shift_mm[0],
+                    shift_labels[1]: shift_mm[1],
                     'num_peaks': peak_data['nPeaks'],
                     'peak_data': peak_data}
         
@@ -278,7 +285,8 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                      lazy: bool = False, sync: bool = True,
                      errors: str = 'raise', via_array: bool = False,
                      output_file: Optional[str] = None, 
-                     shots: Optional[pd.DataFrame] = None) -> Tuple[pd.DataFrame, dict]:
+                     shots: Optional[pd.DataFrame] = None,
+                     dummy_stack_name: str = 'corrected') -> Tuple[pd.DataFrame, dict]:
     """'Macro' function for getting information about diffraction patterns.
     
     `get_pattern_info` finds diffraction peaks and computes information such as pattern center on a given diffraction 
@@ -321,6 +329,8 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             data file that can be loaded using Dataset objects.
         shots (pd.DataFrame, optional): Dataframe of shot data of same height as the image array. If not None,
             its columns will be joined to those of the shot data for storing the results into the output file.
+        dummy_ds_name (str, optional): Name of virtual data set to be written into the output file in order to
+            fake data, if required by another program (e.g. CrystFEL). Defaults to 'corrected'.
 
     Returns:
         Tuple[pd.DataFrame, dict]: pandas DataFrame holding general pattern information, and dict holding CXI-format
@@ -346,15 +356,20 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         if lazy:
             return res_del
         if client is not None:
+            # print(f'Running get_pattern_info on cluster at {client.scheduler_info()["address"]}. \n'
+            #       f'Watch progress at {client.dashboard_link} (or forward port if remote).')            
+            res_del = client.persist(res_del)
+            progress(res_del, notebook=False)
             ftrs = client.compute(res_del)
-            print(f'Running get_pattern_info on cluster at {client.scheduler_info()["address"]}. \n'
-                  f'Watch progress at {client.dashboard_link} (or forward port if remote).')
             if not sync:
                 return ftrs
             alldat = stack_nested(client.gather(ftrs, errors=errors), func=np.concatenate)
         else:
             warn('get_pattern_info is run on a dask array without distributed client - might be slow!')
             alldat = dask.compute()
+
+        shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
+        peakinfo = alldat['peak_data']
             
     elif isinstance(img, da.Array) and via_array:
         # do extra step by casting output of _generate_pattern_info into a dask array and 
@@ -378,7 +393,10 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                                     chunks=(img.chunks[0], _encode_info(template).shape[1]),
                                     name='pattern_info')
         # return info_array # for debugging purposes
-        alldat = client.compute(info_array, sync=True)
+        
+        alldat = client.persist(info_array)
+        progress(alldat, notebook=False)
+        alldat = alldat.compute(sync=True)
 
         # recreate shot data table
         cols = [k for k in sorted(template) if k != 'peak_data']
@@ -403,12 +421,17 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
         
     else:
         raise ValueError('Input image(s) must be a dask or numpy array.')
-        
+
     if output_file is not None:
         with h5py.File(output_file, 'w') as fh:
             for k, v in peakinfo.items():
                 fh.create_dataset('/entry/data/' + k, data=v, compression='gzip', chunks=(1,) + v.shape[1:])
             fh['/entry/data'].attrs['recommended_zchunks'] = -1
+            
+            dummy_layout = h5py.VirtualLayout(img.shape, dtype='i1')
+            fh.create_virtual_dataset('/entry/data/' + dummy_stack_name, dummy_layout, fillvalue=-1)
+            fh['/entry/data'].attrs['signal'] = dummy_stack_name
+            
         shotdata_id = pd.concat([shots, shotdata], axis=1)
         nexus.store_table(shotdata_id, file=output_file, subset='entry', path='/%/shots')
         print('Wrote analysis results to file', output_file)

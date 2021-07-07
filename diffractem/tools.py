@@ -6,6 +6,7 @@ from .stream_parser import StreamParser
 from .io import *
 from .pre_proc_opts import PreProcOpts
 from .proc2d import correct_dead_pixels
+from .dataset import Dataset
 from . import gap_pixels, panel_pix
 from typing import Iterable, Tuple, Union, Optional
 import os
@@ -225,7 +226,7 @@ def make_command(program, arguments=None, params=None, opts=None, *args, **kwarg
     for o, v in opts.items():
         if (v is not None) and not isinstance(v, bool):
             exc += f' --{o}={v}'
-        elif (v is None) or v:
+        elif (v is None) or (isinstance(v,bool) and v):
             exc += f' --{o}'
 
     return exc
@@ -369,15 +370,15 @@ def call_indexamajig_slurm(input, geometry, name='idx', cell: Optional[str] = No
 
     from subprocess import run
     local_bin_dir = '' if local_bin_dir is None else local_bin_dir
-    run(f'{os.path.join(local_bin_dir,"list_events")} -i {input} -g virtual.geom -o {input}-shots.lst'.split(' '))
+    run(f'{os.path.join(local_bin_dir,"list_events")} -i {input} -g {geometry} -o {input}-shots.lst'.split(' '))
     shots = pd.read_csv(f'{input}-shots.lst', delim_whitespace=True, names=['file', 'Event'])
     os.remove(f'{input}-shots.lst')
 
     if threads > 1:
         # add thread parameters here if needed (e.g. for other indexers)
-        im_params['pinkIndexer-thread-count'] = threads
+        im_params['max-indexer-threads'] = threads
 
-    for ii, grp in shots.groupby(shots.index // shots_per_run):
+    for ii, grp in shots.groupby(np.arange(len(shots)) // shots_per_run):
         jobname = f'{name}_{ii:03d}'
         basename = f'{folder}/' + jobname
         grp[['file', 'Event']].to_csv(basename + '.lst', header=False, index=False, sep=' ')
@@ -396,6 +397,8 @@ def call_indexamajig_slurm(input, geometry, name='idx', cell: Optional[str] = No
         
     with open(script_name, 'w') as fh:
         fh.write('\n'.join(cf_call))
+        # print(cf_call)
+        # print(script_name)
     os.chmod(script_name, os.stat(script_name).st_mode | 0o111)
 
     if tar_file is not None:
@@ -519,6 +522,10 @@ def make_geometry(opts: PreProcOpts, file_name: Optional[str] = None, image_name
     if opts.peak_data_path is not None:
         par.update({'peak_list': opts.peak_data_path,
                     'peak_list_type': 'cxi'})
+        
+    if (opts.det_shift_x_path is not None) and (opts.det_shift_y_path is not None):
+        par.update({'detector_shift_x': f'/%/shots/{opts.det_shift_x_path} mm',
+                    'detector_shift_y': f'/%/shots/{opts.det_shift_y_path} mm'})
     
     par.update({
            'p0/min_ss': 0,
@@ -527,8 +534,8 @@ def make_geometry(opts: PreProcOpts, file_name: Optional[str] = None, image_name
            'p0/max_fs': xsz - 1,
            'p0/corner_x': X0[0,0],
            'p0/corner_y': X0[1,0],
-           'p0/fs': f'{RR[0,0]:+.04f}x {RR[0,1]:+.04f}y',
-           'p0/ss': f'{RR[1,0]:+.04f}x {RR[1,1]:+.04f}y'})
+           'p0/fs': f'{RR[0,0]:+.04f}x {RR[1,0]:+.04f}y',
+           'p0/ss': f'{RR[0,1]:+.04f}x {RR[1,1]:+.04f}y'})
     
     if mask:
         par.update({'p0/mask': '/mask',
@@ -698,89 +705,11 @@ def analyze_hkl(fn: str, cell: str, point_group: str, foms: Iterable = ('CC', 'C
 
     return sd, overall, so
 
-
-def viewing_widget(ds_disp, shot=0, Imax=30, log=False):
-    """Interactive viewing widget for use in Jupyter notbeooks.
-
-    Args:
-        ds_disp ([type]): [description]
-        Imax (int, optional): [description]. Defaults to 30.
-        log (bool, optional): [description]. Defaults to False.
+def update_det_shift(fn: str, opt_file: str = 'preproc.yaml', panel: str = 'p0'):
+    """Updates the detector shift of a dataset read from fn using a geometry stored in opt_file.
+    Convenience function if you don't have the dataset open and don't want to bother with it.
+    See Dataset.update_det_shift for further documentation.
     """
-    from ipywidgets import interact, interactive, fixed, interact_manual
-    import ipywidgets as widgets
-    from IPython.display import display
-    import matplotlib.pyplot as plt
-
-    output = widgets.Output()
-    with output:
-        fh, ax = plt.subplots(1,1, constrained_layout=True)
-        
-    have_peaks = 'nPeaks' in ds_disp.stacks
-    have_center = 'center_x' in ds_disp.shots
-    
-    img_stack = ds_disp.diff_data
-    
-    if max(ds_disp.diff_data.chunks[0]) > 10:
-        warn(f'Diffraction data chunks are large (up to {max(ds_disp.diff_data.chunks[0])} shots). If their '
-             'computation is heavy or your disk is slow, consider rechunking the dataset in a smart way for display.')
-    
-    fh.canvas.toolbar_position='bottom'    
-    fh.canvas.header_visible=False    
-    ih = ax.imshow(img_stack[shot,...].compute(scheduler='threading'), vmin=0, vmax=Imax, cmap='gray_r')
-    if have_peaks:
-        sc = ax.scatter([], [], c='g', alpha=0.1)
-    if have_center:
-        cx, cy = (plt.axvline(ds_disp.shots.loc[0,'center_x'], c='b', alpha=0.2), 
-                  plt.axhline(ds_disp.shots.loc[0,'center_y'], c='b', alpha=0.2))
-    ax.axis('off')
-    
-    # symmetrize figure
-
-    w_shot = widgets.IntSlider(min=0, max=img_stack.shape[0], step=1, value=shot)
-    w_selected = widgets.ToggleButton(False, description='selected')
-    w_indicator = widgets.Label(f'{ds_disp.shots.selected.sum()} of {len(ds_disp.shots)} shots selected.')
-    w_info = widgets.Textarea(layout=widgets.Layout(height='100%'))
-    w_vmax = widgets.FloatText(Imax, description='Imax')
-    w_log = widgets.Checkbox(log, description='log')
-    # w_info_parent = widgets.Accordion(children=[w_info])
-    
-    def update(shot=shot, vmax=Imax, log=log):
-        shdat = ds_disp.shots.loc[shot]
-        w_selected.value = bool(shdat.selected)
-        w_info.value = '\n'.join([f'{k}: {v}' for k, v in shdat.items()])
-        if log:
-            ih.set_data(np.log10(img_stack[shot,...].compute(scheduler='single-threaded')))
-            ih.set_clim(0.1, np.log10(vmax))            
-        else:           
-            ih.set_data(img_stack[shot,...].compute(scheduler='single-threaded'))
-            ih.set_clim(0, vmax)
-        if have_peaks:
-            sc.set_offsets(np.stack((ds_disp.peakXPosRaw[shot,:ds_disp.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'), 
-                    ds_disp.peakYPosRaw[shot,:ds_disp.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'))).T)    
-        if have_center:
-            cx.set_xdata(ds_disp.shots.loc[shot,'center_x'])
-            cy.set_ydata(ds_disp.shots.loc[shot,'center_y'])
-            
-        # ax.set_title(f'{shdat.file}: {shdat.Event}\n {shdat.num_peaks} peaks')
-        fh.canvas.draw()
-        
-    def set_selected(val):
-        ds_disp.shots.loc[w_shot.value, 'selected'] = val['new']
-        w_indicator.value =  f'{ds_disp.shots.selected.sum()} of {len(ds_disp.shots)} shots selected.'
-    
-    update()
-    
-    interactive(update, shot=w_shot, vmax=w_vmax, log=w_log)
-    w_selected.observe(set_selected, 'value')
-
-    ui = widgets.VBox([widgets.HBox([widgets.VBox([w_info, 
-                                     w_shot]), 
-                                     output]), 
-                       widgets.HBox([w_selected, 
-                                     w_indicator, 
-                                     w_vmax, 
-                                     w_log])]
-                      )
-
-    display(ui)
+    ds = Dataset.from_files(fn, open_stacks=False, chunking=-1)
+    ds.update_det_shift(opt_file=opt_file, panel=panel)
+    ds.store_tables(shots=True)

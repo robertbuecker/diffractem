@@ -4,8 +4,9 @@ import numpy as np
 import dask.array.gufunc
 import dask.array as da
 from dask.diagnostics import ProgressBar
-from dask.distributed import Client
-from . import io, nexus, tools
+from dask.distributed import Client, LocalCluster, progress
+from . import io, nexus, proc2d
+from .pre_proc_opts import PreProcOpts
 from .stream_parser import StreamParser
 # from .map_image import MapImage
 import h5py
@@ -13,7 +14,6 @@ from typing import Union, Dict, Optional, List, Tuple, Callable
 import copy
 from collections import defaultdict
 from warnings import warn, catch_warnings, simplefilter
-from tables import NaturalNameWarning
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
 from contextlib import contextmanager
 import os
@@ -483,17 +483,7 @@ class Dataset:
                 raise err
 
     def store_tables(self, shots: Union[None, bool] = None, features: Union[None, bool] = None):
-        """Stores the metadata tables (shots, features, peaks, predictions) into HDF5 files. 
-        
-        The location into which the tables will be stored is defined in the Dataset object's attributes. The format
-        in which they are stored is, on the other hand, determined by the *format* argument. If set to 'tables',
-        PyTables will be used to store the table in a native HDF5 table format, which however is somewhat uncommon
-        and not recognized by CrystFEL. If set to 'nexus' (Default), each column of the table will be stored as
-        a one-dimensional dataset.
-        
-        As a general recommendation, **always** use nexus format to store the shots and features. For peaks and 
-        predictions, 'tables' is rather preferred, as it allows faster read/write and is more flexible with
-        regards to column labels.
+        """Stores the metadata tables (shots, features) into HDF5 files. 
         
         For each of the tables,
         it can be automatically determined if they have changed and should be stored (however, this only works if 
@@ -503,9 +493,6 @@ class Dataset:
         Args:
             shots (Union[None, bool], optional): Store shot table. Defaults to None.
             features (Union[None, bool], optional): Store feature table. Defaults to None.
-            peaks (Union[None, bool], optional): Store peak table. Defaults to None.
-            predict (Union[None, bool], optional): Store prediction table. Defaults to None.
-            format (str, optional): Table storage format in HDF5 file, can be 'nexus' or 'tables'. Defaults to 'nexus'.
         """
         
         fs = []
@@ -517,7 +504,6 @@ class Dataset:
         else:
             stacks_were_open = False
 
-        simplefilter('ignore', NaturalNameWarning)
         if (shots is None and self._shots_changed) or shots:
             # sh = self.shots.drop(['Event', 'shot_in_subset'], axis=1)
             # sh['id'] = sh[['sample', 'region', 'run', 'crystal_id']].apply(lambda x: '//'.join(x.astype(str)), axis=1)
@@ -848,6 +834,28 @@ class Dataset:
                 self._shots.selected = cur_sel
 
         return newset
+
+    def get_random_subset(self, N: int = 10, seed: int = None) -> "Dataset":
+        """Returns a randomized subset of the dataset containing `N` shots.
+
+        Args:
+            N (int, optional): Sample size. Defaults to 10.
+            seed (int, optional): If not None, seeds the random number generator with this number. 
+                This allows to obtain a reproducable subset in every call. Defaults to None.
+
+        Returns:
+            Dataset: random subset of this dataset.
+        """
+        
+        if seed is not None:
+            np.random.seed(4200) # seed the random choice of patterns. Change the magic number if you don't like them.
+
+        self.shots['selected'] = False
+        self.shots.loc[np.random.choice(range(self.shots.shape[0]), N), 'selected'] = True
+        ds_sample = self.get_selection()
+        self.shots['selected'] = True
+        
+        return ds_sample
 
     def copy(self, file_suffix: Optional[str] = '_copy.h5', 
                     file_prefix: str = '', 
@@ -1180,45 +1188,53 @@ class Dataset:
                     if not self._diff_stack_label:
                         self._diff_stack_label = curr_lbl
                     elif self._diff_stack_label != curr_lbl:
-                        warn(f'Non-matching primary diffraction stack labels: '
-                            f'{self._diff_stack_label} vs {grp.attrs["signal"].decode()}')
+                        # warn(f'Non-matching primary diffraction stack labels: '
+                            # f'{self._diff_stack_label} vs {grp.attrs["signal"].decode()}')
+                        pass
                         
                 except KeyError:
                     # no diff stack label stored
                     curr_lbl = self._diff_stack_label
                 
                 for dsname, ds in grp.items():
-                    if ds is None:
-                        # can happen for dangling soft links
-                        continue
-                    if ((labels is None) or (dsname in labels)) \
-                            and isinstance(ds, h5py.Dataset) \
-                            and ('pandas_type' not in ds.attrs):
-                        # h5 dataset for file/subset found!
-                        if checklen and (ds.shape[0] != subgrp.shape[0]):
-                            raise ValueError(f'Stack height mismatch in f{fn}:{subset}. ' +
-                                             f'Expected {subgrp.shape[0]} shots, found {ds.shape[0]}.')
-                        
-                        if zchunks is not None:
-                            chunks = (zchunks,) + ds.chunks[1:]
-                        elif chunking == 'hdf5':
-                            chunks = ds.chunks
-                        elif chunking == 'auto':
-                            chunks = 'auto'
-                        elif chunking == 'existing':
-                            chunks = self._stacks[dsname][subgrp.index.values,...].chunks
-                        else:
-                            raise ValueError('chunking must be an integer, list, tuple, "dataset", or "auto".')
-                        
-                        stackname = '_'.join([os.path.basename(fn).rsplit('.', 1)[0],
-                                                subset, dsname])
+                    try:
+                        if ds is None:
+                            # can happen for dangling soft links
+                            continue
+                        if ((labels is None) or (dsname in labels)) \
+                                and isinstance(ds, h5py.Dataset) \
+                                and ('pandas_type' not in ds.attrs):
+                            # h5 dataset for file/subset found!
+                            if checklen and (ds.shape[0] != subgrp.shape[0]):
+                                raise ValueError(f'Stack height mismatch in f{fn}:{subset}. ' +
+                                                f'Expected {subgrp.shape[0]} shots, found {ds.shape[0]}.')
+                            
+                            if zchunks is not None:
+                                if ds.chunks is not None:
+                                    chunks = (zchunks,) + ds.chunks[1:]
+                                else:
+                                    chunks = (zchunks,) + ds.shape[1:]
+                            elif chunking == 'hdf5':
+                                chunks = ds.chunks
+                            elif chunking == 'auto':
+                                chunks = 'auto'
+                            elif chunking == 'existing':
+                                chunks = self._stacks[dsname][subgrp.index.values,...].chunks
+                            else:
+                                raise ValueError('chunking must be an integer, list, tuple, "dataset", or "auto".')
+                            
+                            stackname = '_'.join([os.path.basename(fn).rsplit('.', 1)[0],
+                                                    subset, dsname])
 
-                        if init:
-                            newstack = da.empty(shape=ds.shape, dtype=ds.dtype, chunks=chunks, name=stackname)
-                        else:
-                            # print('adding stack: '+ds.name)
-                            newstack = da.from_array(ds, chunks=chunks, name=stackname)
-                        stacks[dsname].append(newstack)
+                            if init:
+                                newstack = da.empty(shape=ds.shape, dtype=ds.dtype, chunks=chunks, name=stackname)
+                            else:
+                                # print('adding stack: '+ds.name)
+                                newstack = da.from_array(ds, chunks=chunks, name=stackname)
+                            stacks[dsname].append(newstack)
+                            
+                    except Exception as err:
+                        print(f'Could not read data stack {dsname} because:\n{err}')
 
         for sn, s in stacks.items():
             try:
@@ -1686,37 +1702,130 @@ class Dataset:
                     warn(f'{lbl_from} not in stacks, skipping.')
                 self.shots[lbl_to] = stk[lbl_from]
             
-    def get_indexing_solution(self, stream: Union[str, StreamParser], sol_file: Optional[str] = None, 
-                              beam_center: Optional[Union[List, Tuple]] = ('center_x', 'center_y'), 
-                              pixel_size: Optional[float] = 0.055, img_size: Union[Tuple, List] = (1556, 516)):
+    def get_indexing_solution(self, stream: Union[str, StreamParser], sol_file: str, 
+                              legacy: bool = False,
+                              det_shift: Optional[Union[List, Tuple]] = None,
+                              beam_center: Optional[Union[List, Tuple]] = None, 
+                              pixel_size: float = 1, 
+                              img_size: Union[Tuple, List] = (0,0)):
+        """Writes a .sol file containing an indexing solution from a stream file that has been generated
+        using this dataset, or another which holds patterns from the same set of crystals. This is identified
+        by the shot table columns [sample, region, crystal_id, run] being identical.
         
+        Typically, you will want to use this function when "broadcasting" the indexing results you've obtained
+        with one aggregation of a dose-fractionation movie to another aggregation, or even the dataset containing
+        all the single shots.
+        
+        NB: If you just want to simply generate a .sol file from a .stream, keeping all file and event identifiers,
+        you might rather want to use the sol2stream command line tool, which is faster and simpler.
+
+        Args:
+            stream (Union[str, StreamParser]): Stream file holding the indexing solution
+            sol_file (str): Output solution file
+            legacy (bool, optional): Writes .sol file compatible with older electron-adapted CrystFEL versions,
+                where the .sol file does not contain cell information. Defaults to False.
+            det_shift (list, optional): List of stream file extra header field names holding a
+                detector shift in mm to be added on top of that found by the indexer. Defaults to None.
+            beam_center (list, optional): List of stream file extra header field names holding the beam
+                center in pixels to be added on top of that found by the indexer. Defaults to None.
+            pixel_size (float, optional): Required if using beam_center. Defaults to 1.
+            img_size (Union[Tuple, List], optional): (x, y) size of images in pixels. Required if using_beam center. 
+                Defaults to (0,0).
+        """
+    
         from itertools import product
         
         if isinstance(stream, str):
-            stream = StreamParser(stream)
+            stream = StreamParser(stream)        
         
-        idcol = ['crystal_id', 'region', 'sample', 'run']
-        idcol_s = [f'hdf5{self.shots_pattern}/{c}' for c in idcol]
+        idcols = ['sample', 'region', 'crystal_id', 'run']
+        idcols_s = [[c for c in stream.shots.columns if c.endswith(c2)][0] for c2 in idcols]
         
         beam_center = list(beam_center) if beam_center is not None else []
+        det_shift = list(det_shift) if det_shift is not None else []
+            
+        if beam_center:
+            raise ValueError('If legacy=True, you cannot supply an add-on beam center.')
 
-        data_col = [''.join(p) for p in 
-                        product(('astar_', 'bstar_', 'cstar_'), ('x', 'y', 'z'))] + ['xshift', 'yshift']
-                        
-        shots = self.shots[['file', 'Event'] + idcol + beam_center]
-                        
-        sol = shots.merge(stream.shots[idcol_s + data_col], 
-            left_on=idcol, right_on=idcol_s, how='left')[['file', 'Event'] + data_col + beam_center].dropna()
+        from io import StringIO
+        from . import stream_convert
+        sol, meta = stream_convert.parse_stream(stream.filename, omit_cell=legacy)
+        sol_tbl = pd.read_csv(StringIO(sol), delim_whitespace=True, header=None) 
+        sol_tbl.columns=['file', 'Event', 'astar_x', 'astar_y', 'astar_z',
+                            'bstar_x', 'bstar_y', 'bstar_z',
+                            'cstar_x', 'cstar_y', 'cstar_z', 
+                        'det_shift_x', 'det_shift_y', 'cell_type']
+
+        sol_cryst_id = sol_tbl.merge(stream.shots[['file', 'Event'] + idcols_s + beam_center], 
+                                    on=['file', 'Event'], how='left').rename(
+            columns={cs: c for c, cs in zip(idcols, idcols_s)}).drop(columns=['file', 'Event'])
+
+        final_sol_tbl = self.shots[idcols + ['file', 'Event']].merge(sol_cryst_id, on=idcols, 
+                                                                how='inner', validate='m:1').drop(columns=idcols)
         
         if beam_center:
-            sol['xshift'] = sol['xshift'] - pixel_size*(sol[beam_center[0]] - img_size[0]//2 + 0.5)
-            sol['yshift'] = sol['yshift'] - pixel_size*(sol[beam_center[1]] - img_size[1]//2 + 0.5)
-            sol.drop(columns=beam_center, inplace=True)  
+            final_sol_tbl['det_shift_y'] = final_sol_tbl['det_shift_y'] \
+                - pixel_size*(final_sol_tbl[beam_center[1]] - img_size[1]//2 + 0.5)
+            final_sol_tbl['det_shift_x'] = final_sol_tbl['det_shift_x'] \
+                - pixel_size*(final_sol_tbl[beam_center[0]] - img_size[0]//2 + 0.5)
+            final_sol_tbl.drop(columns=beam_center, inplace=True)  
+            
+        if det_shift:
+            final_sol_tbl['det_shift_y'] = final_sol_tbl['det_shift_y'] - final_sol_tbl[det_shift[1]]
+            final_sol_tbl['det_shift_x'] = final_sol_tbl['det_shift_x'] - final_sol_tbl[det_shift[0]]
+            final_sol_tbl.drop(columns=det_shift, inplace=True)  
         
-        if sol_file is not None:
-            sol.to_csv(sol_file, header=False, index=False, sep=' ', float_format='%.4g')
+        final_sol_tbl.to_csv(sol_file, header=False, index=False, sep=' ', float_format='%.4g')
         
-        return sol
+    def compute_pattern_info(self, opts: Union[PreProcOpts, str], client: Optional[Client] = None, output_file='image_info.h5'):
+        """Computes the diffraction pattern information (center, peaks, virtual dark field etc.) for the diffraction data stack
+        of the data set. Encapsulates proc2d.get_pattern_info, automatically merging its outcome into the dataset. Also writes
+        a diffraction pattern info file, which is a fully valid diffractem HDF5 file, just without the actual diffraction patterns
+        (hence very small); it can be used for indexing without the actual data files, e.g. on a remote cluster.
+
+        Args:
+            opts (PreprocOpts, str): PreProcOpts object or filename of a preprocessing options yaml file.
+            client (dask.distributed.Client, optional): dask.distributed Client object. Supply if you have a cluster running already. 
+                If None, creates one (with default settings) for this task specifically, which is shut down after completion.
+                This is a bit inefficient and does not allow custom settings (such as a scratch drive), so starting a cluster
+                explicitly and supplying it here might be a good idea. Defaults to None.
+            output_file (str, optional): File name of pattern info HDF5 file. Defaults to 'image_info.h5'.
+
+        """
+
+        if client is None:
+            print('No dask.distributed client supplied, so starting up a local cluster...')
+            client = Client()
+            print(f'Client started. View dashboard at {client.dashboard_link}')
+            private_client = True
+        else: 
+            private_client = False
+            
+        if isinstance(opts, str):
+            opts = PreProcOpts(opts)
+            
+        self.shots[['_file', '_Event']] = self.shots[['file', 'Event']]
+
+        try:
+            print(f'Starting computation... view detailed dashboard at {client.dashboard_link}')
+            shotdata, peakinfo = proc2d.get_pattern_info(self.raw_counts, opts, client, via_array=True, lazy=False, sync=True,
+                                                        output_file=output_file, 
+                                                        shots=self.shots[['file_raw', 'Event_raw', '_file', '_Event', 'sample', 
+                                                                            'region', 'run', 'crystal_id']])
+
+            self.shots = pd.concat([self.shots.drop(columns=[c for c in shotdata.columns if c in self.shots.columns]), shotdata], axis=1)
+            for k, v in peakinfo.items():
+                self.add_stack(k, v, overwrite=True, persist=True)
+        
+        except Exception as err:
+            print('Computing pattern info did not work because...')
+            raise err
+        
+        finally:
+            self.shots.drop(columns=['_file', '_Event'], inplace=True)
+            if private_client:
+                print(f'Shutting down local cluster.')
+                client.shutdown()
             
     def merge_pattern_info(self, ds_from: Union['Dataset', str], merge_cols: Optional[List[str]] = None, 
                            by: Union[List[str], Tuple[str]] = ('sample', 'region', 'run', 'crystal_id'), 
@@ -1729,7 +1838,7 @@ class Dataset:
         and peak positions from an aggregated data set (where each pattern corresponds to exactly one shot) to a
         full data set (where each pattern often corresponds to many shots, such as frames of a diffraction movie).
         
-        In this case you'd call the method like: `ds_all.merge_pattern_info(ds_agg)`, where ds_agg is the
+        In this case you'd call the method like: `ds_all.merge_pattern_info(self)`, where self is the
         aggregated data set to get the information from.
 
         Args:
@@ -1790,14 +1899,15 @@ class Dataset:
                               virtual_size: int = 1024):
         """
         Generate a virtual HDF5 file containing the meta data of the dataset, but not the actual
-        diffraction. Instead of the diffraction stack, a dummy stack containing only ones is written
-        into the file, which due to its compression becomes very small.
+        diffraction. Instead of the diffraction stack, a virtual dummy stack is created that does not actually
+        contain data.
         
         The peak positions in the virtual file are changed, such that they refer to a "virtual" geometry,
         corresponding to a square detector with a size given by `virtual_size`. On this detector, the pattern
         is centered.
         
-        This file can then be used as input to CrystFEL's *indexamajig*, with a simple centered geometry.
+        Note that this functionality is mostly deprecated in favor of directly using the data files directly, or
+        the image info file generated by `proc2d.get_pattern_info`.
 
         Args:
             filename (str): [description]
@@ -1805,6 +1915,11 @@ class Dataset:
             virtual_size (int, optional): [description]. Defaults to 1024.
 
         """
+        
+        warn('Using virtual files is DEPRECATED. Newer versions of CrystFEL support direct use of data files or '
+             'image info files generated by proc2d.get_pattern_info. Please use those along with a geometry file '
+             'describing the actual (not virtual) experiment geometry.', DeprecationWarning)
+        
         self._shot_id_cols
         ds_ctr = self.get_selection('True', file_suffix='_virtual.h5', new_folder='')
         # ds_ctr.shots['file_event_hash'] = tools.dataframe_hash(self.shots[['file', 'Event']])
@@ -1815,10 +1930,10 @@ class Dataset:
         ds_ctr.shots['shot_in_subset'] = range(len(ds_ctr.shots))
         ds_ctr.shots['Event'] = ds_ctr.shots.subset + '//' + ds_ctr.shots.shot_in_subset.astype(str)
 
-        fake_img = da.ones(dtype=np.int8, shape=(ds_ctr.shots.shape[0], virtual_size, virtual_size), 
-                            chunks=(1, -1, -1))
+        # fake_img = da.ones(dtype=np.int8, shape=(ds_ctr.shots.shape[0], virtual_size, virtual_size), 
+        #                     chunks=(1, -1, -1))
 
-        ds_ctr.add_stack(diff_stack_label, fake_img, overwrite=True, set_diff_stack=True)
+        # ds_ctr.add_stack(diff_stack_label, fake_img, overwrite=True, set_diff_stack=True)
         ds_ctr.add_stack('peakXPosRaw', (ds_ctr.peakXPosRaw - self.shots.center_x.values.reshape(-1,1) 
                                         + virtual_size/2 - 0.5) 
                         * (ds_ctr.peakXPosRaw != 0), overwrite=True)
@@ -1826,9 +1941,15 @@ class Dataset:
                                         + virtual_size/2 - 0.5) 
                         * (ds_ctr.peakYPosRaw != 0), overwrite=True)
 
-        print('Writing fake all-ones data (yes, it takes that long).')
+        # print('Writing fake all-ones data (yes, it takes that long).')
         with h5py.File(ds_ctr.files[0], 'w') as fh:
             fh.require_group('/entry/data')
+            fh['/entry/data'].attrs['recommended_zchunks'] = -1
+            
+            dummy_layout = h5py.VirtualLayout((ds_ctr.shots.shape[0], virtual_size, virtual_size), dtype='i1')
+            fh.create_virtual_dataset('/entry/' + diff_stack_label, dummy_layout, fillvalue=1)
+            fh['/entry/data'].attrs['signal'] = diff_stack_label.encode()
+            
         ds_ctr.open_stacks(readonly=False)
         ds_ctr.store_stacks([diff_stack_label, 'nPeaks', 'peakXPosRaw', 'peakYPosRaw', 
                             'peakTotalIntensity'],
@@ -1838,7 +1959,178 @@ class Dataset:
         ds_ctr.write_list(f'{filename}.lst')
         print(f'Virtual file {filename}.h5 and list file {filename}.lst successfully exported.')
         
-    def view(self, **kwargs):
-        """Calls `tools.viewing_widget` on the dataset. Keyword arguments are passed through.
+    def update_det_shift(self, opt_file: str = 'preproc.yaml', panel: str = 'p0'):
+        """Updates the lab-frame detector shift in the shot table, as required by CrystFEL to account
+        for a varying direct beam position. As the dataset object has no idea about the lab-frame geometry,
+        you'll need to supply it, either from a diffractem options file (.yaml), or a CrystFEL geometry 
+        file (.geom). Also detector distortions are accounted for here. The column names in the shot tables
+        are automatically determined from the options/geometry file.
+        
+        Note that this method does not automatically store the shot table afterwards - to do so, run
+        ds.store_tables(shots=True) right afterwards.
+
+        Args:
+            opt_file (str, optional): Options file name. Can be a diffractem PreProcOpts file (.yaml) or
+                a CrystFEL geometry file (.geom) - as determined by the file extension. 
+                Defaults to 'preproc.yaml'.
+            panel (str, optional): Label of panel in CrystFEL geometry file to which the center coordinates
+                of the dataset refer. Defaults to p0.
         """
-        tools.viewing_widget(self, **kwargs)
+        
+        if opt_file.endswith('yaml') or opt_file.endswith('yml'):
+
+            print(f'Taking parameters from diffractem options file {opt_file}')
+            # Calculate mm shifts w.r.t. lab frame, for use with CrystFEL
+            opts = PreProcOpts(opt_file)
+
+            c, s = np.cos(opts.ellipse_angle*np.pi/180), np.sin(opts.ellipse_angle*np.pi/180)
+            R = np.array([[c, -s], [s, c]])
+            RR = R.T @ ([[opts.ellipse_ratio**(-.5)],[opts.ellipse_ratio**(.5)]] * R)
+
+            # panel-space shift
+            x0, y0, pxs = opts.xsize/2, opts.ysize/2, opts.pixel_size * 1e3
+            shift_labels = [opts.det_shift_x_path, opts.det_shift_y_path]
+            
+        elif opt_file.endswith('geom'):
+            
+            print(f'Taking parameters from CrystFEL geometry file {opt_file}')
+            import re
+
+            T = np.array([0.,0.,0.])
+            RR = np.diag([1.,1.,1.])
+            axs = {'x': 0, 'y': 1, 'z': 2}
+            rng_min = np.zeros(2, dtype=int)
+            rng_max = np.zeros(2, dtype=int)
+            shift_labels = ['', '']
+
+            for ln in open(opt_file,'r'):
+
+                if '=' in ln:
+                    key, val = ln.split('=', 1)
+                else:
+                    continue
+
+                if f'{panel}/corner_' in key:
+                    # not needed, in the simplest case
+                    for k, v in axs.items():
+                        if f'_{k}' in key:
+                            T[v] = float(val)
+
+                elif (f'{panel}/fs' in key) or (f'{panel}/ss' in key):
+                    parsed = [s.strip() for s in re.findall('\s*[+-]?\d*\.?\d*\s*\D\s', val)]
+                    for v in parsed:
+                        RR[axs[v[-1]], 0 if 'fs' in key else 1] = float(v[:-1])
+
+                elif (f'{panel}/min_' in key):
+                    rng_min[0 if 'fs' in ln else 1] = int(val)
+
+                elif (f'{panel}/max_' in key):
+                    rng_max[0 if 'fs' in ln else 1] = int(val)
+
+                elif 'res' in key:
+                    key, val = ln.split('=', 1)
+                    pxs = round((1000/float(val)), 6)
+                    
+                elif 'detector_shift_' in key:
+                    if not val.strip().endswith('mm'):
+                        raise ValueError('geom file must expect detector shifts in mm!')
+                    shift_labels[1 if '_y' in key else 0] = val.rsplit(' ', 1)[0].rsplit('/')[-1]
+    
+            RR = RR[:2,:2]
+            x0, y0 = tuple((-np.linalg.inv(RR) @ T[:2]))
+            
+        else:
+            raise ValueError('Option file must be of type .yaml or .geom.')
+            
+        shift_p = np.array([self.shots.center_x.values - x0 + 0.5, 
+                            self.shots.center_y.values - y0 + 0.5])        
+
+        # real-space shift
+        shift_mm = - pxs * (RR @ shift_p)
+        self.shots[shift_labels] = shift_mm.T
+        
+    def view(self, shot=0, Imax=30, log=False):
+        """Interactive viewing widget for use in Jupyter notbeooks.
+
+        Args:
+            shot (int, optional): Shot number to show initially
+            Imax (int, optional): Maximum intensity to be shown initially. Defaults to 30.
+            log (bool, optional): Toggles initial logarithmic display. Defaults to False.
+        """
+        from ipywidgets import interact, interactive, fixed, interact_manual
+        import ipywidgets as widgets
+        from IPython.display import display
+        import matplotlib.pyplot as plt
+
+        output = widgets.Output()
+        with output:
+            fh, ax = plt.subplots(1,1, constrained_layout=True)
+            
+        have_peaks = 'nPeaks' in self.stacks
+        have_center = 'center_x' in self.shots
+        
+        img_stack = self.diff_data
+        
+        if max(self.diff_data.chunks[0]) > 10:
+            warn(f'Diffraction data chunks are large (up to {max(self.diff_data.chunks[0])} shots). If their '
+                'computation is heavy or your disk is slow, consider rechunking the dataset in a smart way for display.')
+        
+        fh.canvas.toolbar_position='bottom'    
+        fh.canvas.header_visible=False    
+        ih = ax.imshow(img_stack[shot,...].compute(scheduler='threading'), vmin=0, vmax=Imax, cmap='gray_r')
+        if have_peaks:
+            sc = ax.scatter([], [], c='g', alpha=0.1)
+        if have_center:
+            cx, cy = (plt.axvline(self.shots.loc[0,'center_x'], c='b', alpha=0.2), 
+                    plt.axhline(self.shots.loc[0,'center_y'], c='b', alpha=0.2))
+        ax.axis('off')
+        
+        # symmetrize figure
+
+        w_shot = widgets.IntSlider(min=0, max=img_stack.shape[0], step=1, value=shot)
+        w_selected = widgets.ToggleButton(False, description='selected')
+        w_indicator = widgets.Label(f'{self.shots.selected.sum()} of {len(self.shots)} shots selected.')
+        w_info = widgets.Textarea(layout=widgets.Layout(height='100%'))
+        w_vmax = widgets.FloatText(Imax, description='Imax')
+        w_log = widgets.Checkbox(log, description='log')
+        # w_info_parent = widgets.Accordion(children=[w_info])
+        
+        def update(shot=shot, vmax=Imax, log=log):
+            shdat = self.shots.loc[shot]
+            w_selected.value = bool(shdat.selected)
+            w_info.value = '\n'.join([f'{k}: {v}' for k, v in shdat.items()])
+            if log:
+                ih.set_data(np.log10(img_stack[shot,...].compute(scheduler='single-threaded')))
+                ih.set_clim(0.1, np.log10(vmax))            
+            else:           
+                ih.set_data(img_stack[shot,...].compute(scheduler='single-threaded'))
+                ih.set_clim(0, vmax)
+            if have_peaks:
+                sc.set_offsets(np.stack((self.peakXPosRaw[shot,:self.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'), 
+                        self.peakYPosRaw[shot,:self.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'))).T)    
+            if have_center:
+                cx.set_xdata(self.shots.loc[shot,'center_x'])
+                cy.set_ydata(self.shots.loc[shot,'center_y'])
+                
+            # ax.set_title(f'{shdat.file}: {shdat.Event}\n {shdat.num_peaks} peaks')
+            fh.canvas.draw()
+            
+        def set_selected(val):
+            self.shots.loc[w_shot.value, 'selected'] = val['new']
+            w_indicator.value =  f'{self.shots.selected.sum()} of {len(self.shots)} shots selected.'
+        
+        update()
+        
+        interactive(update, shot=w_shot, vmax=w_vmax, log=w_log)
+        w_selected.observe(set_selected, 'value')
+
+        ui = widgets.VBox([widgets.HBox([widgets.VBox([w_info, 
+                                        w_shot]), 
+                                        output]), 
+                        widgets.HBox([w_selected, 
+                                        w_indicator, 
+                                        w_vmax, 
+                                        w_log])]
+                        )
+
+        display(ui)
