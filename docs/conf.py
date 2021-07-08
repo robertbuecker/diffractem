@@ -32,22 +32,25 @@ master_doc = 'index'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['recommonmark', 'sphinx.ext.autodoc', 
+extensions = ['sphinx.ext.autodoc', 
               'sphinx.ext.napoleon', 'sphinx.ext.viewcode',
+              'sphinx.ext.autosectionlabel',
             #   'jupyter_sphinx.execute', 
             #   'nbsphinx', 
+            'm2r2',
               'sphinx.ext.mathjax',
               'nbsphinx_link', 'sphinx_autodoc_typehints'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
-
+source_suffix = ['.rst', '.md']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-
+autosectionlabel_maxdepth=2
+autosectionlabel_prefix_document=True
 autodoc_mock_imports = ['PyQt5']
 
 nbsphinx_execute = 'never'
