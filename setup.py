@@ -64,7 +64,7 @@ else:
 
 setup(
     name='diffractem',
-    version='0.4.0',
+    version='0.4.0.post1',
     packages=['diffractem'],
     url='https://github.com/robertbuecker/diffractem',
     license='',
