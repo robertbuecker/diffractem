@@ -20,3 +20,4 @@ nbsphinx
 jupyter-sphinx
 nbsphinx-link
 sphinx-autodoc-typehints
+m2r2

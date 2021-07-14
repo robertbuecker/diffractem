@@ -64,7 +64,7 @@ else:
 
 setup(
     name='diffractem',
-    version='0.3.4.post2',
+    version='0.4.0.post1',
     packages=['diffractem'],
     url='https://github.com/robertbuecker/diffractem',
     license='',
@@ -73,7 +73,7 @@ setup(
     entry_points={
         'console_scripts': [
             'quick_proc = diffractem.quick_proc:main',
-            'stream2sol = diffractem.stream_convert:main'
+            'stream2sol = diffractem.stream2sol:main'
         ],
     },
     author='Robert Buecker',
