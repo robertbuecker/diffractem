@@ -1457,6 +1457,8 @@ class Dataset:
 
             for label, stack in stacks.items():
                 # print(label)
+                # print(f'Preparing stack {label} for {fn}, {ssn}...')
+                
                 arr = stack[stack_idcs, ...]
                 if data_pattern is None:
                     path = self.data_pattern.replace('%', ssn) + '/' + label
@@ -1480,8 +1482,8 @@ class Dataset:
                         raise e
                 
                 if label == 'index':
-                    # print('Writing recommended_zchunks attribute...')
-                    fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0])
+                    # print(f'Setting recommended_zchunks attribute to {np.array(arr.chunks[0][0])}...')
+                    fh[path.rsplit('/', 1)[0]].attrs['recommended_zchunks'] = np.array(arr.chunks[0][0])
                 #     fh[path.rsplit('/', 1)[0]].attrs['signal'] = self._diff_stack_label
 
                 arrays.append(arr)

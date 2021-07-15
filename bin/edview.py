@@ -270,8 +270,11 @@ class EDViewer(QWidget):
                 single_feat = region_feat.loc[region_feat['crystal_id'] == self.current_shot['crystal_id'], :]
                 x0 = single_feat['crystal_x'].squeeze()
                 y0 = single_feat['crystal_y'].squeeze()
-                self.found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
-                                              symbol='+', size=7, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
+                if self.b_locations.isChecked():
+                    self.found_features_canvas.setData(region_feat['crystal_x'], region_feat['crystal_y'],
+                                                symbol='+', size=7, pen=dot_pen, brush=(0, 0, 0, 0), pxMode=True)
+                else:
+                    self.found_features_canvas.clear()
 
                 if self.b_zoom.isChecked():
                     self.map_box.setRange(xRange=(x0 - 5 * args.beam_diam, x0 + 5 * args.beam_diam),
@@ -437,6 +440,8 @@ class EDViewer(QWidget):
         self.b_peaks = QCheckBox('peaks')
         self.b_pred = QCheckBox('crystal')
         self.b_zoom = QCheckBox('zoom')
+        self.b_locations = QCheckBox('locations')
+        self.b_locations.setChecked(True)
         b_reload = QPushButton('reload')
         self.b_goto = QSpinBox()
 
@@ -447,6 +452,7 @@ class EDViewer(QWidget):
         self.b_peaks.stateChanged.connect(self.update)
         self.b_pred.stateChanged.connect(self.update)
         self.b_zoom.stateChanged.connect(self.update)
+        self.b_locations.stateChanged.connect(self.update)
         b_reload.clicked.connect(lambda: self.read_files())
         self.b_goto.valueChanged.connect(lambda: self.switch_shot(None))
 
@@ -460,6 +466,7 @@ class EDViewer(QWidget):
         self.button_layout.addWidget(self.b_peaks, 0, 21)
         self.button_layout.addWidget(self.b_pred, 0, 22)
         self.button_layout.addWidget(self.b_zoom, 0, 23)
+        self.button_layout.addWidget(self.b_locations, 0, 24)
 
         self.meta_table = QTableWidget()
         self.meta_table.verticalHeader().setVisible(False)
