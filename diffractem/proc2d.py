@@ -473,7 +473,7 @@ def _get_corr_img(img: np.ndarray,
 
     img = correct_dead_pixels(img, pxmask, strategy='interpolate' if opts.interpolate_dead else 'replace', mask_gaps=opts.mask_gaps)
     
-    return img
+    return img.astype(np.float32) if opts.float else (img * opts.int_factor).round().astype(np.int16)
 
 
 def correct_image(img: Union[np.ndarray, da.Array], opts: PreProcOpts, 
@@ -543,10 +543,12 @@ def correct_image(img: Union[np.ndarray, da.Array], opts: PreProcOpts,
         pkx = peakinfo['peakXPosRaw'].reshape((N,1,-1))
         pky = peakinfo['peakYPosRaw'].reshape((N,1,-1))
     
-    return da.map_blocks(_get_corr_img, img, x0.reshape((N,1,1)), y0.reshape((N,1,1)), 
+    return da.map_blocks(_get_corr_img, img, 
+                         None if x0 is None else x0.reshape((N,1,1)), 
+                         None if y0 is None else y0.reshape((N,1,1)), 
                          npk, pkx, pky, 
                          reference=reference, pxmask=pxmask, opts=opts,
-                         dtype=np.float32, chunks=img.chunks)
+                         dtype=np.float32 if opts.float else np.int16, chunks=img.chunks)
 
 
 def analyze_and_correct(imgs: np.ndarray, opts: PreProcOpts, 
