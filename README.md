@@ -31,11 +31,7 @@ https://gitlab.desy.de/thomas.white/crystfel/-/blob/master/INSTALL.md
 [N.B. If you're having trouble fulfilling CrystFELs dependencies e.g. because you do not have root access to install them or they are not included in your distribution's package repository, also consider installing them using `conda`.
 As a common example, if you are using Ubuntu 16.04, which comes with a too old version of cmake, you may want to run `conda install cmake`.]
 
-<<<<<<< HEAD
-Here is a complete sequence of steps to install pinkIndexer and CrystFEL into your conda environment, which is located at `$CONDA_PREFIX` (usually, that would be `~/.conda/envs/diffractem`):
-=======
 Here is a complete sequence of steps to install pinkIndexer and CrystFEL, assuming you're installing CrystFEL directly from the repository at DESY (alternatively, you can download the latest release at http://www.desy.de/~twhite/crystfel/):
->>>>>>> d3476af51b908dc8483f74df8f796fa8f385246f
 
 ```
 git clone https://stash.desy.de/scm/~gevorkov/pinkindexer.git
@@ -56,13 +52,8 @@ make install
 cd ../..
 ```
 
-<<<<<<< HEAD
 If you prefer to install CrystFEL globally, just omit the `-DCMAKE_INSTALL_PREFIX` parameters and skip the `export PKG_CONFIG_PATH` line.
-
-After that, running `indexamajig --version` should return something similar to `CrystFEL: 0.9.1+<some commit hash>`.
-=======
 After that, running `indexamajig --version` should return something similar to `CrystFEL: 0.10.0+<some commit hash>`.
->>>>>>> d3476af51b908dc8483f74df8f796fa8f385246f
 
 ### Install Python and Jupyter 
 Now, install a basic Python with Jupyter into your environment.
