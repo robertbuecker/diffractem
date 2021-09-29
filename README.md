@@ -29,7 +29,7 @@ https://gitlab.desy.de/thomas.white/crystfel/-/blob/master/INSTALL.md
 [N.B. If you're having trouble fulfilling CrystFELs dependencies e.g. because you do not have root access to install them or they are not included in your distribution's package repository, also consider installing them using `conda`.
 As a common example, if you are using Ubuntu 16.04, which comes with a too old version of cmake, you may want to run `conda install cmake`.]
 
-Here is a complete sequence of steps to install pinkIndexer and CrystFEL:
+Here is a complete sequence of steps to install pinkIndexer and CrystFEL into your conda environment, which is located at `$CONDA_PREFIX` (usually, that would be `~/.conda/envs/diffractem`):
 
 ```
 git clone https://stash.desy.de/scm/~gevorkov/pinkindexer.git
@@ -40,14 +40,17 @@ cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
 make -j `nproc`
 make install
+export PKG_CONFIG_PATH="$CONDA_PREFIX/lib64/pkgconfig:$PKG_CONFIG_PATH"
 cd ../../crystfel
 mkdir build
 cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX -DCMAKE_PREFIX_PATH=$CONDA_PREFIX
+cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
 make -j `nproc`
 make install
 cd ../..
 ```
+
+If you prefer to install CrystFEL globally, just omit the `-DCMAKE_INSTALL_PREFIX` parameters and skip the `export PKG_CONFIG_PATH` line.
 
 After that, running `indexamajig --version` should return something similar to `CrystFEL: 0.9.1+<some commit hash>`.
 
@@ -81,6 +84,6 @@ And get example raw data at MPDL Edmond: https://edmond.mpdl.mpg.de/imeji/collec
 And when you're ready to go: just make your own branches of the notebooks for your own projects, and have fun!
 
 ---
-diffractem, (C) 2021 Robert Bücker, robert.buecker@cssb-hamburg.de
+diffractem, (C) 2019-2021 Robert Bücker, robert.buecker@cssb-hamburg.de
 
 peakfinder8, (C) 2014-2019 Deutsches Elektronen-Synchrotron DESY

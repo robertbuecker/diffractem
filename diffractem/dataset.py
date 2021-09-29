@@ -1750,8 +1750,8 @@ class Dataset:
             raise ValueError('If legacy=True, you cannot supply an add-on beam center.')
 
         from io import StringIO
-        from . import stream_convert
-        sol, meta = stream_convert.parse_stream(stream.filename, omit_cell=legacy)
+        from . import stream2sol
+        sol, meta = stream2sol.parse_stream(stream.filename, omit_cell=legacy)
         sol_tbl = pd.read_csv(StringIO(sol), delim_whitespace=True, header=None) 
         sol_tbl.columns=['file', 'Event', 'astar_x', 'astar_y', 'astar_z',
                             'bstar_x', 'bstar_y', 'bstar_z',
