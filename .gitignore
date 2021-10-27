@@ -23,3 +23,4 @@ notebooks/
 conda-recipe/
 docs/_*
 publish.sh
+*.pyd

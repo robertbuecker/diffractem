@@ -1,5 +1,6 @@
 from setuptools import setup, Extension
 import os
+import platform
 
 # DIFFRACTEM - tools for processing Serial Electron Diffraction Data
 # Copyright (C) 2020  Robert Bücker
@@ -37,10 +38,18 @@ DIFFRACTEM_USE_CYTHON = os.getenv("DIFFRACTEM_USE_CYTHON")
 
 ext = ".pyx" if DIFFRACTEM_USE_CYTHON else ".c"  # pylint: disable=invalid-name
 
+
+if platform.uname().system == 'Windows':
+    libraries = []
+    pass
+else:
+    libraries = ["stdc++"]
+    pass
+
 peakfinder8_ext = Extension(  # pylint: disable=invalid-name
     name="diffractem.peakfinder8_extension",
     include_dirs=[numpy.get_include()],
-    libraries=["stdc++"],
+    libraries=libraries,
     sources=[
         "src/peakfinder8_extension/peakfinder8.cpp",
         "src/peakfinder8_extension/peakfinder8_extension.pyx",
