@@ -448,7 +448,9 @@ def call_indexamajig(input, geometry, output='im_out.stream', cell: Optional[str
     options = dict(im_params if im_params is not None else {}, **({} if index_params is None else index_params), **kwargs)
     options = {k.replace('_', '-'): v for k, v  in options.items()}
 
-    cmd = make_command(exc, None, params=exc_dic, opts=options)
+    import hdf5plugin
+    cmd = 'export HDF5_PLUGIN_PATH=' + os.path.join(os.path.dirname(hdf5plugin.__file__), 'plugins') + '\n'
+    cmd += make_command(exc, None, params=exc_dic, opts=options)
     
     for f in copy_fields:
         cmd += f' --copy-hdf5-field={f}'
