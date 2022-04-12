@@ -385,10 +385,12 @@ class EDViewer(QWidget):
         self.found_peak_canvas = pg.ScatterPlotItem()
         self.image_box.addItem(self.found_peak_canvas)
         self.found_peak_canvas.setZValue(2)
+        self.found_peak_canvas.sigClicked.connect(self.onPeakClick)
 
         self.predicted_peak_canvas = pg.ScatterPlotItem()
         self.image_box.addItem(self.predicted_peak_canvas)
         self.predicted_peak_canvas.setZValue(2)
+        self.predicted_peak_canvas.sigClicked.connect(self.onPredictionClick)
 
         self.info_text = pg.TextItem(text='')
         self.image_box.addItem(self.info_text)
@@ -489,7 +491,12 @@ class EDViewer(QWidget):
         self.top_layout.addLayout(self.button_layout, 1, 0, 1, 3)
         
         self.top_layout.setColumnStretch(2, 0)
-
+        
+    def onPeakClick(self, points, ev):
+        pass
+    
+    def onPredictionClick(self, points, ev):
+        pass
 
 if __name__ == '__main__':
 
