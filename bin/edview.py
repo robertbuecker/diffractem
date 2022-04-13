@@ -2,6 +2,7 @@
 import hdf5plugin
 from diffractem.stream_parser import StreamParser
 from diffractem.dataset import Dataset
+from diffractem.proc_peaks import get_pk_data
 import argparse
 import pandas as pd
 import numpy as np
@@ -493,10 +494,37 @@ class EDViewer(QWidget):
         self.top_layout.setColumnStretch(2, 0)
         
     def onPeakClick(self, points, ev):
-        pass
+        x, y = np.array([pt.pos().x() for pt in ev]).reshape(1,-1), \
+            np.array([pt.pos().y() for pt in ev]).reshape(1,-1)
+        n = np.array([len(x)])
+        ctr_x, ctr_y = np.array(self.current_shot.center_x).reshape(1), \
+            np.array(self.current_shot.center_y).reshape(1)
+        #TODO GET THE PROPER VALUES HERE, DUMMY
+        cl = 3.06
+        px = 55e-6
+        pkd = get_pk_data(n, x, y, ctr_x, ctr_y, pxs=px, clen=cl, wl=0.0251)
+        print('Clicked peak:\n'
+            f'Raw position (px): {pkd["peakXPosRaw"][0,0]:.1f}, {pkd["peakYPosRaw"][0,0]:.1f}\n'
+            f'Corrected position (px): {pkd["peakXPosCor"][0,0]:.1f}, {pkd["peakYPosCor"][0,0]:.1f}\n'
+            f'Corrected position (mm): {1000*px*pkd["peakXPosCor"][0,0]:.2f}, {1000*px*pkd["peakYPosCor"][0,0]:.2f}\n'
+            f'd vector (1/A), azimuth (deg): {pkd["peakD"][0,0]:.2f}, {180/np.pi*pkd["peakAzimuth"][0,0]:.1f}\n')
     
     def onPredictionClick(self, points, ev):
-        pass
+        x, y = np.array([pt.pos().x() for pt in ev]).reshape(1,-1), \
+            np.array([pt.pos().y() for pt in ev]).reshape(1,-1)
+        n = np.array([len(x)])
+        ctr_x, ctr_y = np.array(self.current_shot.center_x).reshape(1), \
+            np.array(self.current_shot.center_y).reshape(1)
+        #TODO GET THE PROPER VALUES HERE, DUMMY
+        cl = 3.06
+        px = 55e-6
+        pkd = get_pk_data(n, x, y, ctr_x, ctr_y, pxs=px, clen=cl, wl=0.0251)
+        print('Clicked prediction:\n'
+            'TODO: GET HKL\n'
+            f'Raw position (px): {pkd["peakXPosRaw"][0,0]:.1f}, {pkd["peakYPosRaw"][0,0]:.1f}\n'
+            f'Corrected position (px): {pkd["peakXPosCor"][0,0]:.1f}, {pkd["peakYPosCor"][0,0]:.1f}\n'
+            f'Corrected position (mm): {1000*px*pkd["peakXPosCor"][0,0]:.2f}, {1000*px*pkd["peakYPosCor"][0,0]:.2f}\n'
+            f'd vector (1/A), azimuth (deg): {pkd["peakD"][0,0]:.2f}, {180/np.pi*pkd["peakAzimuth"][0,0]:.1f}\n')
 
 if __name__ == '__main__':
 
