@@ -106,7 +106,7 @@ def _store_table_to_single_subset(tbl: pd.DataFrame, fn: str, path: str, subset:
 
     elif format == 'nexus':
         with h5py.File(fn, 'a') as fh:
-            for key, val in tbl.iteritems():
+            for key, val in tbl.items():
                 #print(f'Storing {key} ({val.shape}, {val.dtype}) to {fn}: {path}')
                 grp = fh.require_group(tbl_path)
                 grp.attrs['NX_class'] = 'NXcollection'

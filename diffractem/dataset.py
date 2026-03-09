@@ -1810,7 +1810,7 @@ class Dataset:
 
         try:
             print(f'Starting computation... view detailed dashboard at {client.dashboard_link}')
-            shotdata, peakinfo = proc2d.get_pattern_info(self.raw_counts, opts, client, via_array=True, lazy=False, sync=True,
+            shotdata, peakinfo = proc2d.get_pattern_info(self.diff_data, opts, client, via_array=True, lazy=False, sync=True,
                                                         output_file=output_file, 
                                                         shots=self.shots[['file_raw', 'Event_raw', '_file', '_Event', 'sample', 
                                                                             'region', 'run', 'crystal_id']])
@@ -2111,8 +2111,8 @@ class Dataset:
                 sc.set_offsets(np.stack((self.peakXPosRaw[shot,:self.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'), 
                         self.peakYPosRaw[shot,:self.shots.loc[shot,'num_peaks']].compute(scheduler='single-threaded'))).T)    
             if have_center:
-                cx.set_xdata(self.shots.loc[shot,'center_x'])
-                cy.set_ydata(self.shots.loc[shot,'center_y'])
+                cx.set_xdata(self.shots.loc[shot,'center_x']*np.array([1,1]))
+                cy.set_ydata(self.shots.loc[shot,'center_y']*np.array([1,1]))
                 
             # ax.set_title(f'{shdat.file}: {shdat.Event}\n {shdat.num_peaks} peaks')
             fh.canvas.draw()

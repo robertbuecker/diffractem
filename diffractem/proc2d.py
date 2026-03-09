@@ -366,10 +366,10 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
             alldat = stack_nested(client.gather(ftrs, errors=errors), func=np.concatenate)
         else:
             warn('get_pattern_info is run on a dask array without distributed client - might be slow!')
-            alldat = dask.compute()
+            alldat = dask.compute(res_del)
 
         shotdata = pd.DataFrame({k: v for k, v in alldat.items() if isinstance(v, np.ndarray) and (v.ndim == 1)})
-        peakinfo = alldat['peak_data']
+        peakinfo = stack_nested(alldat['peak_data'], func=np.concatenate)
             
     elif isinstance(img, da.Array) and via_array:
         # do extra step by casting output of _generate_pattern_info into a dask array and 
@@ -382,14 +382,16 @@ def get_pattern_info(img: Union[np.ndarray, da.Array], opts: PreProcOpts, client
                 np.hstack([v.reshape(v.shape[0],-1) for k, v in sorted(info['peak_data'].items())])], axis=1)
 
         # compute info for a single image to get structure of output
-        template = _generate_pattern_info(img[:1,...].compute(), opts, centers=None if centers is None else centers[:1,:])
+        template = _generate_pattern_info(img[:1,...].compute(), opts, centers=None if centers is None else centers[:1,:],
+                                          reference=reference, pxmask=pxmask)
         
         if centers is not None:
             centers = da.from_array(centers, chunks=(img.chunks[0], 2)).reshape((-1, 2, 1))
 
         info_array = img.map_blocks(lambda img, centers: _encode_info(
-            _generate_pattern_info(img, opts, centers=centers, lorentz_fit=lorentz_fit)), centers,
-                                    dtype=np.float, drop_axis=[1,2], new_axis=1, 
+            _generate_pattern_info(img, opts, centers=centers, lorentz_fit=lorentz_fit, 
+                                   pxmask=pxmask, reference=reference)), centers,
+                                    dtype=float, drop_axis=[1,2], new_axis=1, 
                                     chunks=(img.chunks[0], _encode_info(template).shape[1]),
                                     name='pattern_info')
         # return info_array # for debugging purposes
@@ -1237,7 +1239,10 @@ def remove_background(img: np.ndarray, x0: Optional[float] = None, y0: Optional[
     
     # ALWAYS mask gaps for the background determination
     # TODO THIS FAILS FOR IMAGES NOT MATCHING THE MAIN DETECTOR GEOMETRY
-    img_nopk = correct_dead_pixels(img_nopk, pxmask, mask_gaps=True, strategy='replace', replace_val=replace_val)
+    img_nopk = correct_dead_pixels(img_nopk, pxmask, 
+                                   mask_gaps=True if (tuple(img_nopk.shape[-2:]) == (516,1556)) else False, 
+                                   strategy='replace', 
+                                   replace_val=replace_val)
     # return img_nopk
     r0 = radial_proj(img_nopk, x0, y0, my_func=rfunc, filter_len=filter_len)
 
